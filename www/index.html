@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#070910">
-<title>ZineClick — Descubre tu próxima historia</title>
+<title>Zinora — Descubre tu próxima historia</title>
 <link rel="icon" type="image/png" href="img/favicon-192.png">
 <script>try{if(!sessionStorage.getItem("zc_intro"))document.documentElement.classList.add("intro-on")}catch(e){document.documentElement.classList.add("intro-on")}</script>
 <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
@@ -13,14 +13,23 @@
 </head>
 <body>
 <div id="intro" aria-hidden="true">
- <div class="in-glow"></div><div class="in-sweep"></div>
+ <div class="in-glow"></div>
+ <svg class="in-arcs" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  <defs><linearGradient id="inG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1b4dff" stop-opacity="0"/><stop offset=".45" stop-color="#2f8bff"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs>
+  <g fill="none" stroke="url(#inG)" stroke-linecap="round">
+   <path class="arc a1" pathLength="1" d="M-20 560 C120 560 360 470 380 330 C392 230 300 130 210 118"/>
+   <path class="arc a2" pathLength="1" d="M-20 600 C150 610 400 500 410 330 C416 210 320 100 200 86"/>
+   <path class="arc a3" pathLength="1" d="M-20 520 C100 500 330 450 350 340 C362 250 290 170 220 160"/>
+   <path class="arc a4" pathLength="1" d="M-20 640 C180 660 430 520 436 330 C440 190 330 70 190 56"/>
+  </g>
+ </svg>
  <div class="in-logo"><img src="img/logo-symbol.png" alt="" draggable="false"></div>
- <div class="in-name">Zine<span>Click</span></div>
+ <div class="in-name">ZINORA</div>
  <div class="in-tag">El cine, a tu manera.</div>
 </div>
 <div class="app">
 <header>
-  <div class="logo"><div class="logo-mark">✦</div><span>Zine<span>Click</span></span></div>
+  <div class="logo"><div class="logo-mark"><img src="img/logo-symbol.png" alt="" draggable="false"></div><span>Zin<span>ora</span></span></div>
   <nav>
     <button class="active" data-page="home">Inicio</button>
     <button data-page="explore">Explorar</button>
@@ -118,7 +127,7 @@
 </main>
 
 <main id="recommendPage" class="hidden">
- <div class="page-title"><h1>Tu siguiente obsesión</h1><p>Elige una experiencia. ZineClick combinará tus filtros con los títulos disponibles y tus señales privadas.</p></div>
+ <div class="page-title"><h1>Tu siguiente obsesión</h1><p>Elige una experiencia. Zinora combinará tus filtros con los títulos disponibles y tus señales privadas.</p></div>
  <div class="panel">
   <div class="eyebrow">MoodMatch · tu recomendador privado</div>
   <p style="color:var(--muted);margin:7px 0 12px">Tus respuestas se guardan en este navegador para ajustar futuras sugerencias. No se publican.</p>
@@ -141,7 +150,7 @@
   <div id="apiStatus" class="notice">La credencial se guardará únicamente en el almacenamiento local de este navegador para este prototipo. No la compartas ni uses este método en una web pública.</div>
   <p style="font-size:12px">Puedes encontrar las credenciales en TMDB → Settings → API. La aplicación solicita datos públicos del catálogo. El despliegue final debe usar un backend y seguir las condiciones de TMDB.</p></div>
   <div class="api-sec" data-sec="rd" hidden><label for="rdTokenInput" style="display:block;font-weight:750;margin:12px 0 7px">Token de Real-Debrid</label><input id="rdTokenInput" type="password" autocomplete="off" placeholder="Pega aquí tu token (real-debrid.com/apitoken)" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none"><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveRdToken()">Guardar y probar</button><button class="btn" onclick="clearRdToken()">Eliminar token</button></div><div id="rdStatus" class="notice">Se guarda solo en este dispositivo.</div></div>
-  <div class="api-sec" data-sec="ms" hidden><label for="msUrl" style="display:block;font-weight:750;margin:12px 0 7px">Servidor multimedia personal (Jellyfin o Emby)</label><input id="msUrl" autocomplete="off" placeholder="Dirección, ej. https://mi-servidor.com" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none;margin-bottom:8px"><input id="msKey" type="password" autocomplete="off" placeholder="API Key del servidor" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none"><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveMediaServer()">Guardar y probar</button><button class="btn" onclick="clearMediaServer()">Eliminar</button></div><div id="msStatus" class="notice">Se guarda solo en este dispositivo. Crea en tu servidor una llave solo para ZineClick.</div></div>
+  <div class="api-sec" data-sec="ms" hidden><label for="msUrl" style="display:block;font-weight:750;margin:12px 0 7px">Servidor multimedia personal (Jellyfin o Emby)</label><input id="msUrl" autocomplete="off" placeholder="Dirección, ej. https://mi-servidor.com" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none;margin-bottom:8px"><input id="msKey" type="password" autocomplete="off" placeholder="API Key del servidor" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none"><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveMediaServer()">Guardar y probar</button><button class="btn" onclick="clearMediaServer()">Eliminar</button></div><div id="msStatus" class="notice">Se guarda solo en este dispositivo. Crea en tu servidor una llave solo para Zinora.</div></div>
  </div></div>
 </div>
 
@@ -390,7 +399,7 @@ function saveTaste(t){localStorage.setItem("cineclick_taste_v1",JSON.stringify(t
 function updatePreferenceSummary(){
  const el=document.getElementById("preferenceSummary");if(!el)return;
  const t=getTaste(), liked=t.liked.length, disliked=t.disliked.length, rated=Object.keys(t.ratings).length;
- el.textContent=liked||disliked||rated?`Tu perfil privado ya tiene ${liked} título(s) que te interesan, ${disliked} descartado(s) y ${rated} valoración(es). ZineClick usará estas señales en próximas recomendaciones.`:"Todavía estamos conociendo tus gustos. Marca títulos como interesantes o descártalos para personalizar la selección.";
+ el.textContent=liked||disliked||rated?`Tu perfil privado ya tiene ${liked} título(s) que te interesan, ${disliked} descartado(s) y ${rated} valoración(es). Zinora usará estas señales en próximas recomendaciones.`:"Todavía estamos conociendo tus gustos. Marca títulos como interesantes o descártalos para personalizar la selección.";
 }
 function moodScore(t,mood){
  const genres=(t.genre||[]).join(" ").toLowerCase(), title=(t.title||"").toLowerCase(), text=genres+" "+(t.desc||"").toLowerCase();
@@ -583,16 +592,16 @@ function renderUpcoming(){
 }
 
 function cleanSnap(t,id){const pp=v=>(typeof v==="string"&&/^\/[\w.-]+$/.test(v))?v:null;const kinds=["Película","Serie","Anime","Documental"];const tv=t.mediaType==="tv";return{id:id,tmdbId:Number(t.tmdbId)||undefined,mediaType:tv?"tv":(t.mediaType==="movie"?"movie":undefined),title:String(t.title||"Sin título").slice(0,200),year:Number(t.year)||null,kind:kinds.includes(t.kind)?t.kind:(tv?"Serie":"Película"),genre:Array.isArray(t.genre)?t.genre.slice(0,6).map(x=>String(x).slice(0,40)):[],rating:Number(t.rating)||0,posterPath:pp(t.posterPath),backdropPath:pp(t.backdropPath),colors:palette(id),emoji:tv?"▣":"✦",mood:Array.isArray(t.mood)?t.mood.filter(x=>typeof x==="string"&&/^\w+$/.test(x)):[],isLive:!!Number(t.tmdbId),desc:String(t.desc||"").slice(0,200)}}
-function buildBackup(){const lists={};["watchlist","favorites","watched"].forEach(k=>lists[k]=getList(k).map(String));const tt={};new Set(Object.values(lists).flat()).forEach(id=>{const t=findTitle(id);if(t)tt[id]=snap(t)});let taste={};try{taste=getTaste()}catch(e){}return JSON.stringify({app:"ZineClick",version:1,exportedAt:new Date().toISOString(),region:getRegion(),lists,titles:tt,taste})}
+function buildBackup(){const lists={};["watchlist","favorites","watched"].forEach(k=>lists[k]=getList(k).map(String));const tt={};new Set(Object.values(lists).flat()).forEach(id=>{const t=findTitle(id);if(t)tt[id]=snap(t)});let taste={};try{taste=getTaste()}catch(e){}return JSON.stringify({app:"Zinora",version:1,exportedAt:new Date().toISOString(),region:getRegion(),lists,titles:tt,taste})}
 async function backupCopy(){const txt=buildBackup();try{await navigator.clipboard.writeText(txt);toast("Respaldo copiado. Pégalo en una nota o mensaje para guardarlo.")}catch(e){const box=document.getElementById("restoreBox"),ta=document.getElementById("restoreText");box.classList.remove("hidden");ta.value=txt;ta.select();try{document.execCommand("copy");toast("Respaldo copiado")}catch(_){toast("Selecciona el texto y cópialo")}}}
 async function backupShare(){const txt=buildBackup();const name="zineclick-respaldo-"+ymd(new Date())+".json";
- try{const Sh=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Share;if(Sh){await Sh.share({title:"Respaldo ZineClick",text:txt,dialogTitle:"Guardar respaldo"});return}}catch(e){if(/cancel/i.test(String((e&&e.message)||e)))return}
- try{const file=new File([txt],name,{type:"application/json"});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"Respaldo ZineClick"});return}}catch(e){if(e&&e.name==="AbortError")return}
+ try{const Sh=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Share;if(Sh){await Sh.share({title:"Respaldo Zinora",text:txt,dialogTitle:"Guardar respaldo"});return}}catch(e){if(/cancel/i.test(String((e&&e.message)||e)))return}
+ try{const file=new File([txt],name,{type:"application/json"});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"Respaldo Zinora"});return}}catch(e){if(e&&e.name==="AbortError")return}
  if(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()){return backupCopy()}
  try{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"application/json"}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("Respaldo descargado")}catch(e){backupCopy()}}
 function toggleRestore(){document.getElementById("restoreBox").classList.toggle("hidden")}
 function applyBackup(txt){let d;try{d=JSON.parse(txt)}catch(e){toast("Ese texto no es un respaldo válido");return}
- if(!d||!["CineClick","ZineClick"].includes(d.app)||!d.lists){toast("Eso no es un respaldo de ZineClick");return}
+ if(!d||!["CineClick","ZineClick","Zinora"].includes(d.app)||!d.lists){toast("Eso no es un respaldo de Zinora");return}
  const okId=x=>/^[\w-]{1,40}$/.test(x);let added=0;const c=getCache();
  ["watchlist","favorites","watched"].forEach(k=>{const cur=new Set(getList(k).map(String));(Array.isArray(d.lists[k])?d.lists[k]:[]).forEach(id=>{id=String(id);if(okId(id)&&!cur.has(id)){cur.add(id);added++}});setList(k,[...cur])});
  Object.entries(d.titles||{}).forEach(([id,t])=>{if(okId(id)&&t&&typeof t==="object"&&!c[id])c[id]=cleanSnap(t,id)});setCache(c);
@@ -866,7 +875,7 @@ function toggleRouSound(){rouSound=!rouSound;try{localStorage.setItem("cc_rou_so
  if(!document.documentElement.classList.contains("intro-on")){el.remove();return}
  const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;let done=false,timer;
  function finish(){if(done)return;done=true;clearTimeout(timer);el.classList.add("out");try{sessionStorage.setItem("zc_intro","1")}catch(e){}setTimeout(()=>{document.documentElement.classList.remove("intro-on");el.remove()},700)}
- timer=setTimeout(finish,reduce?1200:2600);
+ timer=setTimeout(finish,reduce?1200:3800);
  el.addEventListener("pointerdown",finish);
  setTimeout(finish,7000);
 })();
