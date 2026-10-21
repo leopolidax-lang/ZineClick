@@ -68,11 +68,46 @@ html.native{--sat:max(env(safe-area-inset-top,0px),32px)}html.native header{heig
 /* Cabecera a todo el ancho: sin cortes de color a los lados */
 html{overflow-x:hidden}
 header{margin-left:-28px;margin-right:-28px;padding-left:28px;padding-right:28px}
-@media(max-width:700px){header{margin-left:-15px;margin-right:-15px;padding-left:15px;padding-right:15px}.section-head{flex-wrap:wrap;gap:8px 14px}.section-head>div:first-child{flex:1 1 100%}nav{gap:12px;scrollbar-width:none}nav::-webkit-scrollbar{display:none}nav button{font-size:14px}.text-btn{white-space:nowrap}.logo{order:1}#apiSettingsBtn{order:2;margin-left:auto}#rdBtn{order:3}#accountBtn{order:4}.search{order:5;flex:1 1 100%}nav{order:6}}
+@media(max-width:700px){header{margin-left:-15px;margin-right:-15px;padding-left:15px;padding-right:15px}.section-head{flex-wrap:wrap;gap:8px 14px}.section-head>div:first-child{flex:1 1 100%}nav{gap:12px;scrollbar-width:none}nav::-webkit-scrollbar{display:none}nav button{font-size:14px}.text-btn{white-space:nowrap}.logo{order:1}#accountBtn{order:2;margin-left:auto}.search{order:3;flex:1 1 100%}nav{order:4}}
 /* Ruleta */
 @keyframes rouPop{from{transform:scale(.93);opacity:.55}to{transform:scale(1);opacity:1}}
 #rouCard .card{animation:rouPop .15s ease-out}
 #rouCard.win .card{box-shadow:0 0 0 2px #64f4ff,0 0 46px #64f4ff77;animation:rouPop .35s ease-out}
+<style>
+/* Portada deslizable */
+.hc{position:relative;margin:20px 0 30px}.hc[hidden]{display:none}
+.hc-stage{position:relative}
+.hc-track{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding:0 6%;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;outline:0}
+.hc-track::-webkit-scrollbar{display:none}
+.hc-slide{flex:0 0 100%;scroll-snap-align:center;scroll-snap-stop:always;position:relative;aspect-ratio:4/5;max-height:72vh;border-radius:24px;overflow:hidden;border:1px solid #303950;background:linear-gradient(145deg,var(--c1),var(--c2));cursor:pointer;isolation:isolate;-webkit-tap-highlight-color:transparent}
+.hc-art{position:absolute;inset:0;z-index:0;display:flex;align-items:center;justify-content:center}
+.hc-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 22%;-webkit-user-drag:none;user-select:none}
+.hc-sym{font-size:96px;opacity:.55}
+.hc-shade{position:absolute;inset:0;z-index:1;background:linear-gradient(0deg,#070910f5 0%,#070910b0 30%,#07091040 56%,transparent 72%)}
+.hc-copy{position:absolute;left:0;right:0;bottom:0;z-index:2;padding:22px 22px 24px}
+.hc-tag{color:var(--cyan);text-transform:uppercase;letter-spacing:2px;font-size:11px;font-weight:800}
+.hc-copy h2{font-size:clamp(25px,6.6vw,42px);line-height:1.05;letter-spacing:-1.2px;margin:8px 0 6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.hc-meta{color:#c9d2e6;font-size:13px}
+.hc-desc{display:none;color:#bdc7dd;max-width:560px;margin:10px 0 0;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.hc-open{display:inline-block;margin-top:14px;pointer-events:none}
+.hc-dots{display:flex;justify-content:center;gap:7px;margin-top:13px}
+.hc-dot{position:relative;width:7px;height:7px;padding:0;border:0;border-radius:99px;background:#3a4560;transition:width .25s,background .25s}
+.hc-dot:after{content:"";position:absolute;inset:-9px -4px}
+.hc-dot.on{width:22px;background:var(--cyan)}
+.hc-nav{display:none;position:absolute;top:50%;transform:translateY(-50%);z-index:3;width:42px;height:42px;border-radius:50%;border:1px solid #ffffff33;background:#070910b3;color:#fff;font-size:26px;line-height:1;padding:0 0 3px;place-items:center;backdrop-filter:blur(8px)}
+.hc-prev{left:12px}.hc-next{right:12px}.hc-nav:hover{border-color:var(--cyan);color:var(--cyan)}
+@media(min-width:701px){.hc-track{padding:0;gap:14px}.hc-slide{aspect-ratio:auto;max-height:none;height:clamp(320px,36vw,500px)}.hc-copy{padding:44px;max-width:680px}.hc-desc{display:-webkit-box}.hc-copy h2{font-size:clamp(34px,4vw,54px)}}
+@media(min-width:701px) and (hover:hover){.hc-nav{display:grid}}
+/* Panel lateral P */
+.pf-scrim{position:fixed;inset:0;z-index:30;display:none}.pf-scrim.open{display:block}
+.pf-rail{position:fixed;right:0;top:var(--pf-top,90px);z-index:31;width:calc(54px + env(safe-area-inset-right,0px));padding:8px env(safe-area-inset-right,0px) 8px 0;display:flex;flex-direction:column;align-items:center;gap:7px;background:#0f1424f2;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid #2d3853;border-right:0;border-radius:18px 0 0 18px;box-shadow:-8px 10px 34px #000a;transform:translateX(110%);visibility:hidden;transition:transform .22s ease,visibility 0s linear .22s}
+.pf-rail.open{transform:none;visibility:visible;transition:transform .22s ease,visibility 0s}
+.pf-btn{width:42px;height:42px;padding:0;border-radius:13px;border:1px solid #2d3853;background:#151b2c;color:#c8d3e9;display:grid;place-items:center;font-size:12px;font-weight:800;letter-spacing:.3px}
+.pf-btn svg{width:20px;height:20px}
+.pf-btn:hover,.pf-btn:focus-visible{border-color:var(--cyan);color:var(--cyan);outline:0}
+.pf-p{border-radius:50%;background:linear-gradient(145deg,#273858,#13182a);border-color:#526080;color:var(--cyan);font-size:17px}
+.pf-sep{width:26px;height:1px;background:#27304a}
+.api-sec[hidden]{display:none}
 </style>
 </head>
 <body>
@@ -88,11 +123,19 @@ header{margin-left:-28px;margin-right:-28px;padding-left:28px;padding-right:28px
     <button data-page="recommend">Para ti</button>
   </nav>
   <div class="search"><span class="glass">⌕</span><input id="searchInput" placeholder="Buscar títulos, actores..." autocomplete="off"></div>
-  <button class="btn small" id="apiSettingsBtn" title="Configurar catálogo">⚙ API</button><button class="btn small" id="rdBtn" onclick="rdLibrary()" title="Mi Real-Debrid">▶ RD</button><button class="avatar" id="accountBtn" title="Cuenta">CC</button>
+  <button class="avatar" id="accountBtn" title="Perfil y ajustes" aria-label="Perfil y ajustes" aria-expanded="false" aria-controls="pfRail">P</button>
 </header>
 
 <main id="homePage">
 
+<section class="hc" id="heroSection" aria-label="Tendencias destacadas" hidden>
+ <div class="hc-stage">
+  <div class="hc-track" id="heroTrack" tabindex="0"></div>
+  <button class="hc-nav hc-prev" id="heroPrev" aria-label="Anterior">‹</button>
+  <button class="hc-nav hc-next" id="heroNext" aria-label="Siguiente">›</button>
+ </div>
+ <div class="hc-dots" id="heroDots" role="tablist" aria-label="Elegir destacado"></div>
+</section>
 
 <section class="section">
  <div class="section-head"><div><h2>En tendencia</h2><p id="trendStatus">Catálogo de muestra · conecta TMDB para cargar datos reales</p></div><div style="display:flex;gap:16px"><button class="text-btn" onclick="surpriseMe()">⤨ Sorpréndeme</button><button class="text-btn" onclick="goPage('explore')">Ver catálogo ↗</button></div></div>
@@ -126,7 +169,7 @@ header{margin-left:-28px;margin-right:-28px;padding-left:28px;padding-right:28px
   <input id="timeRange" type="range" min="30" max="180" step="10" value="120" style="width:100%;margin:10px 0 4px;accent-color:#64f4ff">
   <div style="display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px"><span>30 min</span><button class="text-btn" id="timeClear" style="display:none">Quitar filtro</button><span>3 h</span></div>
  </div>
- <div class="section-head"><div><h2 id="exploreHeading">Catálogo</h2><p id="exploreSub">Conecta TMDB desde ⚙ API para activar el catálogo real.</p></div><select id="sortSelect" class="chip" style="background:#111625;color:white"><option value="rating">Mejor puntuados</option><option value="year">Más recientes</option><option value="az">A–Z</option></select></div>
+ <div class="section-head"><div><h2 id="exploreHeading">Catálogo</h2><p id="exploreSub">Conecta TMDB desde P → API para activar el catálogo real.</p></div><select id="sortSelect" class="chip" style="background:#111625;color:white"><option value="rating">Mejor puntuados</option><option value="year">Más recientes</option><option value="az">A–Z</option></select></div>
  <div class="grid" id="exploreGrid"></div>
 </main>
 
@@ -182,14 +225,16 @@ header{margin-left:-28px;margin-right:-28px;padding-left:28px;padding-right:28px
 
 
 <div class="modal-wrap" id="apiModal" role="dialog" aria-modal="true" aria-label="Configurar TMDB">
- <div class="modal"><div class="modal-top"><h2>Conecta<br>TMDB</h2><button class="close" onclick="closeApiModal()">✕ Cerrar</button></div>
+ <div class="modal"><div class="modal-top"><h2 id="apiModalTitle">Conecta<br>TMDB</h2><button class="close" onclick="closeApiModal()">✕ Cerrar</button></div>
  <div class="modal-body">
-  <p>Introduce tu credencial de TMDB para activar tendencias y búsquedas reales en este navegador.</p>
+  <div class="api-sec" data-sec="tmdb"><p>Introduce tu credencial de TMDB para activar tendencias y búsquedas reales en este navegador.</p>
   <label for="tmdbCredential" style="display:block;font-weight:750;margin:12px 0 7px">API Key (v3) o API Read Access Token (v4)</label>
   <input id="tmdbCredential" type="password" autocomplete="off" placeholder="Pega aquí tu credencial" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none">
   <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveTmdbCredential()">Guardar y probar conexión</button><button class="btn" onclick="clearTmdbCredential()">Eliminar credencial</button></div>
   <div id="apiStatus" class="notice">La credencial se guardará únicamente en el almacenamiento local de este navegador para este prototipo. No la compartas ni uses este método en una web pública.</div>
-  <p style="font-size:12px">Puedes encontrar las credenciales en TMDB → Settings → API. La aplicación solicita datos públicos del catálogo. El despliegue final debe usar un backend y seguir las condiciones de TMDB.</p><hr style="border:0;border-top:1px solid #303950;margin:18px 0"><label for="rdTokenInput" style="display:block;font-weight:750;margin:12px 0 7px">Token de Real-Debrid</label><input id="rdTokenInput" type="password" autocomplete="off" placeholder="Pega aquí tu token (real-debrid.com/apitoken)" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none"><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveRdToken()">Guardar y probar</button><button class="btn" onclick="clearRdToken()">Eliminar token</button></div><div id="rdStatus" class="notice">Se guarda solo en este dispositivo.</div><hr style="border:0;border-top:1px solid #303950;margin:18px 0"><label for="msUrl" style="display:block;font-weight:750;margin:12px 0 7px">Servidor multimedia personal (Jellyfin o Emby)</label><input id="msUrl" autocomplete="off" placeholder="Dirección, ej. https://mi-servidor.com" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none;margin-bottom:8px"><input id="msKey" type="password" autocomplete="off" placeholder="API Key del servidor" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none"><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveMediaServer()">Guardar y probar</button><button class="btn" onclick="clearMediaServer()">Eliminar</button></div><div id="msStatus" class="notice">Se guarda solo en este dispositivo. Crea en tu servidor una llave solo para ZineClick.</div>
+  <p style="font-size:12px">Puedes encontrar las credenciales en TMDB → Settings → API. La aplicación solicita datos públicos del catálogo. El despliegue final debe usar un backend y seguir las condiciones de TMDB.</p></div>
+  <div class="api-sec" data-sec="rd" hidden><label for="rdTokenInput" style="display:block;font-weight:750;margin:12px 0 7px">Token de Real-Debrid</label><input id="rdTokenInput" type="password" autocomplete="off" placeholder="Pega aquí tu token (real-debrid.com/apitoken)" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none"><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveRdToken()">Guardar y probar</button><button class="btn" onclick="clearRdToken()">Eliminar token</button></div><div id="rdStatus" class="notice">Se guarda solo en este dispositivo.</div></div>
+  <div class="api-sec" data-sec="ms" hidden><label for="msUrl" style="display:block;font-weight:750;margin:12px 0 7px">Servidor multimedia personal (Jellyfin o Emby)</label><input id="msUrl" autocomplete="off" placeholder="Dirección, ej. https://mi-servidor.com" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none;margin-bottom:8px"><input id="msKey" type="password" autocomplete="off" placeholder="API Key del servidor" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none"><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveMediaServer()">Guardar y probar</button><button class="btn" onclick="clearMediaServer()">Eliminar</button></div><div id="msStatus" class="notice">Se guarda solo en este dispositivo. Crea en tu servidor una llave solo para ZineClick.</div></div>
  </div></div>
 </div>
 
@@ -200,6 +245,16 @@ header{margin-left:-28px;margin-right:-28px;padding-left:28px;padding-right:28px
 <div class="modal-wrap" id="rdModal"><div class="modal"><div class="modal-top"><h2>Real<br>Debrid</h2><button class="close" onclick="document.getElementById('rdModal').classList.remove('open')">✕ Cerrar</button></div><div class="modal-body" id="rdBody"></div></div></div>
 <div class="modal-wrap" id="trailerModal"><div class="modal"><div class="modal-top"><h2>Tráiler</h2><button class="close" onclick="closeTrailer()">✕ Cerrar</button></div><div class="modal-body"><div style="position:relative;padding-top:56.25%;background:#000;border-radius:16px;overflow:hidden"><iframe id="trailerFrame" style="position:absolute;inset:0;width:100%;height:100%;border:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;transform:translate3d(0,0,0);-webkit-transform:translate3d(0,0,0)" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div><div class="actions" style="margin-top:14px"><button class="btn" id="trailerExt">Abrir en YouTube</button></div></div></div></div>
 <div class="modal-wrap" id="rouletteModal"><div class="modal" style="width:min(420px,100%)"><div class="modal-top"><h2 id="rouTitle">Ruleta</h2><button class="close" onclick="closeRoulette()">✕ Cerrar</button></div><div class="modal-body" style="text-align:center"><div id="rouCard" style="width:min(230px,66vw);margin:4px auto 10px"></div><p id="rouSub" style="color:var(--muted);min-height:24px;margin:6px 0 12px"></p><div class="actions" style="justify-content:center"><button class="btn primary" id="rouOpen" style="display:none">Ver ficha</button><button class="btn" id="rouAgain" style="display:none">🎲 Otra vez</button><button class="btn" id="rouSnd" onclick="toggleRouSound()">🔊</button></div></div></div></div>
+<div class="pf-scrim" id="pfScrim"></div>
+<aside class="pf-rail" id="pfRail" aria-label="Perfil y ajustes" aria-hidden="true">
+ <button class="pf-btn pf-p" id="pfProfile" title="Perfil" aria-label="Perfil">P</button>
+ <span class="pf-sep"></span>
+ <button class="pf-btn" id="pfApi" title="Catálogo (TMDB)" aria-label="Catálogo, API de TMDB">API</button>
+ <button class="pf-btn" id="pfRd" title="Real-Debrid" aria-label="Real-Debrid">RD</button>
+ <button class="pf-btn" id="pfMs" title="Servidor multimedia personal" aria-label="Servidor multimedia personal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="6.5" rx="2"/><rect x="3" y="13.5" width="18" height="6.5" rx="2"/><path d="M7 7.25h.01M7 16.75h.01"/></svg></button>
+ <span class="pf-sep"></span>
+ <button class="pf-btn" id="pfSettings" title="Ajustes" aria-label="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+</aside>
 <div class="toast" id="toast"></div>
 <script>
 const sampleTitles = [
@@ -216,7 +271,7 @@ const sampleTitles = [
 {id:11,title:"Mad Max: Fury Road",year:2015,kind:"Película",genre:["Acción"],rating:8.1,emoji:"⚡",colors:["#db7945","#49262a"],desc:"En un desierto implacable, una huida se convierte en una persecución por la supervivencia.",cast:["Tom Hardy","Charlize Theron","Nicholas Hoult"],mood:["action"]},
 {id:12,title:"The Good Place",year:2016,kind:"Serie",genre:["Comedia"],rating:8.2,emoji:"☼",colors:["#70b7b1","#1c3150"],desc:"Una mujer llega a una aparente utopía y trata de descubrir qué significa realmente ser buena persona.",cast:["Kristen Bell","Ted Danson","William Jackson Harper"],mood:["comfort","mind"]}
 ];
-let titles=[...sampleTitles], sourceMode="sample", currentList="watchlist", currentKind="Todo", currentGenre="Todo", searchTerm="", tmdbMode=null;
+let titles=[...sampleTitles], sourceMode="sample", currentList="watchlist", currentKind="Todo", currentGenre="Todo", searchTerm="", tmdbMode=null, heroPool=[];
 const keys={watchlist:"cc_v2_watchlist",favorites:"cc_v2_favorites",watched:"cc_v2_watched"};
 const tmdbCredentialKey="cc_tmdb_credential";
 const genreMap={28:"Acción",12:"Aventura",16:"Animación",35:"Comedia",80:"Crimen",99:"Documental",18:"Drama",10751:"Familia",14:"Fantasía",36:"Historia",27:"Terror",10402:"Música",9648:"Misterio",10749:"Romance",878:"Ciencia ficción",10770:"Película de TV",53:"Suspenso",10752:"Bélica",37:"Western",10759:"Acción",10762:"Infantil",10763:"Noticias",10764:"Reality",10765:"Ciencia ficción",10766:"Telenovela",10767:"Talk show",10768:"Política",10749:"Romance"};
@@ -225,7 +280,7 @@ function setList(k,arr){localStorage.setItem(keys[k],JSON.stringify(arr))}
 function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2200)}
 function getCredential(){try{return localStorage.getItem(tmdbCredentialKey)||""}catch(e){return ""}}
 function isBearer(cred){return cred.trim().startsWith("eyJ")||cred.trim().split(".").length===3}
-async function tmdb(path,params={}){const cred=getCredential();if(!cred)throw new Error("Añade tu credencial en ⚙ API.");const url=new URL("https://api.themoviedb.org/3"+path);Object.entries({language:"es-ES",...params}).forEach(([k,v])=>{if(v!==undefined&&v!==null&&v!=="")url.searchParams.set(k,v)});const headers={accept:"application/json"};if(isBearer(cred))headers.Authorization="Bearer "+cred.trim();else url.searchParams.set("api_key",cred.trim());const res=await fetch(url,{headers});if(!res.ok)throw new Error(res.status===401?"TMDB no aceptó la credencial. Revisa que sea correcta.":`TMDB respondió con error ${res.status}.`);return res.json()}
+async function tmdb(path,params={},opts={}){const cred=getCredential();if(!cred)throw new Error("Añade tu credencial en P → API.");const url=new URL("https://api.themoviedb.org/3"+path);Object.entries({language:"es-ES",...params}).forEach(([k,v])=>{if(v!==undefined&&v!==null&&v!=="")url.searchParams.set(k,v)});const headers={accept:"application/json"};if(isBearer(cred))headers.Authorization="Bearer "+cred.trim();else url.searchParams.set("api_key",cred.trim());const res=await fetch(url,{headers,signal:opts.signal});if(!res.ok)throw new Error(res.status===401?"TMDB no aceptó la credencial. Revisa que sea correcta.":`TMDB respondió con error ${res.status}.`);return res.json()}
 function normalize(item,forcedType){const isTv=forcedType==="tv"||item.media_type==="tv";const kind=isTv?"Serie":(item.media_type==="person"?"Persona":"Película");const title=item.title||item.name||"Sin título";const date=item.release_date||item.first_air_date||"";const genres=(item.genre_ids||[]).map(id=>genreMap[id]).filter(Boolean);const colors=palette(item.id||title);return {id:(isTv?"tv_":"movie_")+(item.id),tmdbId:item.id,mediaType:isTv?"tv":"movie",title,year:date?Number(date.slice(0,4)):null,kind,genre:genres,rating:Number(item.vote_average||0),emoji:isTv?"▣":"✦",colors,desc:item.overview||"No hay sinopsis disponible en español.",cast:[],posterPath:item.poster_path||null,backdropPath:item.backdrop_path||null,originalTitle:item.original_title||item.original_name||title,mood:guessMood(genres),isLive:true}}
 function palette(seed){let n=0;for(let i=0;i<String(seed).length;i++)n=(n*31+String(seed).charCodeAt(i))>>>0;const h=n%360;return [`hsl(${h} 55% 38%)`,`hsl(${(h+75)%360} 55% 12%)`]}
 function guessMood(gs){let a=[];if(gs.includes("Misterio")||gs.includes("Crimen")||gs.includes("Suspenso"))a.push("mystery");if(gs.includes("Acción")||gs.includes("Aventura"))a.push("action");if(gs.includes("Ciencia ficción"))a.push("scifi");if(gs.includes("Drama")||gs.includes("Historia"))a.push("mind");if(gs.includes("Comedia")||gs.includes("Familia")||gs.includes("Animación"))a.push("comfort");return a}
@@ -247,29 +302,123 @@ function verseToggleFullscreen(){const wrap=document.getElementById('verseMapWra
 document.addEventListener('fullscreenchange',()=>{const b=document.getElementById('verseFullscreenBtn');if(b)b.textContent=document.fullscreenElement?'⤢ Salir de pantalla completa':'⛶ Pantalla completa'});
 function verseStartDrag(e,key){e.preventDefault();const n=verseNodes.find(x=>x.key===key);if(!n)return;verseDrag={key,startX:e.clientX,startY:e.clientY,x:n.x,y:n.y,moved:false};try{e.currentTarget.setPointerCapture(e.pointerId)}catch(_){};const move=ev=>{if(!verseDrag)return;const rect=verseSvg.getBoundingClientRect(),scaleX=900/rect.width,scaleY=560/rect.height,dx=(ev.clientX-verseDrag.startX)*scaleX,dy=(ev.clientY-verseDrag.startY)*scaleY;if(Math.abs(dx)+Math.abs(dy)>4)verseDrag.moved=true;n.x=Math.max(75,Math.min(825,verseDrag.x+dx));n.y=Math.max(40,Math.min(520,verseDrag.y+dy));verseRender()};const end=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',end);verseJustDragged=!!verseDrag?.moved;setTimeout(()=>{verseDrag=null;verseJustDragged=false},180)};window.addEventListener('pointermove',move);window.addEventListener('pointerup',end)}
 async function verseSelect(key){const n=verseNodes.find(x=>x.key===key);if(!n)return;verseSelectedId=key;const box=document.getElementById('verseSelected');const connected=verseEdges.filter(e=>e.a===key||e.b===key).map(e=>({edge:e,node:verseNodes.find(x=>x.key===(e.a===key?e.b:e.a))})).filter(x=>x.node);const relationText=n.kind==='person'?'Esta persona aparece en estos títulos:':'Estas personas forman parte del reparto:';box.innerHTML=`<h2>${esc(n.label)}</h2><p>${n.kind==='person'?'Persona · filmografía y conexiones':'Película o serie · reparto y conexiones'}</p><button class="btn primary" onclick="${n.kind==='person'?`openPerson(${n.tmdbId})`:`verseOpenTitle('${key}')`}">${n.kind==='person'?'Abrir filmografía':'Abrir ficha'}</button><button class="btn" style="margin:8px 0 0;width:100%" onclick="verseExpand('${key}')">✦ ${n.kind==='person'?'Ver más trabajos':'Ver reparto'}</button><div class="divider-line"></div><b>${relationText}</b><div class="verse-relations">${connected.length?connected.map(({edge,node})=>`<button class="verse-relation" onclick="verseSelect('${node.key}')"><span class="rel-arrow">↳</span><span><strong>${esc(node.label)}</strong><small>${n.kind==='person'?'Participó en esta producción':'Integrante del reparto'}${node.role&&node.kind==='person'?' · '+esc(node.role):''}</small></span></button>`).join(''):'<p>Todavía no hay conexiones cargadas. Pulsa “Ver más trabajos” para descubrirlas.</p>'}</div>`;verseRender();verseStatus('Seleccionado: '+n.label+' · '+connected.length+' conexiones visibles') }
-async function startVerseSearch(){const q=document.getElementById('verseSearch').value.trim();if(!q){verseStatus('Escribe un título o actor para comenzar.');return}if(!getCredential()){verseStatus('Conecta TMDB desde ⚙ API para crear un mapa con datos reales.');toast('Conecta TMDB para usar CineVerse');return}verseStatus('Buscando conexiones…');try{const d=await tmdb('/search/multi',{query:q,include_adult:'false',page:1});const item=(d.results||[]).find(x=>['movie','tv'].includes(x.media_type))||(d.results||[]).find(x=>x.media_type==='person');if(!item){verseStatus('No encontramos resultados. Prueba con otro nombre.');return}verseNodes=[];verseEdges=[];verseCounter=0;const root=item.media_type==='person'?versePerson(item):verseTitle(item,item.media_type);root.x=450;root.y=275;verseNodes.push(root);verseSelectedId=root.key;verseRender();await verseExpand(root.key)}catch(e){verseStatus(e.message||'No se pudo consultar TMDB.')}}
+async function startVerseSearch(){const q=document.getElementById('verseSearch').value.trim();if(!q){verseStatus('Escribe un título o actor para comenzar.');return}if(!getCredential()){verseStatus('Conecta TMDB desde P → API para crear un mapa con datos reales.');toast('Conecta TMDB para usar CineVerse');return}verseStatus('Buscando conexiones…');try{const d=await tmdb('/search/multi',{query:q,include_adult:'false',page:1});const item=(d.results||[]).find(x=>['movie','tv'].includes(x.media_type))||(d.results||[]).find(x=>x.media_type==='person');if(!item){verseStatus('No encontramos resultados. Prueba con otro nombre.');return}verseNodes=[];verseEdges=[];verseCounter=0;const root=item.media_type==='person'?versePerson(item):verseTitle(item,item.media_type);root.x=450;root.y=275;verseNodes.push(root);verseSelectedId=root.key;verseRender();await verseExpand(root.key)}catch(e){verseStatus(e.message||'No se pudo consultar TMDB.')}}
 async function verseExpand(key){const n=verseNodes.find(x=>x.key===key);if(!n||!getCredential())return;verseStatus('Cargando conexiones de '+n.label+'…');try{if(n.kind==='title'){const d=await tmdb(`/${n.mediaType}/${n.tmdbId}`,{append_to_response:'credits'});const people=(d.credits?.cast||[]).slice(0,7);const rx=285,ry=190;people.forEach((p,i)=>{const angle=(-Math.PI/2)+(Math.PI*2*i/people.length),node=verseAddNode(versePerson(p),Math.max(95,Math.min(805,n.x+Math.cos(angle)*rx)),Math.max(55,Math.min(505,n.y+Math.sin(angle)*ry)));if(node)verseConnect(n.key,node.key,true)});verseStatus(`${people.length} conexiones de reparto cargadas. Toca una persona para descubrir sus trabajos.`)}else{const d=await tmdb(`/person/${n.tmdbId}/combined_credits`,{language:'es-ES'});const credits=(d.cast||[]).filter(c=>c.poster_path).sort((a,b)=>(b.popularity||0)-(a.popularity||0)).slice(0,7);credits.forEach((c,i)=>{const angle=(-Math.PI/2)+(Math.PI*2*i/credits.length),node=verseAddNode(verseTitle(c,c.media_type),Math.max(95,Math.min(805,n.x+Math.cos(angle)*285)),Math.max(55,Math.min(505,n.y+Math.sin(angle)*190)));if(node)verseConnect(n.key,node.key,false)});verseStatus(`${credits.length} títulos de la filmografía cargados. Selecciona uno para continuar explorando.`)}verseRender();verseSelect(key)}catch(e){verseStatus('No se pudieron cargar conexiones. Comprueba tu conexión TMDB.')}}
 async function verseOpenTitle(key){const n=verseNodes.find(x=>x.key===key);if(!n||n.kind!=='title')return;const id=n.mediaType+'_'+n.tmdbId;let t=titles.find(x=>String(x.id)===id);if(!t){t=normalize({id:n.tmdbId,title:n.label,name:n.label,media_type:n.mediaType,poster_path:n.poster,overview:n.overview,vote_average:n.rating,release_date:n.year? n.year+'-01-01':''},n.mediaType);t.id=id;t.tmdbId=n.tmdbId;t.isLive=true;t.mediaType=n.mediaType;titles.unshift(t)}openDetail(t.id)}
 function resetVerse(){verseNodes=[];verseEdges=[];verseSelectedId=null;document.getElementById('verseNodes').innerHTML='';document.getElementById('verseEdges').innerHTML='';document.getElementById('verseSelected').innerHTML='<h2>Tu universo comienza aquí</h2><p>Busca una película o serie para descubrir actores, trabajos relacionados y nuevas conexiones.</p>';document.getElementById('verseList').classList.add('hidden');verseListVisible=false;verseStatus('Mapa reiniciado. Busca un título para comenzar.')}
 function verseRenderList(){const el=document.getElementById('verseList');el.innerHTML='<h2>Conexiones del mapa</h2>'+verseNodes.map(n=>`<div class="verse-list-item">${n.poster?`<img src="https://image.tmdb.org/t/p/w185${n.poster}" alt="" loading="lazy">`:''}<div><b>${esc(n.label)}</b><div class="sub">${n.kind==='person'?'Actor / creador':esc(n.year||'Película o serie')}</div></div><button class="btn small" onclick="verseSelect('${n.key}')">Ver</button></div>`).join('')}
 function verseListMode(){const el=document.getElementById('verseList');verseListVisible=el.classList.contains('hidden');if(verseListVisible){el.classList.remove('hidden');verseRenderList()}else{el.classList.add('hidden')}}
 
+/* ===== Portada deslizable (estilo Netflix) ===== */
+let heroSig="",heroIdx=0,heroTimer=null,heroTouch=0,heroInit=false,heroRaf=0;
+function heroItems(){const base=heroPool.length?heroPool:[...titles].sort((x,y)=>y.rating-x.rating);return base.slice(0,7)}
+function heroPic(t,first){
+ if(!t.backdropPath&&!t.posterPath)return "";
+ const tm="https://image.tmdb.org/t/p/",wide=t.backdropPath?tm+"w1280"+t.backdropPath:tm+"w780"+t.posterPath,tall=t.posterPath?tm+"w780"+t.posterPath:wide;
+ return `<picture><source media="(max-width:700px)" srcset="${esc(tall)}"><img src="${esc(wide)}" alt="" draggable="false"${first?"":' loading="lazy"'}></picture>`}
+function heroSlideW(){const tr=document.getElementById("heroTrack"),sl=tr.firstElementChild;return sl?sl.offsetWidth+(parseFloat(getComputedStyle(tr).columnGap)||12):0}
+function heroGo(i){const tr=document.getElementById("heroTrack"),n=tr.children.length;if(!n)return;i=Math.max(0,Math.min(n-1,i));tr.scrollTo({left:i*heroSlideW(),behavior:"smooth"})}
+function heroMark(){const tr=document.getElementById("heroTrack"),w=heroSlideW();if(!w)return;heroIdx=Math.max(0,Math.min(tr.children.length-1,Math.round(tr.scrollLeft/w)));document.querySelectorAll("#heroDots .hc-dot").forEach((d,k)=>{d.classList.toggle("on",k===heroIdx);d.setAttribute("aria-selected",k===heroIdx)})}
+function heroSetup(){
+ const tr=document.getElementById("heroTrack");
+ tr.addEventListener("scroll",()=>{cancelAnimationFrame(heroRaf);heroRaf=requestAnimationFrame(heroMark)},{passive:true});
+ ["pointerdown","touchstart","wheel","keydown"].forEach(ev=>tr.addEventListener(ev,()=>{heroTouch=Date.now()},{passive:true}));
+ tr.addEventListener("click",e=>{const sl=e.target.closest(".hc-slide");if(sl)openDetail(sl.dataset.id)});
+ tr.addEventListener("keydown",e=>{if(e.key==="ArrowRight"){e.preventDefault();heroGo(heroIdx+1)}if(e.key==="ArrowLeft"){e.preventDefault();heroGo(heroIdx-1)}if(e.key==="Enter"){const sl=tr.children[heroIdx];if(sl)openDetail(sl.dataset.id)}});
+ document.getElementById("heroPrev").onclick=()=>{heroTouch=Date.now();heroGo(heroIdx-1)};
+ document.getElementById("heroNext").onclick=()=>{heroTouch=Date.now();heroGo(heroIdx+1)};
+ document.getElementById("heroDots").addEventListener("click",e=>{const d=e.target.closest(".hc-dot");if(d){heroTouch=Date.now();heroGo(Number(d.dataset.i))}});
+ window.addEventListener("resize",()=>heroGo(heroIdx));
+ if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches){
+  heroTimer=setInterval(()=>{
+   const n=document.getElementById("heroTrack").children.length;
+   if(n<2||document.hidden||document.getElementById("homePage").classList.contains("hidden")||document.querySelector(".modal-wrap.open")||Date.now()-heroTouch<9000)return;
+   heroGo(heroIdx+1>=n?0:heroIdx+1)},6500)}
+ heroInit=true}
+function renderHero(){
+ const sec=document.getElementById("heroSection");if(!sec)return;
+ const items=heroItems(),sig=items.map(t=>t.id).join("|");
+ if(!items.length){sec.hidden=true;return}
+ sec.hidden=false;if(!heroInit)heroSetup();
+ if(sig===heroSig)return;heroSig=sig;
+ const live=heroPool.length>0,tr=document.getElementById("heroTrack");
+ tr.innerHTML=items.map((t,i)=>{
+  const pic=heroPic(t,i===0),meta=[`★ ${Number(t.rating||0).toFixed(1)}`,t.year||"",(t.genre||[]).slice(0,2).join(" / ")].filter(Boolean).map(esc).join(" · ");
+  return `<article class="hc-slide" data-id="${esc(t.id)}" role="group" aria-roledescription="diapositiva" aria-label="${i+1} de ${items.length}: ${esc(t.title)}" style="--c1:${t.colors[0]};--c2:${t.colors[1]}"><div class="hc-art">${pic}${pic?"":`<span class="hc-sym">${esc(t.emoji||"✦")}</span>`}</div><div class="hc-shade"></div><div class="hc-copy"><span class="hc-tag">${live?"#"+(i+1)+" en tendencia":"Destacado"} · ${esc(t.kind)}</span><h2>${esc(t.title)}</h2><div class="hc-meta">${meta}</div><p class="hc-desc">${esc(t.desc||"")}</p><span class="btn primary hc-open">Ver ficha</span></div></article>`}).join("");
+ document.getElementById("heroDots").innerHTML=items.map((t,i)=>`<button class="hc-dot${i===0?" on":""}" data-i="${i}" role="tab" aria-selected="${i===0}" aria-label="Ir al destacado ${i+1}"></button>`).join("");
+ heroIdx=0;tr.scrollLeft=0}
+
+/* ===== Panel lateral de perfil y ajustes ===== */
+function railEls(){return {rail:document.getElementById("pfRail"),scrim:document.getElementById("pfScrim"),btn:document.getElementById("accountBtn")}}
+function setRailTop(){const h=document.querySelector("header").getBoundingClientRect().bottom;document.getElementById("pfRail").style.setProperty("--pf-top",Math.round(h+10)+"px")}
+function openRail(){const {rail,scrim,btn}=railEls();setRailTop();rail.classList.add("open");scrim.classList.add("open");rail.setAttribute("aria-hidden","false");btn.setAttribute("aria-expanded","true")}
+function closeRail(){const {rail,scrim,btn}=railEls();if(!rail)return;rail.classList.remove("open");scrim.classList.remove("open");rail.setAttribute("aria-hidden","true");btn.setAttribute("aria-expanded","false")}
+function rdTokenLink(){return '<div class="actions" style="margin-top:14px"><button class="btn small" onclick="document.getElementById(\'rdModal\').classList.remove(\'open\');openApiModal(\'rd\')">Cambiar o eliminar token</button></div>'}
+(function(){
+ const $=id=>document.getElementById(id);
+ $("accountBtn").onclick=()=>$("pfRail").classList.contains("open")?closeRail():openRail();
+ $("pfScrim").onclick=closeRail;
+ $("pfProfile").onclick=()=>toast("Tu perfil y la sincronización se añadirán más adelante.");
+ $("pfApi").onclick=()=>openApiModal("tmdb");
+ $("pfRd").onclick=()=>{closeRail();rdLibrary()};
+ $("pfMs").onclick=()=>openApiModal("ms");
+ $("pfSettings").onclick=()=>{closeRail();toast("Ajustes: próximamente.")};
+ document.addEventListener("keydown",e=>{if(e.key==="Escape")closeRail()});
+ window.addEventListener("resize",()=>{if($("pfRail").classList.contains("open"))setRailTop()});
+})();
+
 function searchMatch(t){return (t.title+" "+(t.genre||[]).join(" ")+" "+(t.cast||[]).join(" ")+" "+(t.character||"")).toLowerCase().includes(searchTerm.toLowerCase())}
-function renderHome(){backfillCache();draw("trendingGrid",[...titles].sort((a,b)=>b.rating-a.rating).slice(0,6));updatePreferenceSummary()}
-function renderExplore(){let a=titles.filter(t=>searchMatch(t)&&(currentKind==="Todo"||t.kind===currentKind)&&(currentGenre==="Todo"||(t.genre||[]).includes(currentGenre)));let s=document.getElementById("sortSelect").value;if(s==="rating")a.sort((x,y)=>y.rating-x.rating);if(s==="year")a.sort((x,y)=>(y.year||0)-(x.year||0));if(s==="az")a.sort((x,y)=>x.title.localeCompare(y.title));draw("exploreGrid",a);document.getElementById("exploreHeading").textContent=searchTerm?`Resultados para “${searchTerm}”`:"Catálogo";document.getElementById("exploreSub").textContent=sourceMode==="live"?"Datos obtenidos de TMDB. La disponibilidad de streaming se consulta por región.":"Catálogo de muestra. Pulsa ⚙ API para conectarte a TMDB."}
+function renderHome(){backfillCache();renderHero();draw("trendingGrid",[...titles].sort((a,b)=>b.rating-a.rating).slice(0,6));updatePreferenceSummary()}
+function renderExplore(){let a=titles.filter(t=>searchMatch(t)&&(currentKind==="Todo"||t.kind===currentKind)&&(currentGenre==="Todo"||(t.genre||[]).includes(currentGenre)));let s=document.getElementById("sortSelect").value;if(s==="rating")a.sort((x,y)=>y.rating-x.rating);if(s==="year")a.sort((x,y)=>(y.year||0)-(x.year||0));if(s==="az")a.sort((x,y)=>x.title.localeCompare(y.title));draw("exploreGrid",a);document.getElementById("exploreHeading").textContent=searchTerm?`Resultados para “${searchTerm}”`:"Catálogo";document.getElementById("exploreSub").textContent=sourceMode==="live"?"Datos obtenidos de TMDB. La disponibilidad de streaming se consulta por región.":"Catálogo de muestra. Pulsa P → API para conectarte a TMDB."}
 function renderLists(){let arr=getList(currentList).map(id=>findTitle(id)).filter(Boolean).filter(searchMatch);backfillCache();draw("listsGrid",arr);["watchlist","favorites","watched"].forEach(k=>document.getElementById("count-"+k).textContent=`(${getList(k).length})`)}
-function goPage(p){document.querySelectorAll("main[id$='Page']").forEach(x=>x.classList.add("hidden"));document.getElementById(p+"Page").classList.remove("hidden");document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===p));if(p==="explore"){renderExplore();if(getCredential())loadExploreCatalog();}if(p==="lists")renderLists();if(p==="upcoming")loadUpcoming();if(p==="recommend")recommend(true);if(p==="cineverse"&&!verseNodes.length){verseStatus(getCredential()?"Busca una película o serie para comenzar.":"Conecta TMDB desde ⚙ API para explorar conexiones reales.");}window.scrollTo({top:0,behavior:"smooth"})}
+function goPage(p){document.querySelectorAll("main[id$='Page']").forEach(x=>x.classList.add("hidden"));document.getElementById(p+"Page").classList.remove("hidden");document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===p));if(p==="explore"){renderExplore();if(getCredential())loadExploreCatalog();}if(p==="lists")renderLists();if(p==="upcoming")loadUpcoming();if(p==="recommend")recommend(true);if(p==="cineverse"&&!verseNodes.length){verseStatus(getCredential()?"Busca una película o serie para comenzar.":"Conecta TMDB desde P → API para explorar conexiones reales.");}window.scrollTo({top:0,behavior:"smooth"})}
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>goPage(b.dataset.page));
 document.querySelectorAll("#typeChips .chip").forEach(b=>b.onclick=()=>{document.querySelectorAll("#typeChips .chip").forEach(x=>x.classList.remove("active"));b.classList.add("active");currentKind=b.dataset.kind;renderExplore()});
 document.querySelectorAll("#genreChips .chip").forEach(b=>b.onclick=()=>{document.querySelectorAll("#genreChips .chip").forEach(x=>x.classList.remove("active"));b.classList.remove("active");b.classList.add("active");currentGenre=b.dataset.genre;renderExplore()});
 document.querySelectorAll("#listChips .chip").forEach(b=>b.onclick=()=>{document.querySelectorAll("#listChips .chip").forEach(x=>x.classList.remove("active"));b.classList.add("active");currentList=b.dataset.list;renderLists()});
-document.getElementById("searchInput").addEventListener("input",async e=>{searchTerm=e.target.value;let active=document.querySelector("main:not(.hidden)");if(active.id==="explorePage"){if(getCredential()&&searchTerm.trim().length>=2){await liveSearch(searchTerm)}else renderExplore()}if(active.id==="listsPage")renderLists();if(active.id==="homePage"&&searchTerm.trim()){goPage("explore");if(getCredential()&&searchTerm.trim().length>=2)await liveSearch(searchTerm);else renderExplore()}});
+(function(){
+ const inp=document.getElementById("searchInput");inp.setAttribute("enterkeyhint","search");
+ function runSearch(now){
+  const q=searchTerm.trim();let active=document.querySelector("main:not(.hidden)");
+  clearTimeout(searchTimer);searchSeq++;if(searchCtrl){searchCtrl.abort();searchCtrl=null}
+  if(active.id==="listsPage"){renderLists();return}
+  if(active.id==="homePage"){if(!q)return;goPage("explore");active=null}
+  if(getCredential()&&q.length>=2){searchTimer=setTimeout(()=>liveSearch(q),now?0:350)}
+  else if(getCredential()&&!q){loadExploreCatalog()}
+  else renderExplore()}
+ inp.addEventListener("input",e=>{searchTerm=e.target.value;runSearch(false)});
+ inp.addEventListener("keydown",e=>{if(e.key==="Enter"){searchTerm=inp.value;runSearch(true);inp.blur()}});
+})();
 document.getElementById("sortSelect").onchange=renderExplore;updatePreferenceSummary();
 document.getElementById("verseSearch").addEventListener("keydown",e=>{if(e.key==="Enter")startVerseSearch()});
-async function liveSearch(q){const el=document.getElementById("exploreGrid");el.innerHTML='<div class="empty">Buscando en TMDB…</div>';try{const data=await tmdb("/search/multi",{query:q,include_adult:"false",page:1});titles=data.results.filter(x=>["movie","tv"].includes(x.media_type)).map(x=>normalize(x));sourceMode="live";renderExplore()}catch(e){el.innerHTML=`<div class="empty">${esc(e.message)}<br>También puedes revisar la conexión desde ⚙ API.</div>`}}
-async function loadTrending(){if(!getCredential()){renderHome();return}try{const data=await tmdb("/trending/all/week");titles=data.results.filter(x=>["movie","tv"].includes(x.media_type)).map(x=>normalize(x));sourceMode="live";renderHome();document.getElementById("trendStatus").textContent="Tendencias reales de TMDB · semana actual";document.getElementById("exploreSub").textContent="Datos conectados a TMDB."}catch(e){document.getElementById("trendStatus").textContent="No se pudo conectar: revisa ⚙ API";renderHome()}}
+/* Búsqueda: espera 350 ms, cancela la anterior, guarda caché y descarta respuestas viejas */
+const searchCache=new Map();let searchCtrl=null,searchSeq=0,searchTimer=null;
+async function liveSearch(q){
+ q=String(q||"").trim();if(q.length<2)return;
+ const el=document.getElementById("exploreGrid"),seq=++searchSeq,key=q.toLowerCase();
+ if(searchCtrl){searchCtrl.abort();searchCtrl=null}
+ let hit=searchCache.get(key);
+ if(hit&&Date.now()-hit.t>300000){searchCache.delete(key);hit=null}
+ let results=hit&&hit.r;
+ if(!results){
+  el.innerHTML='<div class="empty">Buscando en TMDB…</div>';
+  const ctrl=new AbortController();searchCtrl=ctrl;
+  try{
+   const data=await tmdb("/search/multi",{query:q,include_adult:"false",page:1},{signal:ctrl.signal});
+   results=data.results.filter(x=>["movie","tv"].includes(x.media_type)).map(x=>normalize(x));
+   searchCache.set(key,{t:Date.now(),r:results});
+   if(searchCache.size>30)searchCache.delete(searchCache.keys().next().value)
+  }catch(e){
+   if(e&&e.name==="AbortError")return;
+   if(seq!==searchSeq)return;
+   el.innerHTML=`<div class="empty">${esc(e.message)}<br>También puedes revisar la conexión desde P → API.</div>`;return
+  }finally{if(searchCtrl===ctrl)searchCtrl=null}
+ }
+ if(seq!==searchSeq)return;
+ titles=results.slice();sourceMode="live";renderExplore()}
+async function loadTrending(){if(!getCredential()){renderHome();return}try{const data=await tmdb("/trending/all/week");titles=data.results.filter(x=>["movie","tv"].includes(x.media_type)).map(x=>normalize(x));heroPool=titles.slice();sourceMode="live";renderHome();document.getElementById("trendStatus").textContent="Tendencias reales de TMDB · semana actual";document.getElementById("exploreSub").textContent="Datos conectados a TMDB."}catch(e){document.getElementById("trendStatus").textContent="No se pudo conectar: revisa P → API";renderHome()}}
 let currentMaxRuntime=null;
-async function loadExploreCatalog(){if(!getCredential())return;const el=document.getElementById("exploreGrid");el.innerHTML='<div class="empty">Cargando películas y series de TMDB…</div>';try{const pf=currentProvider?{with_watch_providers:currentProvider,watch_region:getRegion(),with_watch_monetization_types:"flatrate"}:{};const base={sort_by:"popularity.desc",include_adult:"false",...pf};if(currentMaxRuntime){base["with_runtime.lte"]=currentMaxRuntime;base["with_runtime.gte"]=1}const pages=(currentProvider||currentMaxRuntime)?[1,2]:[1];const reqs=[];pages.forEach(pg=>{reqs.push(tmdb("/discover/movie",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"movie"}))));if(!currentMaxRuntime)reqs.push(tmdb("/discover/tv",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"tv"}))))});const combined=(await Promise.all(reqs)).flat();const seen=new Set();titles=combined.filter(x=>{if(seen.has(x.id))return false;seen.add(x.id);return true});sourceMode="live";renderExplore();if(currentMaxRuntime)document.getElementById("exploreSub").textContent="Películas de hasta "+currentMaxRuntime+" min · "+titles.length+" resultados (datos de TMDB)";if(currentProvider){const pv=providerList.find(q=>String(q.id)===String(currentProvider));document.getElementById("exploreSub").textContent="Disponible en "+(pv?pv.name:"la plataforma")+" · "+regionName(getRegion())+" (datos de TMDB)"}}catch(e){renderExplore();document.getElementById("exploreSub").textContent="No se pudo cargar el catálogo completo. Comprueba ⚙ API."}}
+async function loadExploreCatalog(){if(!getCredential())return;const el=document.getElementById("exploreGrid");el.innerHTML='<div class="empty">Cargando películas y series de TMDB…</div>';try{const pf=currentProvider?{with_watch_providers:currentProvider,watch_region:getRegion(),with_watch_monetization_types:"flatrate"}:{};const base={sort_by:"popularity.desc",include_adult:"false",...pf};if(currentMaxRuntime){base["with_runtime.lte"]=currentMaxRuntime;base["with_runtime.gte"]=1}const pages=(currentProvider||currentMaxRuntime)?[1,2]:[1];const reqs=[];pages.forEach(pg=>{reqs.push(tmdb("/discover/movie",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"movie"}))));if(!currentMaxRuntime)reqs.push(tmdb("/discover/tv",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"tv"}))))});const combined=(await Promise.all(reqs)).flat();if(searchTerm.trim().length>=2)return;const seen=new Set();titles=combined.filter(x=>{if(seen.has(x.id))return false;seen.add(x.id);return true});sourceMode="live";renderExplore();if(currentMaxRuntime)document.getElementById("exploreSub").textContent="Películas de hasta "+currentMaxRuntime+" min · "+titles.length+" resultados (datos de TMDB)";if(currentProvider){const pv=providerList.find(q=>String(q.id)===String(currentProvider));document.getElementById("exploreSub").textContent="Disponible en "+(pv?pv.name:"la plataforma")+" · "+regionName(getRegion())+" (datos de TMDB)"}}catch(e){renderExplore();document.getElementById("exploreSub").textContent="No se pudo cargar el catálogo completo. Comprueba P → API."}}
 const moodGenreIds={
   mystery:{movie:"9648,53",tv:"9648,80"},
   action:{movie:"28,12",tv:"10759"},
@@ -322,7 +471,7 @@ function recommendationCard(t){
 }
 function drawRecommendations(id,arr){
  const el=document.getElementById(id);if(!el)return;
- el.innerHTML=arr.length?arr.map(recommendationCard).join(""):`<div class="empty">No encontramos suficientes títulos para esos filtros. Prueba otro ambiente o conecta TMDB desde ⚙ API.</div>`;
+ el.innerHTML=arr.length?arr.map(recommendationCard).join(""):`<div class="empty">No encontramos suficientes títulos para esos filtros. Prueba otro ambiente o conecta TMDB desde P → API.</div>`;
 }
 function rateRecommendation(ev,id,action){
  if(ev)ev.stopPropagation();
@@ -399,13 +548,20 @@ document.getElementById("detailModal").addEventListener("click",e=>{if(e.target.
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeApiModal()}});
 function toggleList(k,id){let a=getList(k).map(String);if(a.includes(String(id))){a=a.filter(x=>x!==String(id));toast("Quitado de "+({watchlist:"Quiero ver",favorites:"Favoritos",watched:"Ya vi"}[k]))}else{a.push(String(id));{const t0=findTitle(id);if(t0){const c0=getCache();c0[String(id)]=snap(t0);setCache(c0)}}toast("Guardado en "+({watchlist:"Quiero ver",favorites:"Favoritos",watched:"Ya vi"}[k]))}setList(k,a);renderLists()}
 function youtubeSearch(q){window.open("https://www.youtube.com/results?search_query="+q,"_blank","noopener")}
-function openApiModal(){document.getElementById("tmdbCredential").value=getCredential();document.getElementById("apiModal").classList.add("open");document.getElementById("apiStatus").textContent=getCredential()?"Ya hay una credencial guardada en este navegador. Puedes probarla de nuevo.":"La credencial se guardará únicamente en el almacenamiento local de este navegador para este prototipo. No la compartas ni uses este método en una web pública."}
+function openApiModal(sec){
+ sec=sec||"tmdb";
+ const T={tmdb:["Conecta<br>TMDB","Configurar TMDB"],rd:["Real<br>Debrid","Configurar Real-Debrid"],ms:["Servidor<br>personal","Configurar servidor multimedia personal"]};
+ document.querySelectorAll("#apiModal .api-sec").forEach(x=>{x.hidden=x.dataset.sec!==sec});
+ document.getElementById("apiModalTitle").innerHTML=T[sec][0];
+ document.getElementById("apiModal").setAttribute("aria-label",T[sec][1]);
+ if(sec==="tmdb"){document.getElementById("tmdbCredential").value=getCredential();document.getElementById("apiStatus").textContent=getCredential()?"Ya hay una credencial guardada en este navegador. Puedes probarla de nuevo.":"La credencial se guardará únicamente en el almacenamiento local de este navegador para este prototipo. No la compartas ni uses este método en una web pública."}
+ if(sec==="ms"){const c=msLoad();document.getElementById("msUrl").value=c?c.baseUrl:"";document.getElementById("msKey").value=c?c.apiKey:"";if(c)document.getElementById("msStatus").textContent="Hay un servidor guardado. Puedes probarlo de nuevo o cambiarlo."}
+ if(typeof closeRail==="function")closeRail();
+ document.getElementById("apiModal").classList.add("open")}
 function closeApiModal(){document.getElementById("apiModal").classList.remove("open")}
 document.getElementById("apiModal").addEventListener("click",e=>{if(e.target.id==="apiModal")closeApiModal()});
-document.getElementById("apiSettingsBtn").onclick=openApiModal;
 async function saveTmdbCredential(){const cred=document.getElementById("tmdbCredential").value.trim();if(!cred){document.getElementById("apiStatus").textContent="Pega primero tu API Key o Read Access Token.";return}localStorage.setItem(tmdbCredentialKey,cred);document.getElementById("apiStatus").textContent="Probando conexión con TMDB…";try{const data=await tmdb("/configuration");sourceMode="live";document.getElementById("apiStatus").textContent="¡Conexión correcta! TMDB responde. Cargando tendencias…";await loadTrending();loadProviders();loadUpcoming(true);renderExplore();closeApiModal();toast("TMDB conectado correctamente")}catch(e){document.getElementById("apiStatus").textContent=e.message;}}
 function clearTmdbCredential(){localStorage.removeItem(tmdbCredentialKey);sourceMode="sample";titles=[...sampleTitles];document.getElementById("apiStatus").textContent="Credencial eliminada de este navegador.";renderHome();renderExplore();toast("Credencial eliminada")}
-document.getElementById("accountBtn").onclick=()=>toast("Cuentas y sincronización se añadirán en la fase de backend.");
 
 // ===== Región, plataformas, estrenos, respaldo (v7) =====
 let currentProvider=null, providerList=[], upcomingCache=null, upcomingKind="Todo";
@@ -422,7 +578,7 @@ function findTitle(id){const s=String(id);return titles.find(x=>String(x.id)===s
 function backfillCache(){try{const c=getCache();let ch=false;["watchlist","favorites","watched"].forEach(k=>getList(k).forEach(id=>{const s=String(id);if(!c[s]){const t=titles.find(x=>String(x.id)===s)||sampleTitles.find(x=>String(x.id)===s);if(t){c[s]=snap(t);ch=true}}}));if(ch)setCache(c)}catch(e){}}
 
 function initRegionSelect(){const el=document.getElementById("regionSelect");if(!el)return;el.innerHTML=Object.entries(regions).map(([c,n])=>`<option value="${c}">${n}</option>`).join("");el.value=getRegion()}
-function renderProviderChips(){const el=document.getElementById("providerChips");if(!el)return;if(!getCredential()){el.innerHTML='<div class="notice" style="margin:0">Conecta TMDB desde ⚙ API para filtrar por plataforma.</div>';return}el.innerHTML='<button class="chip'+(currentProvider?'':' active')+'" data-prov="">Todas</button>'+providerList.map(p=>'<button class="chip'+(String(currentProvider)===String(p.id)?' active':'')+'" data-prov="'+p.id+'">'+esc(p.name)+'</button>').join("")}
+function renderProviderChips(){const el=document.getElementById("providerChips");if(!el)return;if(!getCredential()){el.innerHTML='<div class="notice" style="margin:0">Conecta TMDB desde P → API para filtrar por plataforma.</div>';return}el.innerHTML='<button class="chip'+(currentProvider?'':' active')+'" data-prov="">Todas</button>'+providerList.map(p=>'<button class="chip'+(String(currentProvider)===String(p.id)?' active':'')+'" data-prov="'+p.id+'">'+esc(p.name)+'</button>').join("")}
 async function loadProviders(){if(!getCredential()){renderProviderChips();return}try{const r=getRegion();const [m,t]=await Promise.all([tmdb("/watch/providers/movie",{watch_region:r}),tmdb("/watch/providers/tv",{watch_region:r})]);const map=new Map();[...(m.results||[]),...(t.results||[])].forEach(p=>{if(!map.has(p.provider_id))map.set(p.provider_id,{id:p.provider_id,name:p.provider_name,prio:(p.display_priorities&&p.display_priorities[r]!=null)?p.display_priorities[r]:(p.display_priority||99)})});providerList=[...map.values()].sort((a,b)=>a.prio-b.prio).slice(0,12)}catch(e){providerList=[]}renderProviderChips()}
 
 function ymd(d){return d.toISOString().slice(0,10)}
@@ -448,7 +604,7 @@ async function loadUpcoming(quiet){
 }
 function renderUpcoming(){
  const st=document.getElementById("upcomingStatus"),grid=document.getElementById("upcomingGrid"),hg=document.getElementById("homeUpcomingGrid"),hs=document.getElementById("homeUpcomingSection");
- if(!getCredential()){if(grid)grid.innerHTML='<div class="empty">Conecta TMDB desde ⚙ API para ver los próximos estrenos.</div>';if(st)st.textContent="Se necesita la conexión con TMDB.";if(hs)hs.classList.add("hidden");return}
+ if(!getCredential()){if(grid)grid.innerHTML='<div class="empty">Conecta TMDB desde P → API para ver los próximos estrenos.</div>';if(st)st.textContent="Se necesita la conexión con TMDB.";if(hs)hs.classList.add("hidden");return}
  const all=upcomingCache?upcomingCache.list:[];
  if(hs&&hg&&upcomingCache&&upcomingCache.top.length){hs.classList.remove("hidden");hg.innerHTML=upcomingCache.top.map(cardUp).join("")}
  if(!grid)return;
@@ -491,7 +647,7 @@ renderHome();renderExplore();renderLists();if(getCredential()){loadTrending();lo
 const rdTokenKey="cc_rd_token";
 function rdToken(){try{return localStorage.getItem(rdTokenKey)||""}catch(e){return ""}}
 async function rd(path,opts={}){
- const t=rdToken();if(!t)throw new Error("Añade tu token de Real-Debrid en ⚙ API.");
+ const t=rdToken();if(!t)throw new Error("Añade tu token de Real-Debrid en P → API.");
  const o={method:opts.method||"GET",headers:{Authorization:"Bearer "+t}};
  if(opts.form){o.headers["Content-Type"]="application/x-www-form-urlencoded";o.body=new URLSearchParams(opts.form).toString()}
  const res=await fetch("https://api.real-debrid.com/rest/1.0"+path,o);
@@ -590,7 +746,7 @@ function rdClosePlayer(){
  v.removeAttribute("src");v.load();
  document.getElementById("rdPlayer").classList.remove("open","rd-full")}
 async function rdPlayFlow(title){
- if(!rdToken()){toast("Primero pega tu token de Real-Debrid");openApiModal();return}
+ if(!rdToken()){toast("Primero pega tu token de Real-Debrid");openApiModal("rd");return}
  title=decodeURIComponent(title||"");
  const skey="cc_rd_src:"+title;let saved="";try{saved=localStorage.getItem(skey)||""}catch(e){}
  const input=prompt("Pega un enlace o magnet de «"+title+"».\nDéjalo vacío para ver tu biblioteca de Real-Debrid.",saved);
@@ -600,12 +756,12 @@ async function rdPlayFlow(title){
   const r=await rdResolve(input);try{localStorage.setItem(skey,input.trim())}catch(e){}rdPlay(r,title)
  }catch(e){alert(e.message)}}
 async function rdLibrary(){
- if(!rdToken()){toast("Primero pega tu token de Real-Debrid");openApiModal();return}
+ if(!rdToken()){toast("Primero pega tu token de Real-Debrid");openApiModal("rd");return}
  const b=document.getElementById("rdBody");b.innerHTML="<p>Cargando…</p>";document.getElementById("rdModal").classList.add("open");
  try{
   const list=await rd("/torrents?limit=50");
   const ok=(list||[]).filter(x=>x.status==="downloaded");
-  b.innerHTML=ok.length?ok.map(x=>`<button class="btn" style="display:block;width:100%;text-align:left;margin:6px 0" onclick="rdOpenTorrent('${x.id}')">${esc(x.filename)}</button>`).join(""):"<p>No hay descargas completas en tu cuenta.</p>"
+  b.innerHTML=(ok.length?ok.map(x=>`<button class="btn" style="display:block;width:100%;text-align:left;margin:6px 0" onclick="rdOpenTorrent('${x.id}')">${esc(x.filename)}</button>`).join(""):"<p>No hay descargas completas en tu cuenta.</p>")+rdTokenLink()
  }catch(e){b.innerHTML="<p>"+esc(e.message)+"</p>"}}
 async function rdOpenTorrent(id){
  const b=document.getElementById("rdBody");b.innerHTML="<p>Cargando…</p>";
@@ -666,7 +822,7 @@ function msStreamUrl(cfg,item){
  return cfg.baseUrl+"/Videos/"+encodeURIComponent(item.Id)+"/stream?"+q.toString()}
 async function msPlay(tmdbId,mediaType,title){
  const cfg=msLoad();
- if(!cfg){toast("Primero conecta tu servidor en ⚙ API");openApiModal();return}
+ if(!cfg){toast("Primero conecta tu servidor");openApiModal("ms");return}
  title=decodeURIComponent(title||"");
  try{
   toast("Buscando en tu servidor…");
@@ -682,7 +838,7 @@ async function msPlay(tmdbId,mediaType,title){
  r.addEventListener("input",()=>{
   currentMaxRuntime=Number(r.value);lab.textContent="Hasta "+fmtMinutes(currentMaxRuntime);clr.style.display="inline";
   const chip=document.querySelector('#typeChips [data-kind="Película"]');if(chip&&currentKind!=="Película")chip.click();
-  clearTimeout(tm);tm=setTimeout(()=>{if(getCredential())loadExploreCatalog();else toast("Conecta TMDB en ⚙ API para usar este filtro")},350)});
+  clearTimeout(tm);tm=setTimeout(()=>{if(getCredential())loadExploreCatalog();else toast("Conecta TMDB en P → API para usar este filtro")},350)});
  clr.addEventListener("click",()=>{currentMaxRuntime=null;lab.textContent="Sin límite";clr.style.display="none";if(getCredential())loadExploreCatalog();else renderExplore()});
 })();
 
