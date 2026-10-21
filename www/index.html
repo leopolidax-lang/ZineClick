@@ -152,7 +152,7 @@ html.native{--sat:max(env(safe-area-inset-top,0px),32px)}html.native header{heig
   <input id="tmdbCredential" type="password" autocomplete="off" placeholder="Pega aquí tu credencial" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none">
   <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveTmdbCredential()">Guardar y probar conexión</button><button class="btn" onclick="clearTmdbCredential()">Eliminar credencial</button></div>
   <div id="apiStatus" class="notice">La credencial se guardará únicamente en el almacenamiento local de este navegador para este prototipo. No la compartas ni uses este método en una web pública.</div>
-  <p style="font-size:12px">Puedes encontrar las credenciales en TMDB → Settings → API. La aplicación solicita datos públicos del catálogo. El despliegue final debe usar un backend y seguir las condiciones de TMDB.</p><hr style="border:0;border-top:1px solid #303950;margin:18px 0"><label for="rdTokenInput" style="display:block;font-weight:750;margin:12px 0 7px">Token de Real-Debrid</label><input id="rdTokenInput" type="password" autocomplete="off" placeholder="Pega aquí tu token (real-debrid.com/apitoken)" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none"><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveRdToken()">Guardar y probar</button><button class="btn" onclick="clearRdToken()">Eliminar token</button></div><div id="rdStatus" class="notice">Se guarda solo en este dispositivo.</div>
+  <p style="font-size:12px">Puedes encontrar las credenciales en TMDB → Settings → API. La aplicación solicita datos públicos del catálogo. El despliegue final debe usar un backend y seguir las condiciones de TMDB.</p><hr style="border:0;border-top:1px solid #303950;margin:18px 0"><label for="rdTokenInput" style="display:block;font-weight:750;margin:12px 0 7px">Token de Real-Debrid</label><input id="rdTokenInput" type="password" autocomplete="off" placeholder="Pega aquí tu token (real-debrid.com/apitoken)" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none"><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveRdToken()">Guardar y probar</button><button class="btn" onclick="clearRdToken()">Eliminar token</button></div><div id="rdStatus" class="notice">Se guarda solo en este dispositivo.</div><hr style="border:0;border-top:1px solid #303950;margin:18px 0"><label for="msUrl" style="display:block;font-weight:750;margin:12px 0 7px">Servidor multimedia personal (Jellyfin o Emby)</label><input id="msUrl" autocomplete="off" placeholder="Dirección, ej. https://mi-servidor.com" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none;margin-bottom:8px"><input id="msKey" type="password" autocomplete="off" placeholder="API Key del servidor" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none"><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveMediaServer()">Guardar y probar</button><button class="btn" onclick="clearMediaServer()">Eliminar</button></div><div id="msStatus" class="notice">Se guarda solo en este dispositivo. Crea en tu servidor una llave solo para ZineClick.</div>
  </div></div>
 </div>
 
@@ -337,7 +337,7 @@ function surpriseMe(){const t=titles[Math.floor(Math.random()*titles.length)];if
 async function openDetail(id){let t=findTitle(id);if(!t)return;
  if(t.isLive&&getCredential()){try{const detail=await tmdb(`/${t.mediaType}/${t.tmdbId}`,{append_to_response:"credits,videos,watch/providers,images",include_video_language:"es,en,null",include_image_language:"es,en,null"});t={...t,desc:detail.overview||t.desc,genre:(detail.genres||[]).map(g=>g.name),cast:(detail.credits?.cast||[]).slice(0,12).map(c=>({id:c.id,name:c.name,character:c.character,profilePath:c.profile_path})),backdropPath:detail.backdrop_path||detail.images?.backdrops?.[0]?.file_path||t.backdropPath,posterPath:detail.poster_path||detail.images?.posters?.[0]?.file_path||t.posterPath,videos:detail.videos?.results||[],providers:detail["watch/providers"]?.results?.[getRegion()]||null,runtime:detail.runtime,seasons:detail.number_of_seasons};}catch(e){toast("No se pudieron cargar todos los detalles.")}}
  const top=document.querySelector("#detailModal .modal-top");top.style.backgroundImage=t.backdropPath?`linear-gradient(90deg,#080b15e8 0%,#080b1599 55%,#080b1540 100%),url(https://image.tmdb.org/t/p/w1280${t.backdropPath})`:t.posterPath?`linear-gradient(90deg,#080b15d9 0%,#080b1577 65%,#080b1540 100%),url(https://image.tmdb.org/t/p/w780${t.posterPath})`:"linear-gradient(135deg,#182743,#15102b,#071a25)";top.style.backgroundSize="cover";top.style.backgroundPosition="center";document.getElementById("modalTitle").textContent=t.title;const trailer=pickTrailer(t.videos);const cast=t.cast||[];const providers=t.providers;const providerText=providers?["flatrate","rent","buy","free","ads"].flatMap(k=>(providers[k]||[]).map(p=>p.provider_name)).filter((v,i,a)=>a.indexOf(v)===i).join(", "):"No hay información regional confirmada en esta ficha. Consulta la disponibilidad en tu país.";
- document.getElementById("modalBody").innerHTML=`<div class="meta"><span>${t.year||"Año desconocido"}</span><span class="dot">●</span><span>${esc(t.kind)}</span><span class="dot">●</span><span>★ ${Number(t.rating||0).toFixed(1)}</span>${t.runtime?`<span class="dot">●</span><span>${t.runtime} min</span>`:""}${t.seasons?`<span class="dot">●</span><span>${t.seasons} temporadas</span>`:""}</div><div class="tag-row">${(t.genre||[]).map(g=>`<span class="tag">${esc(g)}</span>`).join("")}</div><h3>Sinopsis</h3><p>${esc(t.desc||"No hay sinopsis disponible.")}</p><h3>Reparto principal</h3><div class="cast">${cast.length?cast.map(n=>typeof n==="object"?`<button class="person" onclick="openPerson(${Number(n.id)})">${n.profilePath?`<img src="https://image.tmdb.org/t/p/w185${n.profilePath}" alt="" loading="lazy">`:""}<span>${esc(n.name)}<small>${esc(n.character||"Reparto")}</small></span></button>`:`<span class="person">${esc(n)}</span>`).join(""):'<span class="person">Conecta TMDB para consultar el reparto</span>' }</div><h3>Dónde verla en ${esc(regionName(getRegion()))}</h3><p>${esc(providerText)}</p><div class="actions">${trailer?`<button class="btn primary" onclick="openTrailer('${encodeURIComponent(trailer.key)}')">▶ Ver tráiler</button>`:`<button class="btn primary" onclick="youtubeSearch('${encodeURIComponent(t.title+" tráiler oficial")}')">▶ Buscar tráiler</button>`}<button class="btn" onclick="toggleList('watchlist','${String(t.id)}')">＋ Quiero ver</button><button class="btn" onclick="toggleList('favorites','${String(t.id)}')">♡ Favorito</button><button class="btn" onclick="toggleList('watched','${String(t.id)}')">✓ Ya vi</button><button class="btn primary" onclick="rdPlayFlow('${encodeURIComponent(t.title)}')">▶ Reproducir</button></div><div class="notice">${t.isLive?"Información consultada desde TMDB. La disponibilidad de proveedores depende de los datos regionales de TMDB.":"Ficha de muestra. Conecta TMDB para cargar información actualizada."} Para uso público, protege las credenciales con un backend.</div>`;
+ document.getElementById("modalBody").innerHTML=`<div class="meta"><span>${t.year||"Año desconocido"}</span><span class="dot">●</span><span>${esc(t.kind)}</span><span class="dot">●</span><span>★ ${Number(t.rating||0).toFixed(1)}</span>${t.runtime?`<span class="dot">●</span><span>${t.runtime} min</span>`:""}${t.seasons?`<span class="dot">●</span><span>${t.seasons} temporadas</span>`:""}</div><div class="tag-row">${(t.genre||[]).map(g=>`<span class="tag">${esc(g)}</span>`).join("")}</div><h3>Sinopsis</h3><p>${esc(t.desc||"No hay sinopsis disponible.")}</p><h3>Reparto principal</h3><div class="cast">${cast.length?cast.map(n=>typeof n==="object"?`<button class="person" onclick="openPerson(${Number(n.id)})">${n.profilePath?`<img src="https://image.tmdb.org/t/p/w185${n.profilePath}" alt="" loading="lazy">`:""}<span>${esc(n.name)}<small>${esc(n.character||"Reparto")}</small></span></button>`:`<span class="person">${esc(n)}</span>`).join(""):'<span class="person">Conecta TMDB para consultar el reparto</span>' }</div><h3>Dónde verla en ${esc(regionName(getRegion()))}</h3><p>${esc(providerText)}</p><div class="actions">${trailer?`<button class="btn primary" onclick="openTrailer('${encodeURIComponent(trailer.key)}')">▶ Ver tráiler</button>`:`<button class="btn primary" onclick="youtubeSearch('${encodeURIComponent(t.title+" tráiler oficial")}')">▶ Buscar tráiler</button>`}<button class="btn" onclick="toggleList('watchlist','${String(t.id)}')">＋ Quiero ver</button><button class="btn" onclick="toggleList('favorites','${String(t.id)}')">♡ Favorito</button><button class="btn" onclick="toggleList('watched','${String(t.id)}')">✓ Ya vi</button><button class="btn primary" onclick="rdPlayFlow('${encodeURIComponent(t.title)}')">▶ Reproducir</button>${t.tmdbId&&t.mediaType==="movie"&&msLoad()?`<button class="btn" onclick="msPlay('${t.tmdbId}','movie','${encodeURIComponent(t.title)}')">▶ Desde mi servidor</button>`:""}</div><div class="notice">${t.isLive?"Información consultada desde TMDB. La disponibilidad de proveedores depende de los datos regionales de TMDB.":"Ficha de muestra. Conecta TMDB para cargar información actualizada."} Para uso público, protege las credenciales con un backend.</div>`;
  document.getElementById("detailModal").classList.add("open")}
 async function openPerson(personId){
  try{
@@ -538,5 +538,49 @@ function openTrailer(key){
 function closeTrailer(){document.getElementById("trailerFrame").src="about:blank";document.getElementById("trailerModal").classList.remove("open")}
 document.getElementById("trailerModal").addEventListener("click",e=>{if(e.target.id==="trailerModal")closeTrailer()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeTrailer()});
+
+/* ===== Servidor multimedia personal (Jellyfin / Emby) ===== */
+const msKey="cc_media_server";
+function msLoad(){try{const c=JSON.parse(localStorage.getItem(msKey)||"null");return c&&c.baseUrl&&c.apiKey?c:null}catch(e){return null}}
+async function msRequest(cfg,path,params={}){
+ const url=new URL(cfg.baseUrl+path);Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,v));
+ const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),10000);let res;
+ try{res=await fetch(url.toString(),{headers:{Accept:"application/json","X-Emby-Token":cfg.apiKey},signal:ctrl.signal})}
+ catch(e){throw new Error("No se pudo conectar con tu servidor. Revisa la dirección y tu conexión.")}
+ finally{clearTimeout(timer)}
+ if(res.status===401||res.status===403)throw new Error("El servidor no aceptó tu API Key.");
+ if(!res.ok)throw new Error("El servidor respondió con error "+res.status+".");
+ return res.json()}
+async function saveMediaServer(){
+ const st=document.getElementById("msStatus");
+ const baseUrl=document.getElementById("msUrl").value.trim().replace(/\/+$/,"");
+ const apiKey=document.getElementById("msKey").value.trim();
+ if(!/^https?:\/\//.test(baseUrl)||!apiKey){st.textContent="Escribe la dirección completa (con http:// o https://) y la API Key.";return}
+ st.textContent="Probando conexión…";
+ try{const info=await msRequest({baseUrl,apiKey},"/System/Info");
+  localStorage.setItem(msKey,JSON.stringify({baseUrl,apiKey}));
+  st.textContent="Conectado: "+(info.ServerName||"servidor");toast("Servidor conectado")}
+ catch(e){st.textContent=e.message}}
+function clearMediaServer(){localStorage.removeItem(msKey);document.getElementById("msUrl").value="";document.getElementById("msKey").value="";document.getElementById("msStatus").textContent="Servidor eliminado.";toast("Servidor eliminado")}
+async function msFind(cfg,imdbId){
+ if(!/^tt\d{6,10}$/.test(imdbId))throw new Error("No se encontró el ID de IMDb de esta película.");
+ const data=await msRequest(cfg,"/Items",{AnyProviderIdEquals:"imdb."+imdbId,IncludeItemTypes:"Movie",Recursive:"true",Fields:"MediaSources",Limit:"1"});
+ const item=data.Items&&data.Items[0];
+ if(!item)throw new Error("Esta película no está en tu servidor.");
+ return item}
+function msStreamUrl(cfg,item){
+ const src=item.MediaSources&&item.MediaSources[0]?item.MediaSources[0].Id:item.Id;
+ const q=new URLSearchParams({static:"true",mediaSourceId:src,api_key:cfg.apiKey});
+ return cfg.baseUrl+"/Videos/"+encodeURIComponent(item.Id)+"/stream?"+q.toString()}
+async function msPlay(tmdbId,mediaType,title){
+ const cfg=msLoad();
+ if(!cfg){toast("Primero conecta tu servidor en ⚙ API");openApiModal();return}
+ title=decodeURIComponent(title||"");
+ try{
+  toast("Buscando en tu servidor…");
+  const ext=await tmdb(`/movie/${tmdbId}/external_ids`);
+  const item=await msFind(cfg,ext.imdb_id||"");
+  rdPlay({download:msStreamUrl(cfg,item)},item.Name||title)
+ }catch(e){alert(e.message)}}
 </script>
 </body></html>
