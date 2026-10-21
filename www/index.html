@@ -44,7 +44,26 @@ html.native{--sat:max(env(safe-area-inset-top,0px),32px)}html.native header{heig
 </style>
 <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
 <script defer src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
-<style>#rdPlayer .plyr{--plyr-color-main:#64f4ff;--plyr-video-background:#000;border-radius:12px;overflow:hidden}#rdPlayer .plyr video{max-height:65vh}</style>
+<style>
+#rdPlayer .plyr{--plyr-color-main:#64f4ff;--plyr-video-background:#000;border-radius:12px;overflow:hidden}
+/* Reproductor pequeño (dentro de la ventana): limitar la altura */
+#rdPlayer .plyr:not(.plyr--fullscreen-active):not(.plyr--fullscreen-fallback) video{max-height:65vh}
+/* Pantalla completa: el reproductor y el video llenan todo y los controles flotan abajo, sobre la imagen */
+#rdPlayer .plyr--fullscreen-active,#rdPlayer .plyr--fullscreen-fallback{width:100vw!important;height:100vh!important;height:100dvh!important;max-height:none!important;border-radius:0}
+#rdPlayer .plyr--fullscreen-active .plyr__video-wrapper,#rdPlayer .plyr--fullscreen-fallback .plyr__video-wrapper{width:100%!important;height:100%!important}
+#rdPlayer .plyr--fullscreen-active video,#rdPlayer .plyr--fullscreen-fallback video{width:100%!important;height:100%!important;max-height:none!important;object-fit:contain}
+#rdPlayer .plyr--fullscreen-active .plyr__controls,#rdPlayer .plyr--fullscreen-fallback .plyr__controls{position:absolute;left:0;right:0;bottom:0;padding:26px 14px calc(14px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,rgba(0,0,0,.78))}
+/* Modal de tráilers: compacto y sin parpadeo */
+#trailerModal{-webkit-backdrop-filter:none;backdrop-filter:none;background:#02040bf2}
+#trailerModal .modal-top{height:auto;min-height:0;padding:14px 18px;background:#0d1220}
+#trailerModal .modal-top h2{font-size:20px;max-width:none;margin:0}
+#trailerModal .modal-body{padding:0 18px 18px}
+#trailerModal iframe{backface-visibility:hidden;-webkit-backface-visibility:hidden;transform:translate3d(0,0,0);-webkit-transform:translate3d(0,0,0)}
+/* Ruleta */
+@keyframes rouPop{from{transform:scale(.93);opacity:.55}to{transform:scale(1);opacity:1}}
+#rouCard .card{animation:rouPop .15s ease-out}
+#rouCard.win .card{box-shadow:0 0 0 2px #64f4ff,0 0 46px #64f4ff77;animation:rouPop .35s ease-out}
+</style>
 </head>
 <body>
 <div class="app">
@@ -169,7 +188,8 @@ html.native{--sat:max(env(safe-area-inset-top,0px),32px)}html.native header{heig
 </div>
 <div class="modal-wrap" id="rdPlayer"><div class="modal"><div class="modal-top"><h2 id="rdPlayerTitle">Reproductor</h2><button class="close" onclick="rdClosePlayer()">✕ Cerrar</button></div><div class="modal-body"><div style="border-radius:12px;overflow:hidden;background:#000"><video id="rdVideo" controls playsinline></video></div><div class="actions" style="margin-top:12px"><button class="btn primary" id="rdVlc">🔊 ¿Sin sonido? Abrir con VLC</button><button class="btn" id="rdCopy">Copiar enlace (para VLC)</button></div><div class="notice">Algunos formatos de audio no suenan en el reproductor interno: en ese caso usa "Abrir con VLC". También puedes copiar el enlace y pegarlo en VLC → Más → Transmisión de red.</div></div></div></div>
 <div class="modal-wrap" id="rdModal"><div class="modal"><div class="modal-top"><h2>Real<br>Debrid</h2><button class="close" onclick="document.getElementById('rdModal').classList.remove('open')">✕ Cerrar</button></div><div class="modal-body" id="rdBody"></div></div></div>
-<div class="modal-wrap" id="trailerModal"><div class="modal"><div class="modal-top"><h2>Tráiler</h2><button class="close" onclick="closeTrailer()">✕ Cerrar</button></div><div class="modal-body"><div style="position:relative;padding-top:56.25%;background:#000;border-radius:12px;overflow:hidden"><iframe id="trailerFrame" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div><div class="actions" style="margin-top:12px"><button class="btn" id="trailerExt">Abrir en YouTube</button></div></div></div></div>
+<div class="modal-wrap" id="trailerModal"><div class="modal"><div class="modal-top"><h2>Tráiler</h2><button class="close" onclick="closeTrailer()">✕ Cerrar</button></div><div class="modal-body"><div style="position:relative;padding-top:56.25%;background:#000"><iframe id="trailerFrame" style="position:absolute;inset:0;width:100%;height:100%;border:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;transform:translate3d(0,0,0);-webkit-transform:translate3d(0,0,0)" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div><div class="actions" style="margin-top:10px"><button class="btn" id="trailerExt">Abrir en YouTube</button></div></div></div></div>
+<div class="modal-wrap" id="rouletteModal"><div class="modal" style="width:min(420px,100%)"><div class="modal-top"><h2 id="rouTitle">Ruleta</h2><button class="close" onclick="closeRoulette()">✕ Cerrar</button></div><div class="modal-body" style="text-align:center"><div id="rouCard" style="width:min(230px,66vw);margin:4px auto 10px"></div><p id="rouSub" style="color:var(--muted);min-height:24px;margin:6px 0 12px"></p><div class="actions" style="justify-content:center"><button class="btn primary" id="rouOpen" style="display:none">Ver ficha</button><button class="btn" id="rouAgain" style="display:none">🎲 Otra vez</button></div></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 const sampleTitles = [
@@ -342,7 +362,7 @@ async function recommend(second=false){
   document.getElementById("recommendResultsSection").scrollIntoView({behavior:"smooth",block:"start"});
  }
 }
-function surpriseMe(){const t=titles[Math.floor(Math.random()*titles.length)];if(t)openDetail(t.id)}
+function surpriseMe(){openRoulette()}
 async function openDetail(id){let t=findTitle(id);if(!t)return;
  if(t.isLive&&getCredential()){try{const detail=await tmdb(`/${t.mediaType}/${t.tmdbId}`,{append_to_response:"credits,videos,watch/providers,images",include_video_language:"es,en,null",include_image_language:"es,en,null"});t={...t,desc:detail.overview||t.desc,genre:(detail.genres||[]).map(g=>g.name),cast:(detail.credits?.cast||[]).slice(0,12).map(c=>({id:c.id,name:c.name,character:c.character,profilePath:c.profile_path})),backdropPath:detail.backdrop_path||detail.images?.backdrops?.[0]?.file_path||t.backdropPath,posterPath:detail.poster_path||detail.images?.posters?.[0]?.file_path||t.posterPath,videos:detail.videos?.results||[],providers:detail["watch/providers"]?.results?.[getRegion()]||null,runtime:detail.runtime,seasons:detail.number_of_seasons};}catch(e){toast("No se pudieron cargar todos los detalles.")}}
  const top=document.querySelector("#detailModal .modal-top");top.style.backgroundImage=t.backdropPath?`linear-gradient(90deg,#080b15e8 0%,#080b1599 55%,#080b1540 100%),url(https://image.tmdb.org/t/p/w1280${t.backdropPath})`:t.posterPath?`linear-gradient(90deg,#080b15d9 0%,#080b1577 65%,#080b1540 100%),url(https://image.tmdb.org/t/p/w780${t.posterPath})`:"linear-gradient(135deg,#182743,#15102b,#071a25)";top.style.backgroundSize="cover";top.style.backgroundPosition="center";document.getElementById("modalTitle").textContent=t.title;const trailer=pickTrailer(t.videos);const cast=t.cast||[];const providers=t.providers;const providerText=providers?["flatrate","rent","buy","free","ads"].flatMap(k=>(providers[k]||[]).map(p=>p.provider_name)).filter((v,i,a)=>a.indexOf(v)===i).join(", "):"No hay información regional confirmada en esta ficha. Consulta la disponibilidad en tu país.";
@@ -621,5 +641,40 @@ async function msPlay(tmdbId,mediaType,title){
   clearTimeout(tm);tm=setTimeout(()=>{if(getCredential())loadExploreCatalog();else toast("Conecta TMDB en ⚙ API para usar este filtro")},350)});
  clr.addEventListener("click",()=>{currentMaxRuntime=null;lab.textContent="Sin límite";clr.style.display="none";if(getCredential())loadExploreCatalog();else renderExplore()});
 })();
+
+/* ===== Ruleta de la noche ===== */
+let rouTimer=null;
+function closeRoulette(){clearTimeout(rouTimer);document.getElementById("rouletteModal").classList.remove("open")}
+async function openRoulette(){
+ const m=document.getElementById("rouletteModal"),card=document.getElementById("rouCard"),sub=document.getElementById("rouSub"),op=document.getElementById("rouOpen"),again=document.getElementById("rouAgain");
+ clearTimeout(rouTimer);op.style.display="none";again.style.display="none";card.classList.remove("win");card.innerHTML="";
+ document.getElementById("rouTitle").textContent="🎲 Ruleta de la noche";
+ sub.textContent=currentMaxRuntime?"Buscando películas de hasta "+currentMaxRuntime+" min…":"Buscando candidatas…";
+ m.classList.add("open");
+ let pool=[];
+ try{
+  if(getCredential()){
+   const prm={sort_by:"popularity.desc",include_adult:"false","vote_count.gte":"300",page:String(1+Math.floor(Math.random()*5))};
+   if(currentMaxRuntime){prm["with_runtime.lte"]=currentMaxRuntime;prm["with_runtime.gte"]="1"}
+   const d=await tmdb("/discover/movie",prm);
+   pool=(d.results||[]).map(x=>normalize({...x,media_type:"movie"}));
+  }
+ }catch(e){}
+ if(pool.length<5){const mv=titles.filter(t=>t.kind==="Película");pool=mv.length>4?mv:[...titles]}
+ if(!pool.length){sub.textContent="No hay títulos para sortear.";return}
+ pool=pool.slice().sort(()=>Math.random()-.5);
+ const steps=18+Math.floor(Math.random()*6);let i=0;
+ const show=t=>{card.innerHTML=`<div class="card" style="pointer-events:none">${poster(t)}<h3>${esc(t.title)}</h3></div>`};
+ (function spin(){
+  const t=pool[i%pool.length];show(t);
+  if(i>=steps){
+   card.classList.add("win");
+   sub.textContent=`${t.year||""} · ★ ${Number(t.rating||0).toFixed(1)}${currentMaxRuntime?" · hasta "+currentMaxRuntime+" min":""}`;
+   op.onclick=()=>{try{const c=getCache();c[String(t.id)]=snap(t);setCache(c)}catch(e){}closeRoulette();openDetail(t.id)};again.onclick=openRoulette;
+   op.style.display="";again.style.display="";
+  }else{i++;rouTimer=setTimeout(spin,60+i*i*1.1)}
+ })();
+}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeRoulette()});
 </script>
 </body></html>
