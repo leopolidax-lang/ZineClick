@@ -75,7 +75,8 @@ jobs:
             cp zineclick-debug.keystore ~/.android/debug.keystore
             echo "Usando la clave fija del proyecto"
           else
-            echo "ATENCION: falta zineclick-debug.keystore en el repositorio"
+            echo "::error::Falta el archivo zineclick-debug.keystore en la raiz del repositorio. Sin el no se puede actualizar la app sin desinstalar."
+            exit 1
           fi
 
       - name: Número de versión (sube solo en cada compilación)
@@ -434,6 +435,11 @@ jobs:
           [ -f "$PKG_DIR/MainActivity.java.bak" ] && cp "$PKG_DIR/MainActivity.java.bak" "$PKG_DIR/MainActivity.java" || true
           rm -f "$PKG_DIR/ZinePlayerPlugin.java" "$PKG_DIR/ZinePlayerActivity.java"
           ./gradlew assembleDebug
+
+      - name: Huella de la firma (debe ser igual en todas las versiones)
+        continue-on-error: true
+        run: |
+          keytool -printcert -jarfile android/app/build/outputs/apk/debug/app-debug.apk | grep -i "SHA256" || true
 
       - name: Guardar APK
         uses: actions/upload-artifact@v4
