@@ -68,7 +68,7 @@ html.native{--sat:max(env(safe-area-inset-top,0px),32px)}html.native header{heig
 /* Cabecera a todo el ancho: sin cortes de color a los lados */
 html{overflow-x:hidden}
 header{margin-left:-28px;margin-right:-28px;padding-left:28px;padding-right:28px}
-@media(max-width:700px){header{margin-left:-15px;margin-right:-15px;padding-left:15px;padding-right:15px}.section-head{flex-wrap:wrap;gap:8px 14px}.section-head>div:first-child{flex:1 1 100%}nav{gap:12px;scrollbar-width:none}nav::-webkit-scrollbar{display:none}nav button{font-size:14px}.text-btn{white-space:nowrap}}
+@media(max-width:700px){header{margin-left:-15px;margin-right:-15px;padding-left:15px;padding-right:15px}.section-head{flex-wrap:wrap;gap:8px 14px}.section-head>div:first-child{flex:1 1 100%}nav{gap:12px;scrollbar-width:none}nav::-webkit-scrollbar{display:none}nav button{font-size:14px}.text-btn{white-space:nowrap}.logo{order:1}#apiSettingsBtn{order:2;margin-left:auto}#rdBtn{order:3}#accountBtn{order:4}.search{order:5;flex:1 1 100%}nav{order:6}}
 /* Ruleta */
 @keyframes rouPop{from{transform:scale(.93);opacity:.55}to{transform:scale(1);opacity:1}}
 #rouCard .card{animation:rouPop .15s ease-out}
@@ -88,7 +88,7 @@ header{margin-left:-28px;margin-right:-28px;padding-left:28px;padding-right:28px
     <button data-page="recommend">Para ti</button>
   </nav>
   <div class="search"><span class="glass">⌕</span><input id="searchInput" placeholder="Buscar títulos, actores..." autocomplete="off"></div>
-  <button class="btn small" id="apiSettingsBtn" title="Configurar catálogo">⚙ API</button><button class="btn small" onclick="rdLibrary()" title="Mi Real-Debrid">▶ RD</button><button class="avatar" id="accountBtn" title="Cuenta">CC</button>
+  <button class="btn small" id="apiSettingsBtn" title="Configurar catálogo">⚙ API</button><button class="btn small" id="rdBtn" onclick="rdLibrary()" title="Mi Real-Debrid">▶ RD</button><button class="avatar" id="accountBtn" title="Cuenta">CC</button>
 </header>
 
 <main id="homePage">
@@ -507,18 +507,50 @@ async function saveRdToken(){
  catch(e){document.getElementById("rdStatus").textContent=e.message}}
 function clearRdToken(){localStorage.removeItem(rdTokenKey);document.getElementById("rdTokenInput").value="";document.getElementById("rdStatus").textContent="Token eliminado.";toast("Token eliminado")}
 async function rdUnrestrict(link){return rd("/unrestrict/link",{method:"POST",form:{link}})}
+/* ===== CloudDebridManager: magnet -> enlace directo ===== */
+const CloudDebridManager={
+ videoExt:/\.(mkv|mp4|avi|mov|m4v|webm|ts|wmv)$/i,
+ bad:["magnet_error","error","virus","dead"],
+ wait(ms){return new Promise(r=>setTimeout(r,ms))},
+ /* 1. Envía el magnet y devuelve el id del contenedor */
+ async addRemoteMagnet(magnetUrl){
+  const r=await rd("/torrents/addMagnet",{method:"POST",form:{magnet:magnetUrl}});
+  if(!r||!r.id)throw new Error("Real-Debrid no devolvió un id para el magnet.");
+  return r.id},
+ /* 2. Elige el video más pesado (o "all" si no hay videos reconocibles) */
+ async selectBestFile(torrentId){
+  let info;
+  for(let i=0;i<30;i++){
+   info=await rd("/torrents/info/"+torrentId);
+   if(this.bad.includes(info.status))throw new Error("Real-Debrid no pudo procesar el magnet ("+info.status+").");
+   if(info.status==="waiting_files_selection")break;
+   if(info.status==="downloaded"||info.status==="downloading")return null;
+   await this.wait(1000)}
+  if(!info||info.status!=="waiting_files_selection")throw new Error("Real-Debrid tardó demasiado en leer el magnet. Búscalo después en ▶ RD.");
+  const videos=(info.files||[]).filter(f=>this.videoExt.test(f.path));
+  const best=videos.sort((a,b)=>b.bytes-a.bytes)[0];
+  await rd("/torrents/selectFiles/"+torrentId,{method:"POST",form:{files:best?String(best.id):"all"}});
+  return best?best.id:"all"},
+ /* 3. Espera a "downloaded" y devuelve el enlace limpio de streaming */
+ async getDirectStreamLink(torrentId,onStatus){
+  for(let i=0;i<30;i++){
+   const info=await rd("/torrents/info/"+torrentId);
+   if(info.status==="downloaded"&&info.links&&info.links.length)return rd("/unrestrict/link",{method:"POST",form:{link:info.links[0]}});
+   if(this.bad.includes(info.status))throw new Error("Real-Debrid no pudo procesar el magnet ("+info.status+").");
+   if(onStatus)onStatus(info.status==="downloading"?("Descargando en Real-Debrid… "+(info.progress||0)+"%"):"Preparando…");
+   await this.wait(2000)}
+  throw new Error("Real-Debrid sigue descargándolo en tu cuenta. Búscalo después en ▶ RD.")},
+ /* Los 3 pasos juntos */
+ async resolveMagnet(magnetUrl,onStatus){
+  const id=await this.addRemoteMagnet(magnetUrl);
+  await this.selectBestFile(id);
+  return this.getDirectStreamLink(id,onStatus)}
+};
 async function rdResolve(input){
  input=input.trim();
  if(input.startsWith("magnet:")){
   toast("Enviando a Real-Debrid…");
-  const add=await rd("/torrents/addMagnet",{method:"POST",form:{magnet:input}});
-  await rd("/torrents/selectFiles/"+add.id,{method:"POST",form:{files:"all"}});
-  for(let i=0;i<15;i++){
-   const info=await rd("/torrents/info/"+add.id);
-   if(info.status==="downloaded"&&info.links&&info.links.length)return rdUnrestrict(info.links[0]);
-   if(["magnet_error","error","virus","dead"].includes(info.status))throw new Error("Real-Debrid no pudo procesar el magnet ("+info.status+").");
-   await new Promise(r=>setTimeout(r,2000))}
-  throw new Error("Real-Debrid sigue descargándolo en tu cuenta. Búscalo después en ▶ RD.")}
+  return CloudDebridManager.resolveMagnet(input,m=>toast(m))}
  return rdUnrestrict(input)}
 let rdPlyr=null;
 function rdMakePlyr(){
