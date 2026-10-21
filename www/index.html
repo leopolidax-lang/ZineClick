@@ -68,7 +68,7 @@ html.native{--sat:max(env(safe-area-inset-top,0px),32px)}html.native header{heig
 /* Cabecera a todo el ancho: sin cortes de color a los lados */
 html{overflow-x:hidden}
 header{margin-left:-28px;margin-right:-28px;padding-left:28px;padding-right:28px}
-@media(max-width:700px){header{margin-left:-15px;margin-right:-15px;padding-left:15px;padding-right:15px}.section-head{flex-wrap:wrap;gap:8px 14px}.section-head>div:first-child{flex:1 1 100%}}
+@media(max-width:700px){header{margin-left:-15px;margin-right:-15px;padding-left:15px;padding-right:15px}.section-head{flex-wrap:wrap;gap:8px 14px}.section-head>div:first-child{flex:1 1 100%}nav{gap:12px;scrollbar-width:none}nav::-webkit-scrollbar{display:none}nav button{font-size:14px}.text-btn{white-space:nowrap}}
 /* Ruleta */
 @keyframes rouPop{from{transform:scale(.93);opacity:.55}to{transform:scale(1);opacity:1}}
 #rouCard .card{animation:rouPop .15s ease-out}
@@ -199,7 +199,7 @@ header{margin-left:-28px;margin-right:-28px;padding-left:28px;padding-right:28px
 <div class="modal-wrap" id="rdPlayer"><div class="modal"><div class="modal-top"><h2 id="rdPlayerTitle">Reproductor</h2><button class="close" onclick="rdClosePlayer()">✕ Cerrar</button></div><div class="modal-body"><div style="border-radius:12px;overflow:hidden;background:#000"><video id="rdVideo" controls playsinline></video></div><div class="actions" style="margin-top:12px"><button class="btn primary" id="rdVlc">🔊 ¿Sin sonido? Abrir con VLC</button><button class="btn" id="rdCopy">Copiar enlace (para VLC)</button></div><div class="notice">Algunos formatos de audio no suenan en el reproductor interno: en ese caso usa "Abrir con VLC". También puedes copiar el enlace y pegarlo en VLC → Más → Transmisión de red.</div></div></div></div>
 <div class="modal-wrap" id="rdModal"><div class="modal"><div class="modal-top"><h2>Real<br>Debrid</h2><button class="close" onclick="document.getElementById('rdModal').classList.remove('open')">✕ Cerrar</button></div><div class="modal-body" id="rdBody"></div></div></div>
 <div class="modal-wrap" id="trailerModal"><div class="modal"><div class="modal-top"><h2>Tráiler</h2><button class="close" onclick="closeTrailer()">✕ Cerrar</button></div><div class="modal-body"><div style="position:relative;padding-top:56.25%;background:#000;border-radius:16px;overflow:hidden"><iframe id="trailerFrame" style="position:absolute;inset:0;width:100%;height:100%;border:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;transform:translate3d(0,0,0);-webkit-transform:translate3d(0,0,0)" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div><div class="actions" style="margin-top:14px"><button class="btn" id="trailerExt">Abrir en YouTube</button></div></div></div></div>
-<div class="modal-wrap" id="rouletteModal"><div class="modal" style="width:min(420px,100%)"><div class="modal-top"><h2 id="rouTitle">Ruleta</h2><button class="close" onclick="closeRoulette()">✕ Cerrar</button></div><div class="modal-body" style="text-align:center"><div id="rouCard" style="width:min(230px,66vw);margin:4px auto 10px"></div><p id="rouSub" style="color:var(--muted);min-height:24px;margin:6px 0 12px"></p><div class="actions" style="justify-content:center"><button class="btn primary" id="rouOpen" style="display:none">Ver ficha</button><button class="btn" id="rouAgain" style="display:none">🎲 Otra vez</button></div></div></div></div>
+<div class="modal-wrap" id="rouletteModal"><div class="modal" style="width:min(420px,100%)"><div class="modal-top"><h2 id="rouTitle">Ruleta</h2><button class="close" onclick="closeRoulette()">✕ Cerrar</button></div><div class="modal-body" style="text-align:center"><div id="rouCard" style="width:min(230px,66vw);margin:4px auto 10px"></div><p id="rouSub" style="color:var(--muted);min-height:24px;margin:6px 0 12px"></p><div class="actions" style="justify-content:center"><button class="btn primary" id="rouOpen" style="display:none">Ver ficha</button><button class="btn" id="rouAgain" style="display:none">🎲 Otra vez</button><button class="btn" id="rouSnd" onclick="toggleRouSound()">🔊</button></div></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 const sampleTitles = [
@@ -662,6 +662,8 @@ async function msPlay(tmdbId,mediaType,title){
 let rouTimer=null;
 function closeRoulette(){clearTimeout(rouTimer);document.getElementById("rouletteModal").classList.remove("open")}
 async function openRoulette(){
+ try{rouAudio=rouAudio||new(window.AudioContext||window.webkitAudioContext)();if(rouAudio.state==="suspended")rouAudio.resume()}catch(e){}
+ document.getElementById("rouSnd").textContent=rouSound?"🔊":"🔇";
  const m=document.getElementById("rouletteModal"),card=document.getElementById("rouCard"),sub=document.getElementById("rouSub"),op=document.getElementById("rouOpen"),again=document.getElementById("rouAgain");
  clearTimeout(rouTimer);op.style.display="none";again.style.display="none";card.classList.remove("win");card.innerHTML="";
  document.getElementById("rouTitle").textContent="🎲 Ruleta de la noche";
@@ -687,10 +689,23 @@ async function openRoulette(){
    card.classList.add("win");
    sub.textContent=`${t.year||""} · ★ ${Number(t.rating||0).toFixed(1)}${currentMaxRuntime?" · hasta "+currentMaxRuntime+" min":""}`;
    op.onclick=()=>{try{const c=getCache();c[String(t.id)]=snap(t);setCache(c)}catch(e){}closeRoulette();openDetail(t.id)};again.onclick=openRoulette;
-   op.style.display="";again.style.display="";
-  }else{i++;rouTimer=setTimeout(spin,60+i*i*1.1)}
+   op.style.display="";again.style.display="";rouWin();
+  }else{rouTick(i,steps);i++;rouTimer=setTimeout(spin,60+i*i*1.1)}
  })();
 }
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeRoulette()});
+
+/* ===== Sonido de la ruleta ===== */
+let rouAudio=null,rouSound=true;
+try{rouSound=localStorage.getItem("cc_rou_sound")!=="0"}catch(e){}
+function rouBeep(freq,dur,vol,type,delay){
+ if(!rouSound||!rouAudio)return;
+ try{const t0=rouAudio.currentTime+(delay||0),o=rouAudio.createOscillator(),g=rouAudio.createGain();
+  o.type=type||"triangle";o.frequency.setValueAtTime(freq,t0);
+  g.gain.setValueAtTime(vol,t0);g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  o.connect(g);g.connect(rouAudio.destination);o.start(t0);o.stop(t0+dur+0.02)}catch(e){}}
+function rouTick(i,steps){rouBeep(420+(i/steps)*380,0.06,0.10,"square")}
+function rouWin(){[523.25,659.25,783.99,1046.5].forEach((f,k)=>rouBeep(f,0.45,0.16,"triangle",k*0.09));try{navigator.vibrate&&navigator.vibrate(35)}catch(e){}}
+function toggleRouSound(){rouSound=!rouSound;try{localStorage.setItem("cc_rou_sound",rouSound?"1":"0")}catch(e){}document.getElementById("rouSnd").textContent=rouSound?"🔊":"🔇";if(rouSound)rouBeep(660,0.1,0.12)}
 </script>
 </body></html>
