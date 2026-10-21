@@ -47,18 +47,28 @@ html.native{--sat:max(env(safe-area-inset-top,0px),32px)}html.native header{heig
 <style>
 #rdPlayer .plyr{--plyr-color-main:#64f4ff;--plyr-video-background:#000;border-radius:12px;overflow:hidden}
 /* Reproductor pequeño (dentro de la ventana): limitar la altura */
-#rdPlayer .plyr:not(.plyr--fullscreen-active):not(.plyr--fullscreen-fallback) video{max-height:65vh}
+#rdPlayer:not(.rd-full) .plyr:not(.plyr--fullscreen-active):not(.plyr--fullscreen-fallback):not(:fullscreen) video{max-height:65vh}
 /* Pantalla completa: el reproductor y el video llenan todo y los controles flotan abajo, sobre la imagen */
 #rdPlayer .plyr--fullscreen-active,#rdPlayer .plyr--fullscreen-fallback{width:100vw!important;height:100vh!important;height:100dvh!important;max-height:none!important;border-radius:0}
 #rdPlayer .plyr--fullscreen-active .plyr__video-wrapper,#rdPlayer .plyr--fullscreen-fallback .plyr__video-wrapper{width:100%!important;height:100%!important}
 #rdPlayer .plyr--fullscreen-active video,#rdPlayer .plyr--fullscreen-fallback video{width:100%!important;height:100%!important;max-height:none!important;object-fit:contain}
 #rdPlayer .plyr--fullscreen-active .plyr__controls,#rdPlayer .plyr--fullscreen-fallback .plyr__controls{position:absolute;left:0;right:0;bottom:0;padding:26px 14px calc(14px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,rgba(0,0,0,.78))}
-/* Modal de tráilers: compacto y sin parpadeo */
+/* Modal de tráilers: compacto, con aire y sin parpadeo */
 #trailerModal{-webkit-backdrop-filter:none;backdrop-filter:none;background:#02040bf2}
-#trailerModal .modal-top{height:auto;min-height:0;padding:14px 18px;background:#0d1220}
+#trailerModal .modal-top{display:flex;align-items:center;justify-content:space-between;gap:12px;height:auto;min-height:0;padding:16px 18px 14px;background:#0d1220}
 #trailerModal .modal-top h2{font-size:20px;max-width:none;margin:0}
-#trailerModal .modal-body{padding:0 18px 18px}
+#trailerModal .close{position:static;flex:none}
+#trailerModal .modal-body{padding:4px 18px 20px}
 #trailerModal iframe{backface-visibility:hidden;-webkit-backface-visibility:hidden;transform:translate3d(0,0,0);-webkit-transform:translate3d(0,0,0)}
+/* Pantalla completa del reproductor: el video llena todo y los controles flotan abajo */
+#rdPlayer.rd-full .plyr{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;max-height:none!important;border-radius:0!important;z-index:2147483000}
+#rdPlayer.rd-full .plyr__video-wrapper{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-height:none!important;aspect-ratio:auto!important;padding:0!important;margin:0!important}
+#rdPlayer.rd-full .plyr video{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-height:none!important;object-fit:contain}
+#rdPlayer.rd-full .plyr__controls{position:absolute!important;left:0;right:0;bottom:0}
+/* Cabecera a todo el ancho: sin cortes de color a los lados */
+html{overflow-x:hidden}
+header{margin-left:-28px;margin-right:-28px;padding-left:28px;padding-right:28px}
+@media(max-width:700px){header{margin-left:-15px;margin-right:-15px;padding-left:15px;padding-right:15px}.section-head{flex-wrap:wrap;gap:8px 14px}.section-head>div:first-child{flex:1 1 100%}}
 /* Ruleta */
 @keyframes rouPop{from{transform:scale(.93);opacity:.55}to{transform:scale(1);opacity:1}}
 #rouCard .card{animation:rouPop .15s ease-out}
@@ -188,7 +198,7 @@ html.native{--sat:max(env(safe-area-inset-top,0px),32px)}html.native header{heig
 </div>
 <div class="modal-wrap" id="rdPlayer"><div class="modal"><div class="modal-top"><h2 id="rdPlayerTitle">Reproductor</h2><button class="close" onclick="rdClosePlayer()">✕ Cerrar</button></div><div class="modal-body"><div style="border-radius:12px;overflow:hidden;background:#000"><video id="rdVideo" controls playsinline></video></div><div class="actions" style="margin-top:12px"><button class="btn primary" id="rdVlc">🔊 ¿Sin sonido? Abrir con VLC</button><button class="btn" id="rdCopy">Copiar enlace (para VLC)</button></div><div class="notice">Algunos formatos de audio no suenan en el reproductor interno: en ese caso usa "Abrir con VLC". También puedes copiar el enlace y pegarlo en VLC → Más → Transmisión de red.</div></div></div></div>
 <div class="modal-wrap" id="rdModal"><div class="modal"><div class="modal-top"><h2>Real<br>Debrid</h2><button class="close" onclick="document.getElementById('rdModal').classList.remove('open')">✕ Cerrar</button></div><div class="modal-body" id="rdBody"></div></div></div>
-<div class="modal-wrap" id="trailerModal"><div class="modal"><div class="modal-top"><h2>Tráiler</h2><button class="close" onclick="closeTrailer()">✕ Cerrar</button></div><div class="modal-body"><div style="position:relative;padding-top:56.25%;background:#000"><iframe id="trailerFrame" style="position:absolute;inset:0;width:100%;height:100%;border:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;transform:translate3d(0,0,0);-webkit-transform:translate3d(0,0,0)" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div><div class="actions" style="margin-top:10px"><button class="btn" id="trailerExt">Abrir en YouTube</button></div></div></div></div>
+<div class="modal-wrap" id="trailerModal"><div class="modal"><div class="modal-top"><h2>Tráiler</h2><button class="close" onclick="closeTrailer()">✕ Cerrar</button></div><div class="modal-body"><div style="position:relative;padding-top:56.25%;background:#000;border-radius:16px;overflow:hidden"><iframe id="trailerFrame" style="position:absolute;inset:0;width:100%;height:100%;border:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;transform:translate3d(0,0,0);-webkit-transform:translate3d(0,0,0)" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div><div class="actions" style="margin-top:14px"><button class="btn" id="trailerExt">Abrir en YouTube</button></div></div></div></div>
 <div class="modal-wrap" id="rouletteModal"><div class="modal" style="width:min(420px,100%)"><div class="modal-top"><h2 id="rouTitle">Ruleta</h2><button class="close" onclick="closeRoulette()">✕ Cerrar</button></div><div class="modal-body" style="text-align:center"><div id="rouCard" style="width:min(230px,66vw);margin:4px auto 10px"></div><p id="rouSub" style="color:var(--muted);min-height:24px;margin:6px 0 12px"></p><div class="actions" style="justify-content:center"><button class="btn primary" id="rouOpen" style="display:none">Ver ficha</button><button class="btn" id="rouAgain" style="display:none">🎲 Otra vez</button></div></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
@@ -523,7 +533,9 @@ function rdMakePlyr(){
    keyboard:{focused:true,global:false},
    fullscreen:{enabled:true,fallback:true,iosNative:true},
    i18n:{restart:"Reiniciar",rewind:"Retroceder {seektime}s",play:"Reproducir",pause:"Pausa",fastForward:"Adelantar {seektime}s",seek:"Buscar",played:"Reproducido",buffered:"Cargado",currentTime:"Tiempo actual",duration:"Duración",volume:"Volumen",mute:"Silenciar",unmute:"Activar sonido",enterFullscreen:"Pantalla completa",exitFullscreen:"Salir de pantalla completa",settings:"Ajustes",speed:"Velocidad",normal:"Normal",pip:"Imagen en imagen",menuBack:"Volver"}
-  })
+  });
+  rdPlyr.on("enterfullscreen",()=>document.getElementById("rdPlayer").classList.add("rd-full"));
+  rdPlyr.on("exitfullscreen",()=>document.getElementById("rdPlayer").classList.remove("rd-full"))
  }catch(e){rdPlyr=null}
  return rdPlyr}
 function rdPlay(r,title){
@@ -544,7 +556,7 @@ function rdClosePlayer(){
  const v=document.getElementById("rdVideo");v.onerror=null;
  try{if(rdPlyr)rdPlyr.pause();else v.pause()}catch(e){}
  v.removeAttribute("src");v.load();
- document.getElementById("rdPlayer").classList.remove("open")}
+ document.getElementById("rdPlayer").classList.remove("open","rd-full")}
 async function rdPlayFlow(title){
  if(!rdToken()){toast("Primero pega tu token de Real-Debrid");openApiModal();return}
  title=decodeURIComponent(title||"");
@@ -642,6 +654,10 @@ async function msPlay(tmdbId,mediaType,title){
  clr.addEventListener("click",()=>{currentMaxRuntime=null;lab.textContent="Sin límite";clr.style.display="none";if(getCredential())loadExploreCatalog();else renderExplore()});
 })();
 
+/* ===== Pantalla completa del reproductor (respaldo) ===== */
+["fullscreenchange","webkitfullscreenchange"].forEach(ev=>document.addEventListener(ev,()=>{
+ const el=document.fullscreenElement||document.webkitFullscreenElement;
+ document.getElementById("rdPlayer").classList.toggle("rd-full",!!(el&&el.closest&&el.closest("#rdPlayer")))}));
 /* ===== Ruleta de la noche ===== */
 let rouTimer=null;
 function closeRoulette(){clearTimeout(rouTimer);document.getElementById("rouletteModal").classList.remove("open")}
