@@ -2,9 +2,9 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#070910">
-<title>CineClick — Descubre tu próxima historia</title>
+<title>ZineClick — Descubre tu próxima historia</title>
 <style>
 :root{--bg:#070910;--panel:#101421;--panel2:#151b2c;--line:#252d43;--text:#f4f7ff;--muted:#9aa6c1;--cyan:#64f4ff;--purple:#a78bfa;--pink:#ff67c8}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 80% -10%,#152346 0,transparent 38%),var(--bg);color:var(--text);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}
@@ -40,12 +40,13 @@ header{height:78px;display:flex;align-items:center;gap:28px;border-bottom:1px so
 footer{border-top:1px solid #1d2538;padding:24px 0;color:#7e8aa7;font-size:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.toast{position:fixed;bottom:22px;left:50%;transform:translate(-50%,20px);opacity:0;pointer-events:none;z-index:50;background:#162538;border:1px solid #3a7180;color:#e8fcff;padding:12px 18px;border-radius:12px;transition:.2s}.toast.show{opacity:1;transform:translate(-50%,0)}
 @media(max-width:1050px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}nav{gap:13px}.hero-art{right:-7%;width:48%;opacity:.8}}
 @media(max-width:700px){.app{padding:0 15px 45px}header{height:auto;min-height:68px;gap:12px;flex-wrap:wrap;padding:12px 0}nav{order:3;width:100%;overflow:auto;gap:20px}nav button{white-space:nowrap;padding:3px 0}.search{max-width:none;flex:1}.logo{font-size:20px}.hero{min-height:440px;align-items:end}.hero-art{width:70%;height:57%;right:-7%;top:0;opacity:.52}.hero-copy{padding:25px;max-width:100%;padding-top:180px}.hero h1{font-size:39px}.hero p{font-size:14px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.poster .symbol{font-size:55px}.poster .poster-name{font-size:17px}.section h2{font-size:20px}.split{grid-template-columns:1fr}.avatar{height:35px;width:35px}.page-title h1{font-size:28px}}
+html.native{--sat:max(env(safe-area-inset-top,0px),32px)}html.native header{height:auto;min-height:78px;padding-top:calc(var(--sat) + 8px)}html.native .modal-wrap{padding-top:calc(var(--sat) + 10px)}html.native .app{padding-bottom:calc(45px + env(safe-area-inset-bottom,0px))}
 </style>
 </head>
 <body>
 <div class="app">
 <header>
-  <div class="logo"><div class="logo-mark">✦</div><span>Cine<span>Click</span></span></div>
+  <div class="logo"><div class="logo-mark">✦</div><span>Zine<span>Click</span></span></div>
   <nav>
     <button class="active" data-page="home">Inicio</button>
     <button data-page="explore">Explorar</button>
@@ -59,19 +60,10 @@ footer{border-top:1px solid #1d2538;padding:24px 0;color:#7e8aa7;font-size:12px;
 </header>
 
 <main id="homePage">
-<section class="hero">
-  <div class="hero-art"><div class="orbit"></div></div>
-  <div class="hero-copy">
-    <div class="eyebrow">Tu próxima historia empieza aquí</div>
-    <h1>Menos buscar.<br><span style="color:var(--cyan)">Más descubrir.</span></h1>
-    <div class="meta"><span>✦ Cine, series y anime</span><span class="dot">●</span><span>Un universo por explorar</span></div>
-    <p>Descubre historias nuevas, explora sus mundos y crea tu propia colección. Todo en un solo lugar.</p>
-    <div class="actions"><button class="btn primary" onclick="goPage('explore')">✦ Explorar catálogo</button><button class="btn" onclick="surpriseMe()">⤨ Sorpréndeme</button></div>
-  </div>
-</section>
+
 
 <section class="section">
- <div class="section-head"><div><h2>En tendencia</h2><p id="trendStatus">Catálogo de muestra · conecta TMDB para cargar datos reales</p></div><button class="text-btn" onclick="goPage('explore')">Ver catálogo ↗</button></div>
+ <div class="section-head"><div><h2>En tendencia</h2><p id="trendStatus">Catálogo de muestra · conecta TMDB para cargar datos reales</p></div><div style="display:flex;gap:16px"><button class="text-btn" onclick="surpriseMe()">⤨ Sorpréndeme</button><button class="text-btn" onclick="goPage('explore')">Ver catálogo ↗</button></div></div>
  <div class="grid" id="trendingGrid"></div>
 </section>
 <section class="section hidden" id="homeUpcomingSection">
@@ -139,7 +131,7 @@ footer{border-top:1px solid #1d2538;padding:24px 0;color:#7e8aa7;font-size:12px;
 </main>
 
 <main id="recommendPage" class="hidden">
- <div class="page-title"><h1>Tu siguiente obsesión</h1><p>Elige una experiencia. CineClick combinará tus filtros con los títulos disponibles y tus señales privadas.</p></div>
+ <div class="page-title"><h1>Tu siguiente obsesión</h1><p>Elige una experiencia. ZineClick combinará tus filtros con los títulos disponibles y tus señales privadas.</p></div>
  <div class="panel">
   <div class="eyebrow">MoodMatch · tu recomendador privado</div>
   <p style="color:var(--muted);margin:7px 0 12px">Tus respuestas se guardan en este navegador para ajustar futuras sugerencias. No se publican.</p>
@@ -148,7 +140,7 @@ footer{border-top:1px solid #1d2538;padding:24px 0;color:#7e8aa7;font-size:12px;
 </div>
  <section class="section"><div class="grid" id="recommendGrid2"></div></section>
 </main>
-<footer><span>✦ CineClick <span style="color:var(--cyan)">/</span> CineVerse beta</span><span>Prototipo · Conexiones consultadas en TMDB · Sin cuentas reales todavía</span></footer>
+<footer><span>✦ ZineClick <span style="color:var(--cyan)">/</span> CineVerse beta</span><span>Prototipo · Conexiones consultadas en TMDB · Sin cuentas reales todavía</span></footer>
 </div>
 
 
@@ -169,6 +161,7 @@ footer{border-top:1px solid #1d2538;padding:24px 0;color:#7e8aa7;font-size:12px;
 </div>
 <div class="modal-wrap" id="rdPlayer"><div class="modal"><div class="modal-top"><h2 id="rdPlayerTitle">Reproductor</h2><button class="close" onclick="rdClosePlayer()">✕ Cerrar</button></div><div class="modal-body"><video id="rdVideo" controls playsinline style="width:100%;max-height:65vh;background:#000;border-radius:12px"></video><div class="actions" style="margin-top:12px"><button class="btn primary" id="rdCompat">🔊 Versión con sonido</button><button class="btn" id="rdCopy">Copiar enlace (para VLC)</button></div><div class="notice">Si ves imagen pero no hay sonido, toca "Versión con sonido". Para VLC: copia el enlace y en VLC ve a Más → Transmisión de red → pegar.</div></div></div></div>
 <div class="modal-wrap" id="rdModal"><div class="modal"><div class="modal-top"><h2>Real<br>Debrid</h2><button class="close" onclick="document.getElementById('rdModal').classList.remove('open')">✕ Cerrar</button></div><div class="modal-body" id="rdBody"></div></div></div>
+<div class="modal-wrap" id="trailerModal"><div class="modal"><div class="modal-top"><h2>Tráiler</h2><button class="close" onclick="closeTrailer()">✕ Cerrar</button></div><div class="modal-body"><div style="position:relative;padding-top:56.25%;background:#000;border-radius:12px;overflow:hidden"><iframe id="trailerFrame" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div><div class="actions" style="margin-top:12px"><button class="btn" id="trailerExt">Abrir en YouTube</button></div></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 const sampleTitles = [
@@ -256,7 +249,7 @@ function saveTaste(t){localStorage.setItem("cineclick_taste_v1",JSON.stringify(t
 function updatePreferenceSummary(){
  const el=document.getElementById("preferenceSummary");if(!el)return;
  const t=getTaste(), liked=t.liked.length, disliked=t.disliked.length, rated=Object.keys(t.ratings).length;
- el.textContent=liked||disliked||rated?`Tu perfil privado ya tiene ${liked} título(s) que te interesan, ${disliked} descartado(s) y ${rated} valoración(es). CineClick usará estas señales en próximas recomendaciones.`:"Todavía estamos conociendo tus gustos. Marca títulos como interesantes o descártalos para personalizar la selección.";
+ el.textContent=liked||disliked||rated?`Tu perfil privado ya tiene ${liked} título(s) que te interesan, ${disliked} descartado(s) y ${rated} valoración(es). ZineClick usará estas señales en próximas recomendaciones.`:"Todavía estamos conociendo tus gustos. Marca títulos como interesantes o descártalos para personalizar la selección.";
 }
 function moodScore(t,mood){
  const genres=(t.genre||[]).join(" ").toLowerCase(), title=(t.title||"").toLowerCase(), text=genres+" "+(t.desc||"").toLowerCase();
@@ -344,7 +337,7 @@ function surpriseMe(){const t=titles[Math.floor(Math.random()*titles.length)];if
 async function openDetail(id){let t=findTitle(id);if(!t)return;
  if(t.isLive&&getCredential()){try{const detail=await tmdb(`/${t.mediaType}/${t.tmdbId}`,{append_to_response:"credits,videos,watch/providers,images",include_video_language:"es,en,null",include_image_language:"es,en,null"});t={...t,desc:detail.overview||t.desc,genre:(detail.genres||[]).map(g=>g.name),cast:(detail.credits?.cast||[]).slice(0,12).map(c=>({id:c.id,name:c.name,character:c.character,profilePath:c.profile_path})),backdropPath:detail.backdrop_path||detail.images?.backdrops?.[0]?.file_path||t.backdropPath,posterPath:detail.poster_path||detail.images?.posters?.[0]?.file_path||t.posterPath,videos:detail.videos?.results||[],providers:detail["watch/providers"]?.results?.[getRegion()]||null,runtime:detail.runtime,seasons:detail.number_of_seasons};}catch(e){toast("No se pudieron cargar todos los detalles.")}}
  const top=document.querySelector("#detailModal .modal-top");top.style.backgroundImage=t.backdropPath?`linear-gradient(90deg,#080b15e8 0%,#080b1599 55%,#080b1540 100%),url(https://image.tmdb.org/t/p/w1280${t.backdropPath})`:t.posterPath?`linear-gradient(90deg,#080b15d9 0%,#080b1577 65%,#080b1540 100%),url(https://image.tmdb.org/t/p/w780${t.posterPath})`:"linear-gradient(135deg,#182743,#15102b,#071a25)";top.style.backgroundSize="cover";top.style.backgroundPosition="center";document.getElementById("modalTitle").textContent=t.title;const trailer=pickTrailer(t.videos);const cast=t.cast||[];const providers=t.providers;const providerText=providers?["flatrate","rent","buy","free","ads"].flatMap(k=>(providers[k]||[]).map(p=>p.provider_name)).filter((v,i,a)=>a.indexOf(v)===i).join(", "):"No hay información regional confirmada en esta ficha. Consulta la disponibilidad en tu país.";
- document.getElementById("modalBody").innerHTML=`<div class="meta"><span>${t.year||"Año desconocido"}</span><span class="dot">●</span><span>${esc(t.kind)}</span><span class="dot">●</span><span>★ ${Number(t.rating||0).toFixed(1)}</span>${t.runtime?`<span class="dot">●</span><span>${t.runtime} min</span>`:""}${t.seasons?`<span class="dot">●</span><span>${t.seasons} temporadas</span>`:""}</div><div class="tag-row">${(t.genre||[]).map(g=>`<span class="tag">${esc(g)}</span>`).join("")}</div><h3>Sinopsis</h3><p>${esc(t.desc||"No hay sinopsis disponible.")}</p><h3>Reparto principal</h3><div class="cast">${cast.length?cast.map(n=>typeof n==="object"?`<button class="person" onclick="openPerson(${Number(n.id)})">${n.profilePath?`<img src="https://image.tmdb.org/t/p/w185${n.profilePath}" alt="" loading="lazy">`:""}<span>${esc(n.name)}<small>${esc(n.character||"Reparto")}</small></span></button>`:`<span class="person">${esc(n)}</span>`).join(""):'<span class="person">Conecta TMDB para consultar el reparto</span>' }</div><h3>Dónde verla en ${esc(regionName(getRegion()))}</h3><p>${esc(providerText)}</p><div class="actions">${trailer?`<button class="btn primary" onclick="window.open('https://www.youtube.com/watch?v=${encodeURIComponent(trailer.key)}','_blank','noopener')">▶ Ver tráiler</button>`:`<button class="btn primary" onclick="youtubeSearch('${encodeURIComponent(t.title+" tráiler oficial")}')">▶ Buscar tráiler</button>`}<button class="btn" onclick="toggleList('watchlist','${String(t.id)}')">＋ Quiero ver</button><button class="btn" onclick="toggleList('favorites','${String(t.id)}')">♡ Favorito</button><button class="btn" onclick="toggleList('watched','${String(t.id)}')">✓ Ya vi</button><button class="btn primary" onclick="rdPlayFlow('${encodeURIComponent(t.title)}')">▶ Reproducir</button></div><div class="notice">${t.isLive?"Información consultada desde TMDB. La disponibilidad de proveedores depende de los datos regionales de TMDB.":"Ficha de muestra. Conecta TMDB para cargar información actualizada."} Para uso público, protege las credenciales con un backend.</div>`;
+ document.getElementById("modalBody").innerHTML=`<div class="meta"><span>${t.year||"Año desconocido"}</span><span class="dot">●</span><span>${esc(t.kind)}</span><span class="dot">●</span><span>★ ${Number(t.rating||0).toFixed(1)}</span>${t.runtime?`<span class="dot">●</span><span>${t.runtime} min</span>`:""}${t.seasons?`<span class="dot">●</span><span>${t.seasons} temporadas</span>`:""}</div><div class="tag-row">${(t.genre||[]).map(g=>`<span class="tag">${esc(g)}</span>`).join("")}</div><h3>Sinopsis</h3><p>${esc(t.desc||"No hay sinopsis disponible.")}</p><h3>Reparto principal</h3><div class="cast">${cast.length?cast.map(n=>typeof n==="object"?`<button class="person" onclick="openPerson(${Number(n.id)})">${n.profilePath?`<img src="https://image.tmdb.org/t/p/w185${n.profilePath}" alt="" loading="lazy">`:""}<span>${esc(n.name)}<small>${esc(n.character||"Reparto")}</small></span></button>`:`<span class="person">${esc(n)}</span>`).join(""):'<span class="person">Conecta TMDB para consultar el reparto</span>' }</div><h3>Dónde verla en ${esc(regionName(getRegion()))}</h3><p>${esc(providerText)}</p><div class="actions">${trailer?`<button class="btn primary" onclick="openTrailer('${encodeURIComponent(trailer.key)}')">▶ Ver tráiler</button>`:`<button class="btn primary" onclick="youtubeSearch('${encodeURIComponent(t.title+" tráiler oficial")}')">▶ Buscar tráiler</button>`}<button class="btn" onclick="toggleList('watchlist','${String(t.id)}')">＋ Quiero ver</button><button class="btn" onclick="toggleList('favorites','${String(t.id)}')">♡ Favorito</button><button class="btn" onclick="toggleList('watched','${String(t.id)}')">✓ Ya vi</button><button class="btn primary" onclick="rdPlayFlow('${encodeURIComponent(t.title)}')">▶ Reproducir</button></div><div class="notice">${t.isLive?"Información consultada desde TMDB. La disponibilidad de proveedores depende de los datos regionales de TMDB.":"Ficha de muestra. Conecta TMDB para cargar información actualizada."} Para uso público, protege las credenciales con un backend.</div>`;
  document.getElementById("detailModal").classList.add("open")}
 async function openPerson(personId){
  try{
@@ -429,16 +422,16 @@ function renderUpcoming(){
 }
 
 function cleanSnap(t,id){const pp=v=>(typeof v==="string"&&/^\/[\w.-]+$/.test(v))?v:null;const kinds=["Película","Serie","Anime","Documental"];const tv=t.mediaType==="tv";return{id:id,tmdbId:Number(t.tmdbId)||undefined,mediaType:tv?"tv":(t.mediaType==="movie"?"movie":undefined),title:String(t.title||"Sin título").slice(0,200),year:Number(t.year)||null,kind:kinds.includes(t.kind)?t.kind:(tv?"Serie":"Película"),genre:Array.isArray(t.genre)?t.genre.slice(0,6).map(x=>String(x).slice(0,40)):[],rating:Number(t.rating)||0,posterPath:pp(t.posterPath),backdropPath:pp(t.backdropPath),colors:palette(id),emoji:tv?"▣":"✦",mood:Array.isArray(t.mood)?t.mood.filter(x=>typeof x==="string"&&/^\w+$/.test(x)):[],isLive:!!Number(t.tmdbId),desc:String(t.desc||"").slice(0,200)}}
-function buildBackup(){const lists={};["watchlist","favorites","watched"].forEach(k=>lists[k]=getList(k).map(String));const tt={};new Set(Object.values(lists).flat()).forEach(id=>{const t=findTitle(id);if(t)tt[id]=snap(t)});let taste={};try{taste=getTaste()}catch(e){}return JSON.stringify({app:"CineClick",version:1,exportedAt:new Date().toISOString(),region:getRegion(),lists,titles:tt,taste})}
+function buildBackup(){const lists={};["watchlist","favorites","watched"].forEach(k=>lists[k]=getList(k).map(String));const tt={};new Set(Object.values(lists).flat()).forEach(id=>{const t=findTitle(id);if(t)tt[id]=snap(t)});let taste={};try{taste=getTaste()}catch(e){}return JSON.stringify({app:"ZineClick",version:1,exportedAt:new Date().toISOString(),region:getRegion(),lists,titles:tt,taste})}
 async function backupCopy(){const txt=buildBackup();try{await navigator.clipboard.writeText(txt);toast("Respaldo copiado. Pégalo en una nota o mensaje para guardarlo.")}catch(e){const box=document.getElementById("restoreBox"),ta=document.getElementById("restoreText");box.classList.remove("hidden");ta.value=txt;ta.select();try{document.execCommand("copy");toast("Respaldo copiado")}catch(_){toast("Selecciona el texto y cópialo")}}}
-async function backupShare(){const txt=buildBackup();const name="cineclick-respaldo-"+ymd(new Date())+".json";
- try{const Sh=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Share;if(Sh){await Sh.share({title:"Respaldo CineClick",text:txt,dialogTitle:"Guardar respaldo"});return}}catch(e){if(/cancel/i.test(String((e&&e.message)||e)))return}
- try{const file=new File([txt],name,{type:"application/json"});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"Respaldo CineClick"});return}}catch(e){if(e&&e.name==="AbortError")return}
+async function backupShare(){const txt=buildBackup();const name="zineclick-respaldo-"+ymd(new Date())+".json";
+ try{const Sh=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Share;if(Sh){await Sh.share({title:"Respaldo ZineClick",text:txt,dialogTitle:"Guardar respaldo"});return}}catch(e){if(/cancel/i.test(String((e&&e.message)||e)))return}
+ try{const file=new File([txt],name,{type:"application/json"});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"Respaldo ZineClick"});return}}catch(e){if(e&&e.name==="AbortError")return}
  if(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()){return backupCopy()}
  try{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"application/json"}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("Respaldo descargado")}catch(e){backupCopy()}}
 function toggleRestore(){document.getElementById("restoreBox").classList.toggle("hidden")}
 function applyBackup(txt){let d;try{d=JSON.parse(txt)}catch(e){toast("Ese texto no es un respaldo válido");return}
- if(!d||d.app!=="CineClick"||!d.lists){toast("Eso no es un respaldo de CineClick");return}
+ if(!d||!["CineClick","ZineClick"].includes(d.app)||!d.lists){toast("Eso no es un respaldo de ZineClick");return}
  const okId=x=>/^[\w-]{1,40}$/.test(x);let added=0;const c=getCache();
  ["watchlist","favorites","watched"].forEach(k=>{const cur=new Set(getList(k).map(String));(Array.isArray(d.lists[k])?d.lists[k]:[]).forEach(id=>{id=String(id);if(okId(id)&&!cur.has(id)){cur.add(id);added++}});setList(k,[...cur])});
  Object.entries(d.titles||{}).forEach(([id,t])=>{if(okId(id)&&t&&typeof t==="object"&&!c[id])c[id]=cleanSnap(t,id)});setCache(c);
@@ -505,11 +498,12 @@ function rdClosePlayer(){const v=document.getElementById("rdVideo");v.pause();v.
 async function rdPlayFlow(title){
  if(!rdToken()){toast("Primero pega tu token de Real-Debrid");openApiModal();return}
  title=decodeURIComponent(title||"");
- const input=prompt("Pega un enlace o magnet de «"+title+"».\nDéjalo vacío para ver tu biblioteca de Real-Debrid.");
+ const skey="cc_rd_src:"+title;let saved="";try{saved=localStorage.getItem(skey)||""}catch(e){}
+ const input=prompt("Pega un enlace o magnet de «"+title+"».\nDéjalo vacío para ver tu biblioteca de Real-Debrid.",saved);
  if(input===null)return;
  try{
   if(!input.trim()){await rdLibrary();return}
-  const r=await rdResolve(input);rdPlay(r,title)
+  const r=await rdResolve(input);try{localStorage.setItem(skey,input.trim())}catch(e){}rdPlay(r,title)
  }catch(e){alert(e.message)}}
 async function rdLibrary(){
  if(!rdToken()){toast("Primero pega tu token de Real-Debrid");openApiModal();return}
@@ -531,5 +525,16 @@ async function rdPlayLink(link,name){
  catch(e){alert(e.message)}}
 document.getElementById("rdModal").addEventListener("click",e=>{if(e.target.id==="rdModal")e.target.classList.remove("open")});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){rdClosePlayer();document.getElementById("rdModal").classList.remove("open")}});
+
+/* ===== Ajustes v8: móvil y tráiler ===== */
+try{if((window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())||/; wv\)/.test(navigator.userAgent))document.documentElement.classList.add("native")}catch(e){}
+function openTrailer(key){
+ key=decodeURIComponent(key||"");
+ document.getElementById("trailerFrame").src="https://www.youtube-nocookie.com/embed/"+encodeURIComponent(key)+"?autoplay=1&rel=0&playsinline=1";
+ document.getElementById("trailerExt").onclick=()=>window.open("https://www.youtube.com/watch?v="+encodeURIComponent(key),"_blank","noopener");
+ document.getElementById("trailerModal").classList.add("open")}
+function closeTrailer(){document.getElementById("trailerFrame").src="about:blank";document.getElementById("trailerModal").classList.remove("open")}
+document.getElementById("trailerModal").addEventListener("click",e=>{if(e.target.id==="trailerModal")closeTrailer()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeTrailer()});
 </script>
 </body></html>
