@@ -5,11 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#070910">
 <title>ZineClick — Descubre tu próxima historia</title>
+<link rel="icon" type="image/png" href="img/favicon-192.png">
+<script>try{if(!sessionStorage.getItem("zc_intro"))document.documentElement.classList.add("intro-on")}catch(e){document.documentElement.classList.add("intro-on")}</script>
 <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
 <script defer src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+<div id="intro" aria-hidden="true">
+ <div class="in-glow"></div><div class="in-sweep"></div>
+ <div class="in-logo"><img src="img/logo-symbol.png" alt="" draggable="false"></div>
+ <div class="in-name">Zine<span>Click</span></div>
+ <div class="in-tag">El cine, a tu manera.</div>
+</div>
 <div class="app">
 <header>
   <div class="logo"><div class="logo-mark">✦</div><span>Zine<span>Click</span></span></div>
@@ -138,7 +146,7 @@
 </div>
 
 <div class="modal-wrap" id="detailModal" role="dialog" aria-modal="true" aria-label="Detalle del título">
- <div class="modal"><div class="modal-top"><h2 id="modalTitle">Título</h2><button class="close" onclick="closeModal()">✕ Cerrar</button></div><div class="modal-body" id="modalBody"></div></div>
+ <div class="modal"><div class="det-bar"><button class="close glass-ic" onclick="closeModal()" aria-label="Cerrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button><button class="glass-ic fav" id="modalFav" onclick="detailFav()" aria-label="Favorito" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21.2l7.8-7.7 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg></button></div><div class="modal-top"><h2 id="modalTitle">Título</h2></div><div class="modal-body" id="modalBody"></div></div>
 </div>
 <div class="modal-wrap" id="rdPlayer"><div class="modal"><div class="modal-top"><h2 id="rdPlayerTitle">Reproductor</h2><button class="close" onclick="rdClosePlayer()">✕ Cerrar</button></div><div class="modal-body"><div style="border-radius:12px;overflow:hidden;background:#000"><video id="rdVideo" controls playsinline></video></div><div class="actions" style="margin-top:12px"><button class="btn primary" id="rdVlc">🔊 ¿Sin sonido? Abrir con VLC</button><button class="btn" id="rdCopy">Copiar enlace (para VLC)</button></div><div class="notice">Algunos formatos de audio no suenan en el reproductor interno: en ese caso usa "Abrir con VLC". También puedes copiar el enlace y pegarlo en VLC → Más → Transmisión de red.</div></div></div></div>
 <div class="modal-wrap" id="rdModal"><div class="modal"><div class="modal-top"><h2>Real<br>Debrid</h2><button class="close" onclick="document.getElementById('rdModal').classList.remove('open')">✕ Cerrar</button></div><div class="modal-body" id="rdBody"></div></div></div>
@@ -234,6 +242,26 @@ function resetVerse(){verseNodes=[];verseEdges=[];verseSelectedId=null;document.
 function verseRenderList(){const el=document.getElementById('verseList');el.innerHTML='<h2>Conexiones del mapa</h2>'+verseNodes.map(n=>`<div class="verse-list-item">${n.poster?`<img src="https://image.tmdb.org/t/p/w185${n.poster}" alt="" loading="lazy">`:''}<div><b>${esc(n.label)}</b><div class="sub">${n.kind==='person'?'Actor / creador':esc(n.year||'Película o serie')}</div></div><button class="btn small" onclick="verseSelect('${n.key}')">Ver</button></div>`).join('')}
 function verseListMode(){const el=document.getElementById('verseList');verseListVisible=el.classList.contains('hidden');if(verseListVisible){el.classList.remove('hidden');verseRenderList()}else{el.classList.add('hidden')}}
 
+/* ===== Ficha de título: pestañas, favorito y datos extra ===== */
+let detailId=null;
+function liveExtras(d,type){
+ const crew=d.credits?.crew||[];
+ const dir=crew.filter(c=>c.job==="Director").map(c=>c.name);
+ const wr=[...new Set(crew.filter(c=>["Screenplay","Writer","Story","Novel","Teleplay"].includes(c.job)).map(c=>c.name))].slice(0,3);
+ const creators=(d.created_by||[]).map(c=>c.name);
+ let lang="";try{lang=d.original_language?new Intl.DisplayNames(["es"],{type:"language"}).of(d.original_language):""}catch(e){}
+ const base=(d.recommendations?.results||[]).length?d.recommendations.results:(d.similar?.results||[]);
+ const similar=base.filter(x=>x.poster_path).slice(0,12).map(x=>({id:x.id,mediaType:x.media_type||type,title:x.title||x.name,posterPath:x.poster_path,rating:x.vote_average}));
+ return {dirLabel:type==="tv"?"Creación":"Dirección",director:(type==="tv"?creators:dir).slice(0,2),writers:wr,companies:(d.production_companies||[]).map(c=>c.name).slice(0,3),lang,releaseDate:d.release_date||d.first_air_date||"",similar}}
+function detailTab(name){
+ document.querySelectorAll("#modalBody .tab").forEach(b=>{const on=b.dataset.tab===name;b.classList.toggle("on",on);b.setAttribute("aria-selected",on)});
+ document.querySelectorAll("#modalBody .tab-panel").forEach(p=>{p.hidden=p.dataset.panel!==name})}
+function syncDetail(){
+ if(detailId==null)return;const id=String(detailId);
+ const has=k=>getList(k).map(String).includes(id);
+ document.querySelectorAll("#modalBody [data-list]").forEach(b=>{const k=b.dataset.list,on=has(k);b.classList.toggle("on",on);b.textContent=on?(k==="watchlist"?"✓ En mi lista":"★ Vista"):(k==="watchlist"?"＋ Quiero ver":"☆ Ya vi")});
+ const f=document.getElementById("modalFav");if(f){const on=has("favorites");f.classList.toggle("on",on);f.setAttribute("aria-pressed",on)}}
+function detailFav(){if(detailId!=null)toggleList("favorites",detailId)}
 /* ===== Portada deslizable (estilo Netflix) ===== */
 let heroSig="",heroIdx=0,heroTimer=null,heroTouch=0,heroInit=false,heroRaf=0;
 function heroItems(){const base=heroPool.length?heroPool:[...titles].sort((x,y)=>y.rating-x.rating);return base.slice(0,7)}
@@ -448,30 +476,43 @@ async function recommend(second=false){
 }
 function surpriseMe(){openRoulette()}
 async function openDetail(id){let t=findTitle(id);if(!t)return;
- if(t.isLive&&getCredential()){try{const detail=await tmdb(`/${t.mediaType}/${t.tmdbId}`,{append_to_response:"credits,videos,watch/providers,images",include_video_language:"es,en,null",include_image_language:"es,en,null"});t={...t,desc:detail.overview||t.desc,genre:(detail.genres||[]).map(g=>g.name),cast:(detail.credits?.cast||[]).slice(0,12).map(c=>({id:c.id,name:c.name,character:c.character,profilePath:c.profile_path})),backdropPath:detail.backdrop_path||detail.images?.backdrops?.[0]?.file_path||t.backdropPath,posterPath:detail.poster_path||detail.images?.posters?.[0]?.file_path||t.posterPath,videos:detail.videos?.results||[],providers:detail["watch/providers"]?.results?.[getRegion()]||null,runtime:detail.runtime,seasons:detail.number_of_seasons};}catch(e){toast(errMsg(e,"No se pudieron cargar todos los detalles."))}}
+ if(t.isLive&&getCredential()){try{const detail=await tmdb(`/${t.mediaType}/${t.tmdbId}`,{append_to_response:"credits,videos,watch/providers,images,recommendations,similar",include_video_language:"es,en,null",include_image_language:"es,en,null"});t={...t,desc:detail.overview||t.desc,genre:(detail.genres||[]).map(g=>g.name),cast:(detail.credits?.cast||[]).slice(0,12).map(c=>({id:c.id,name:c.name,character:c.character,profilePath:c.profile_path})),backdropPath:detail.backdrop_path||detail.images?.backdrops?.[0]?.file_path||t.backdropPath,posterPath:detail.poster_path||detail.images?.posters?.[0]?.file_path||t.posterPath,videos:detail.videos?.results||[],providers:detail["watch/providers"]?.results?.[getRegion()]||null,runtime:detail.runtime,seasons:detail.number_of_seasons,...liveExtras(detail,t.mediaType)};}catch(e){toast(errMsg(e,"No se pudieron cargar todos los detalles."))}}
  const top=document.querySelector("#detailModal .modal-top");top.style.backgroundImage=t.backdropPath?`linear-gradient(90deg,#080b15e8 0%,#080b1599 55%,#080b1540 100%),url(https://image.tmdb.org/t/p/w1280${t.backdropPath})`:t.posterPath?`linear-gradient(90deg,#080b15d9 0%,#080b1577 65%,#080b1540 100%),url(https://image.tmdb.org/t/p/w780${t.posterPath})`:"linear-gradient(135deg,#182743,#15102b,#071a25)";top.style.backgroundSize="cover";top.style.backgroundPosition="center";document.getElementById("modalTitle").textContent=t.title;const trailer=pickTrailer(t.videos);const cast=t.cast||[];const providers=t.providers;const providerText=providers?["flatrate","rent","buy","free","ads"].flatMap(k=>(providers[k]||[]).map(p=>p.provider_name)).filter((v,i,a)=>a.indexOf(v)===i).join(", "):"No hay información regional confirmada en esta ficha. Consulta la disponibilidad en tu país.";
- document.getElementById("modalBody").innerHTML=`<div class="meta"><span>${t.year||"Año desconocido"}</span><span class="dot">●</span><span>${esc(t.kind)}</span><span class="dot">●</span><span>★ ${Number(t.rating||0).toFixed(1)}</span>${t.runtime?`<span class="dot">●</span><span>${t.runtime} min</span>`:""}${t.seasons?`<span class="dot">●</span><span>${t.seasons} temporadas</span>`:""}</div><div class="tag-row">${(t.genre||[]).map(g=>`<span class="tag">${esc(g)}</span>`).join("")}</div><h3>Sinopsis</h3><p>${esc(t.desc||"No hay sinopsis disponible.")}</p><h3>Reparto principal</h3><div class="cast">${cast.length?cast.map(n=>typeof n==="object"?`<button class="person" onclick="openPerson(${Number(n.id)})">${n.profilePath?`<img src="https://image.tmdb.org/t/p/w185${n.profilePath}" alt="" loading="lazy">`:""}<span>${esc(n.name)}<small>${esc(n.character||"Reparto")}</small></span></button>`:`<span class="person">${esc(n)}</span>`).join(""):'<span class="person">Conecta TMDB para consultar el reparto</span>' }</div><h3>Dónde verla en ${esc(regionName(getRegion()))}</h3><p>${esc(providerText)}</p><div class="actions">${trailer?`<button class="btn primary" onclick="openTrailer('${encodeURIComponent(trailer.key)}')">▶ Ver tráiler</button>`:`<button class="btn primary" onclick="youtubeSearch('${encodeURIComponent(t.title+" tráiler oficial")}')">▶ Buscar tráiler</button>`}<button class="btn" onclick="toggleList('watchlist','${String(t.id)}')">＋ Quiero ver</button><button class="btn" onclick="toggleList('favorites','${String(t.id)}')">♡ Favorito</button><button class="btn" onclick="toggleList('watched','${String(t.id)}')">✓ Ya vi</button><button class="btn primary" onclick="rdPlayFlow('${encodeURIComponent(t.title)}')">▶ Reproducir</button>${t.tmdbId&&t.mediaType==="movie"&&msLoad()?`<button class="btn" onclick="msPlay('${t.tmdbId}','movie','${encodeURIComponent(t.title)}')">▶ Desde mi servidor</button>`:""}</div><div class="notice">${t.isLive?"Información consultada desde TMDB. La disponibilidad de proveedores depende de los datos regionales de TMDB.":"Ficha de muestra. Conecta TMDB para cargar información actualizada."} Para uso público, protege las credenciales con un backend.</div>`;
- document.getElementById("detailModal").classList.add("open")}
+ const id1=String(t.id),T=[["cast","Reparto"],["det","Detalles"],["where","Dónde ver"],["sim","Similares"]];
+ const muted=m=>`<p class="muted">${m}</p>`;
+ const castHtml=cast.length?`<div class="cast-row">${cast.map(n=>typeof n==="object"?`<button class="cc-card" onclick="openPerson(${Number(n.id)})"><span class="cc-ph">${n.profilePath?`<img src="https://image.tmdb.org/t/p/w185${esc(n.profilePath)}" alt="" loading="lazy">`:`<i>${esc((n.name||"?").charAt(0))}</i>`}</span><b>${esc(n.name)}</b><small>${esc(n.character||"Reparto")}</small></button>`:`<span class="person">${esc(n)}</span>`).join("")}</div>`:muted("Conecta TMDB para consultar el reparto.");
+ const row=(l,v)=>v?`<div><dt>${l}</dt><dd>${esc(v)}</dd></div>`:"";
+ const rel=t.releaseDate?fmtDate(t.releaseDate):(t.year||"");
+ const rows=[row(t.dirLabel||"Dirección",(t.director||[]).join(", ")),row("Guion",(t.writers||[]).join(", ")),row("Producción",(t.companies||[]).join(", ")),row("Género",(t.genre||[]).join(", ")),row("Idioma original",t.lang?t.lang.charAt(0).toUpperCase()+t.lang.slice(1):""),row("Estreno",rel),row("Duración",t.runtime?t.runtime+" min":""),row("Temporadas",t.seasons?String(t.seasons):"")].join("");
+ const detHtml=rows?`<dl class="det-grid">${rows}</dl>`:muted("Sin más detalles por ahora.");
+ const G=[["flatrate","Streaming"],["free","Gratis"],["ads","Con anuncios"],["rent","Alquiler"],["buy","Compra"]];
+ const groups=providers?G.map(([k,l])=>(providers[k]||[]).length?`<div class="prov-group"><h4>${l}</h4><div class="prov-list">${providers[k].map(p=>`<span class="prov">${p.logo_path?`<img src="https://image.tmdb.org/t/p/w92${esc(p.logo_path)}" alt="" loading="lazy">`:""}${esc(p.provider_name)}</span>`).join("")}</div></div>`:"").join(""):"";
+ const whereHtml=groups?groups+muted("Disponibilidad en "+esc(regionName(getRegion()))+" · datos de JustWatch vía TMDB."):muted("No hay información de plataformas confirmada para "+esc(regionName(getRegion()))+". Consulta la disponibilidad en tu país.");
+ const sim=t.similar||[];
+ const simHtml=sim.length?`<div class="cast-row">${sim.map(x=>`<button class="cc-card sim-card" onclick="openCredit('${x.mediaType==="tv"?"tv":"movie"}',${Number(x.id)})"><span class="cc-ph"><img src="https://image.tmdb.org/t/p/w185${esc(x.posterPath)}" alt="" loading="lazy"></span><b>${esc(x.title)}</b><small>★ ${Number(x.rating||0).toFixed(1)}</small></button>`).join("")}</div>`:muted("Conecta TMDB para ver títulos similares.");
+ document.getElementById("modalBody").innerHTML=`<div class="meta"><span>${t.year||"Año desconocido"}</span><span class="dot">●</span><span>${esc(t.kind)}</span><span class="dot">●</span><span>★ ${Number(t.rating||0).toFixed(1)}</span>${t.runtime?`<span class="dot">●</span><span>${t.runtime} min</span>`:""}${t.seasons?`<span class="dot">●</span><span>${t.seasons} temporadas</span>`:""}</div><div class="tag-row">${(t.genre||[]).map(g=>`<span class="tag">${esc(g)}</span>`).join("")}</div><div class="actions det-actions">${trailer?`<button class="btn primary" onclick="openTrailer('${encodeURIComponent(trailer.key)}')">▶ Ver tráiler</button>`:`<button class="btn primary" onclick="youtubeSearch('${encodeURIComponent(t.title+" tráiler oficial")}')">▶ Buscar tráiler</button>`}<button class="btn" data-list="watchlist" onclick="toggleList('watchlist','${id1}')">＋ Quiero ver</button><button class="btn" data-list="watched" onclick="toggleList('watched','${id1}')">☆ Ya vi</button><button class="btn primary" onclick="rdPlayFlow('${encodeURIComponent(t.title)}')">▶ Reproducir</button>${t.tmdbId&&t.mediaType==="movie"&&msLoad()?`<button class="btn" onclick="msPlay('${t.tmdbId}','movie','${encodeURIComponent(t.title)}')">▶ Desde mi servidor</button>`:""}</div><p class="syn">${esc(t.desc||"No hay sinopsis disponible.")}</p><div class="tabs" role="tablist">${T.map(([k,l],i)=>`<button class="tab${i?"":" on"}" role="tab" aria-selected="${i===0}" data-tab="${k}" onclick="detailTab('${k}')">${l}</button>`).join("")}</div><div class="tab-panel" data-panel="cast">${castHtml}</div><div class="tab-panel" data-panel="det" hidden>${detHtml}</div><div class="tab-panel" data-panel="where" hidden>${whereHtml}</div><div class="tab-panel" data-panel="sim" hidden>${simHtml}</div><div class="notice">${t.isLive?"Información consultada desde TMDB. La disponibilidad de proveedores depende de los datos regionales de TMDB.":"Ficha de muestra. Conecta TMDB para cargar información actualizada."} Para uso público, protege las credenciales con un backend.</div>`;
+ detailId=id1;document.getElementById("modalFav").hidden=false;syncDetail();
+ document.getElementById("detailModal").classList.add("open");document.querySelector("#detailModal .modal").scrollTop=0}
 async function openPerson(personId){
  try{
   const person=await tmdb(`/person/${personId}`,{append_to_response:"combined_credits"});
   const credits=(person.combined_credits?.cast||[]).filter(x=>x.poster_path).sort((a,b)=>(b.popularity||0)-(a.popularity||0)).slice(0,18);
-  document.getElementById("modalTitle").textContent=person.name||"Filmografía";
+  document.getElementById("modalTitle").textContent=person.name||"Filmografía";detailId=null;document.getElementById("modalFav").hidden=true;
   const top=document.querySelector("#detailModal .modal-top");top.style.backgroundImage=person.profile_path?`linear-gradient(90deg,#080b15e8,#080b1566),url(https://image.tmdb.org/t/p/w780${person.profile_path})`:"";top.style.backgroundSize="cover";top.style.backgroundPosition="center 25%";
   document.getElementById("modalBody").innerHTML=`<div class="meta"><span>Filmografía</span><span class="dot">●</span><span>${credits.length} títulos destacados</span></div><h3>Películas y series</h3><div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">${credits.map(c=>`<article class="card" onclick="openCredit('${c.media_type}',${Number(c.id)})"><div class="poster"><img src="https://image.tmdb.org/t/p/w342${c.poster_path}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0"><span class="rating">★ ${Number(c.vote_average||0).toFixed(1)}</span></div><h3>${esc(c.title||c.name||"Sin título")}</h3><div class="sub">${esc(c.character||"")}</div></article>`).join("")||"<p>No hay títulos disponibles.</p>"}</div><button class="btn" onclick="closeModal()">Cerrar ficha</button>`;
  }catch(e){toast(errMsg(e,"No se pudo cargar la filmografía."));}
 }
 async function openCredit(mediaType,tmdbId){
  try{
-  const d=await tmdb(`/${mediaType}/${tmdbId}`,{append_to_response:"credits,videos,watch/providers,images",include_video_language:"es,en,null",include_image_language:"es,en,null"});
-  const t={id:`${mediaType}-${tmdbId}`,tmdbId,mediaType,isLive:true,title:d.title||d.name,kind:mediaType==="tv"?"Serie":"Película",year:(d.release_date||d.first_air_date||"").slice(0,4),rating:d.vote_average,desc:d.overview,genre:(d.genres||[]).map(g=>g.name),posterPath:d.poster_path,backdropPath:d.backdrop_path||d.images?.backdrops?.[0]?.file_path,cast:(d.credits?.cast||[]).slice(0,12).map(c=>({id:c.id,name:c.name,character:c.character,profilePath:c.profile_path})),videos:d.videos?.results||[],providers:d["watch/providers"]?.results?.[getRegion()]||null,runtime:d.runtime,seasons:d.number_of_seasons};
+  const d=await tmdb(`/${mediaType}/${tmdbId}`,{append_to_response:"credits,videos,watch/providers,images,recommendations,similar",include_video_language:"es,en,null",include_image_language:"es,en,null"});
+  const t={id:`${mediaType}-${tmdbId}`,tmdbId,mediaType,isLive:true,title:d.title||d.name,kind:mediaType==="tv"?"Serie":"Película",year:(d.release_date||d.first_air_date||"").slice(0,4),rating:d.vote_average,desc:d.overview,genre:(d.genres||[]).map(g=>g.name),posterPath:d.poster_path,backdropPath:d.backdrop_path||d.images?.backdrops?.[0]?.file_path,cast:(d.credits?.cast||[]).slice(0,12).map(c=>({id:c.id,name:c.name,character:c.character,profilePath:c.profile_path})),videos:d.videos?.results||[],providers:d["watch/providers"]?.results?.[getRegion()]||null,runtime:d.runtime,seasons:d.number_of_seasons,...liveExtras(d,mediaType)};
   titles.unshift(t);openDetail(t.id);
  }catch(e){toast(errMsg(e,"No se pudo abrir ese título."));}
 }
-function closeModal(){document.getElementById("detailModal").classList.remove("open")}
+function closeModal(){detailId=null;document.getElementById("detailModal").classList.remove("open")}
 document.getElementById("detailModal").addEventListener("click",e=>{if(e.target.id==="detailModal")closeModal()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeApiModal()}});
-function toggleList(k,id){let a=getList(k).map(String);if(a.includes(String(id))){a=a.filter(x=>x!==String(id));toast("Quitado de "+({watchlist:"Quiero ver",favorites:"Favoritos",watched:"Ya vi"}[k]))}else{a.push(String(id));{const t0=findTitle(id);if(t0){const c0=getCache();c0[String(id)]=snap(t0);setCache(c0)}}toast("Guardado en "+({watchlist:"Quiero ver",favorites:"Favoritos",watched:"Ya vi"}[k]))}setList(k,a);renderLists()}
+function toggleList(k,id){let a=getList(k).map(String);if(a.includes(String(id))){a=a.filter(x=>x!==String(id));toast("Quitado de "+({watchlist:"Quiero ver",favorites:"Favoritos",watched:"Ya vi"}[k]))}else{a.push(String(id));{const t0=findTitle(id);if(t0){const c0=getCache();c0[String(id)]=snap(t0);setCache(c0)}}toast("Guardado en "+({watchlist:"Quiero ver",favorites:"Favoritos",watched:"Ya vi"}[k]))}setList(k,a);renderLists();syncDetail()}
 function youtubeSearch(q){window.open("https://www.youtube.com/results?search_query="+q,"_blank","noopener")}
 function openApiModal(sec){
  sec=sec||"tmdb";
@@ -818,5 +859,16 @@ function rouBeep(freq,dur,vol,type,delay){
 function rouTick(i,steps){rouBeep(420+(i/steps)*380,0.06,0.10,"square")}
 function rouWin(){[523.25,659.25,783.99,1046.5].forEach((f,k)=>rouBeep(f,0.45,0.16,"triangle",k*0.09));try{navigator.vibrate&&navigator.vibrate(35)}catch(e){}}
 function toggleRouSound(){rouSound=!rouSound;try{localStorage.setItem("cc_rou_sound",rouSound?"1":"0")}catch(e){}document.getElementById("rouSnd").textContent=rouSound?"🔊":"🔇";if(rouSound)rouBeep(660,0.1,0.12)}
+
+/* ===== Intro animada al abrir la app (una vez por sesión; toca para saltarla) ===== */
+(function(){
+ const el=document.getElementById("intro");if(!el)return;
+ if(!document.documentElement.classList.contains("intro-on")){el.remove();return}
+ const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;let done=false,timer;
+ function finish(){if(done)return;done=true;clearTimeout(timer);el.classList.add("out");try{sessionStorage.setItem("zc_intro","1")}catch(e){}setTimeout(()=>{document.documentElement.classList.remove("intro-on");el.remove()},700)}
+ timer=setTimeout(finish,reduce?1200:2600);
+ el.addEventListener("pointerdown",finish);
+ setTimeout(finish,7000);
+})();
 </script>
 </body></html>
