@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#070910">
-<title>Zinora — Descubre tu próxima historia</title>
+<title>Zynora — Descubre tu próxima historia</title>
 <link rel="icon" type="image/png" href="img/favicon-192.png">
 <script>try{if(!sessionStorage.getItem("zc_intro"))document.documentElement.classList.add("intro-on")}catch(e){document.documentElement.classList.add("intro-on")}</script>
 <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
@@ -13,23 +13,14 @@
 </head>
 <body>
 <div id="intro" aria-hidden="true">
- <div class="in-glow"></div>
- <svg class="in-arcs" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-  <defs><linearGradient id="inG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1b4dff" stop-opacity="0"/><stop offset=".45" stop-color="#2f8bff"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs>
-  <g fill="none" stroke="url(#inG)" stroke-linecap="round">
-   <path class="arc a1" pathLength="1" d="M-20 560 C120 560 360 470 380 330 C392 230 300 130 210 118"/>
-   <path class="arc a2" pathLength="1" d="M-20 600 C150 610 400 500 410 330 C416 210 320 100 200 86"/>
-   <path class="arc a3" pathLength="1" d="M-20 520 C100 500 330 450 350 340 C362 250 290 170 220 160"/>
-   <path class="arc a4" pathLength="1" d="M-20 640 C180 660 430 520 436 330 C440 190 330 70 190 56"/>
-  </g>
- </svg>
+ <canvas id="inBack" class="in-cv"></canvas>
  <div class="in-logo"><img src="img/logo-symbol.png" alt="" draggable="false"></div>
- <div class="in-name">ZINORA</div>
- <div class="in-tag">El cine, a tu manera.</div>
+ <div class="in-name">ZYNORA</div>
+ <canvas id="inFront" class="in-cv"></canvas>
 </div>
 <div class="app">
 <header>
-  <div class="logo"><div class="logo-mark"><img src="img/logo-symbol.png" alt="" draggable="false"></div><span>Zin<span>ora</span></span></div>
+  <div class="logo"><div class="logo-mark"><img src="img/logo-symbol.png" alt="" draggable="false"></div><span>Zyn<span>ora</span></span></div>
   <nav>
     <button class="active" data-page="home">Inicio</button>
     <button data-page="explore">Explorar</button>
@@ -127,7 +118,7 @@
 </main>
 
 <main id="recommendPage" class="hidden">
- <div class="page-title"><h1>Tu siguiente obsesión</h1><p>Elige una experiencia. Zinora combinará tus filtros con los títulos disponibles y tus señales privadas.</p></div>
+ <div class="page-title"><h1>Tu siguiente obsesión</h1><p>Elige una experiencia. Zynora combinará tus filtros con los títulos disponibles y tus señales privadas.</p></div>
  <div class="panel">
   <div class="eyebrow">MoodMatch · tu recomendador privado</div>
   <p style="color:var(--muted);margin:7px 0 12px">Tus respuestas se guardan en este navegador para ajustar futuras sugerencias. No se publican.</p>
@@ -150,7 +141,7 @@
   <div id="apiStatus" class="notice">La credencial se guardará únicamente en el almacenamiento local de este navegador para este prototipo. No la compartas ni uses este método en una web pública.</div>
   <p style="font-size:12px">Puedes encontrar las credenciales en TMDB → Settings → API. La aplicación solicita datos públicos del catálogo. El despliegue final debe usar un backend y seguir las condiciones de TMDB.</p></div>
   <div class="api-sec" data-sec="rd" hidden><label for="rdTokenInput" style="display:block;font-weight:750;margin:12px 0 7px">Token de Real-Debrid</label><input id="rdTokenInput" type="password" autocomplete="off" placeholder="Pega aquí tu token (real-debrid.com/apitoken)" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none"><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveRdToken()">Guardar y probar</button><button class="btn" onclick="clearRdToken()">Eliminar token</button></div><div id="rdStatus" class="notice">Se guarda solo en este dispositivo.</div></div>
-  <div class="api-sec" data-sec="ms" hidden><label for="msUrl" style="display:block;font-weight:750;margin:12px 0 7px">Servidor multimedia personal (Jellyfin o Emby)</label><input id="msUrl" autocomplete="off" placeholder="Dirección, ej. https://mi-servidor.com" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none;margin-bottom:8px"><input id="msKey" type="password" autocomplete="off" placeholder="API Key del servidor" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none"><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveMediaServer()">Guardar y probar</button><button class="btn" onclick="clearMediaServer()">Eliminar</button></div><div id="msStatus" class="notice">Se guarda solo en este dispositivo. Crea en tu servidor una llave solo para Zinora.</div></div>
+  <div class="api-sec" data-sec="ms" hidden><label for="msUrl" style="display:block;font-weight:750;margin:12px 0 7px">Servidor multimedia personal (Jellyfin o Emby)</label><input id="msUrl" autocomplete="off" placeholder="Dirección, ej. https://mi-servidor.com" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none;margin-bottom:8px"><input id="msKey" type="password" autocomplete="off" placeholder="API Key del servidor" style="width:100%;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:13px;outline:none"><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveMediaServer()">Guardar y probar</button><button class="btn" onclick="clearMediaServer()">Eliminar</button></div><div id="msStatus" class="notice">Se guarda solo en este dispositivo. Crea en tu servidor una llave solo para Zynora.</div></div>
  </div></div>
 </div>
 
@@ -399,7 +390,7 @@ function saveTaste(t){localStorage.setItem("cineclick_taste_v1",JSON.stringify(t
 function updatePreferenceSummary(){
  const el=document.getElementById("preferenceSummary");if(!el)return;
  const t=getTaste(), liked=t.liked.length, disliked=t.disliked.length, rated=Object.keys(t.ratings).length;
- el.textContent=liked||disliked||rated?`Tu perfil privado ya tiene ${liked} título(s) que te interesan, ${disliked} descartado(s) y ${rated} valoración(es). Zinora usará estas señales en próximas recomendaciones.`:"Todavía estamos conociendo tus gustos. Marca títulos como interesantes o descártalos para personalizar la selección.";
+ el.textContent=liked||disliked||rated?`Tu perfil privado ya tiene ${liked} título(s) que te interesan, ${disliked} descartado(s) y ${rated} valoración(es). Zynora usará estas señales en próximas recomendaciones.`:"Todavía estamos conociendo tus gustos. Marca títulos como interesantes o descártalos para personalizar la selección.";
 }
 function moodScore(t,mood){
  const genres=(t.genre||[]).join(" ").toLowerCase(), title=(t.title||"").toLowerCase(), text=genres+" "+(t.desc||"").toLowerCase();
@@ -592,16 +583,16 @@ function renderUpcoming(){
 }
 
 function cleanSnap(t,id){const pp=v=>(typeof v==="string"&&/^\/[\w.-]+$/.test(v))?v:null;const kinds=["Película","Serie","Anime","Documental"];const tv=t.mediaType==="tv";return{id:id,tmdbId:Number(t.tmdbId)||undefined,mediaType:tv?"tv":(t.mediaType==="movie"?"movie":undefined),title:String(t.title||"Sin título").slice(0,200),year:Number(t.year)||null,kind:kinds.includes(t.kind)?t.kind:(tv?"Serie":"Película"),genre:Array.isArray(t.genre)?t.genre.slice(0,6).map(x=>String(x).slice(0,40)):[],rating:Number(t.rating)||0,posterPath:pp(t.posterPath),backdropPath:pp(t.backdropPath),colors:palette(id),emoji:tv?"▣":"✦",mood:Array.isArray(t.mood)?t.mood.filter(x=>typeof x==="string"&&/^\w+$/.test(x)):[],isLive:!!Number(t.tmdbId),desc:String(t.desc||"").slice(0,200)}}
-function buildBackup(){const lists={};["watchlist","favorites","watched"].forEach(k=>lists[k]=getList(k).map(String));const tt={};new Set(Object.values(lists).flat()).forEach(id=>{const t=findTitle(id);if(t)tt[id]=snap(t)});let taste={};try{taste=getTaste()}catch(e){}return JSON.stringify({app:"Zinora",version:1,exportedAt:new Date().toISOString(),region:getRegion(),lists,titles:tt,taste})}
+function buildBackup(){const lists={};["watchlist","favorites","watched"].forEach(k=>lists[k]=getList(k).map(String));const tt={};new Set(Object.values(lists).flat()).forEach(id=>{const t=findTitle(id);if(t)tt[id]=snap(t)});let taste={};try{taste=getTaste()}catch(e){}return JSON.stringify({app:"Zynora",version:1,exportedAt:new Date().toISOString(),region:getRegion(),lists,titles:tt,taste})}
 async function backupCopy(){const txt=buildBackup();try{await navigator.clipboard.writeText(txt);toast("Respaldo copiado. Pégalo en una nota o mensaje para guardarlo.")}catch(e){const box=document.getElementById("restoreBox"),ta=document.getElementById("restoreText");box.classList.remove("hidden");ta.value=txt;ta.select();try{document.execCommand("copy");toast("Respaldo copiado")}catch(_){toast("Selecciona el texto y cópialo")}}}
 async function backupShare(){const txt=buildBackup();const name="zineclick-respaldo-"+ymd(new Date())+".json";
- try{const Sh=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Share;if(Sh){await Sh.share({title:"Respaldo Zinora",text:txt,dialogTitle:"Guardar respaldo"});return}}catch(e){if(/cancel/i.test(String((e&&e.message)||e)))return}
- try{const file=new File([txt],name,{type:"application/json"});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"Respaldo Zinora"});return}}catch(e){if(e&&e.name==="AbortError")return}
+ try{const Sh=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Share;if(Sh){await Sh.share({title:"Respaldo Zynora",text:txt,dialogTitle:"Guardar respaldo"});return}}catch(e){if(/cancel/i.test(String((e&&e.message)||e)))return}
+ try{const file=new File([txt],name,{type:"application/json"});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"Respaldo Zynora"});return}}catch(e){if(e&&e.name==="AbortError")return}
  if(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()){return backupCopy()}
  try{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"application/json"}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("Respaldo descargado")}catch(e){backupCopy()}}
 function toggleRestore(){document.getElementById("restoreBox").classList.toggle("hidden")}
 function applyBackup(txt){let d;try{d=JSON.parse(txt)}catch(e){toast("Ese texto no es un respaldo válido");return}
- if(!d||!["CineClick","ZineClick","Zinora"].includes(d.app)||!d.lists){toast("Eso no es un respaldo de Zinora");return}
+ if(!d||!["CineClick","ZineClick","Zinora","Zynora"].includes(d.app)||!d.lists){toast("Eso no es un respaldo de Zynora");return}
  const okId=x=>/^[\w-]{1,40}$/.test(x);let added=0;const c=getCache();
  ["watchlist","favorites","watched"].forEach(k=>{const cur=new Set(getList(k).map(String));(Array.isArray(d.lists[k])?d.lists[k]:[]).forEach(id=>{id=String(id);if(okId(id)&&!cur.has(id)){cur.add(id);added++}});setList(k,[...cur])});
  Object.entries(d.titles||{}).forEach(([id,t])=>{if(okId(id)&&t&&typeof t==="object"&&!c[id])c[id]=cleanSnap(t,id)});setCache(c);
@@ -869,15 +860,112 @@ function rouTick(i,steps){rouBeep(420+(i/steps)*380,0.06,0.10,"square")}
 function rouWin(){[523.25,659.25,783.99,1046.5].forEach((f,k)=>rouBeep(f,0.45,0.16,"triangle",k*0.09));try{navigator.vibrate&&navigator.vibrate(35)}catch(e){}}
 function toggleRouSound(){rouSound=!rouSound;try{localStorage.setItem("cc_rou_sound",rouSound?"1":"0")}catch(e){}document.getElementById("rouSnd").textContent=rouSound?"🔊":"🔇";if(rouSound)rouBeep(660,0.1,0.12)}
 
-/* ===== Intro animada al abrir la app (una vez por sesión; toca para saltarla) ===== */
+/* ===== Intro cinematográfica: partículas que revelan el símbolo y el nombre =====
+   Una vez por sesión · toca para saltarla · 3 versiones que se alternan · respeta "reducir animaciones" */
 (function(){
  const el=document.getElementById("intro");if(!el)return;
  if(!document.documentElement.classList.contains("intro-on")){el.remove();return}
- const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;let done=false,timer;
- function finish(){if(done)return;done=true;clearTimeout(timer);el.classList.add("out");try{sessionStorage.setItem("zc_intro","1")}catch(e){}setTimeout(()=>{document.documentElement.classList.remove("intro-on");el.remove()},700)}
- timer=setTimeout(finish,reduce?1200:3800);
+ const logoEl=el.querySelector(".in-logo"),nameEl=el.querySelector(".in-name");
+ const MASK="data:image/png;base64,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";
+ const EXIT_AT=4300;let done=false,timer,raf=0;
+ function finish(){if(done)return;done=true;clearTimeout(timer);cancelAnimationFrame(raf);el.classList.add("out");try{sessionStorage.setItem("zc_intro","1")}catch(e){}setTimeout(()=>{document.documentElement.classList.remove("intro-on");el.remove()},750)}
+ function staticIntro(ms){el.classList.add("static");setTimeout(()=>{logoEl.classList.add("show");nameEl.classList.add("show")},60);timer=setTimeout(finish,ms)}
  el.addEventListener("pointerdown",finish);
- setTimeout(finish,7000);
+ setTimeout(finish,8000);
+ if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){staticIntro(1600);return}
+ try{run()}catch(e){staticIntro(2200)}
+
+ function run(){
+  const W=innerWidth,H=innerHeight,small=Math.min(W,H)<700;
+  const dpr=Math.min(window.devicePixelRatio||1,small?1.5:2);
+  const cb=document.getElementById("inBack"),cf=document.getElementById("inFront");
+  [cb,cf].forEach(c=>{c.width=Math.round(W*dpr);c.height=Math.round(H*dpr)});
+  const xb=cb.getContext("2d"),xf=cf.getContext("2d");
+  xb.setTransform(dpr,0,0,dpr,0,0);xf.setTransform(dpr,0,0,dpr,0,0);
+  /* versión: 0 enjambre · 1 marea · 2 espiral (nunca la misma dos veces seguidas) */
+  let last=-1;try{last=parseInt(localStorage.getItem("zc_intro_v")||"-1",10)}catch(e){}
+  let V;do{V=Math.floor(Math.random()*3)}while(V===last);
+  try{localStorage.setItem("zc_intro_v",String(V))}catch(e){}
+  const R=Math.random,TAU=Math.PI*2,sc=Math.min(W,H)/420;
+  const cl=(x,a=0,b=1)=>x<a?a:x>b?b:x,sm=x=>{x=cl(x);return x*x*(3-2*x)};
+  /* sprites (puntos suaves) */
+  function sprite(rgb){const c=document.createElement("canvas");c.width=c.height=48;const g=c.getContext("2d");const gr=g.createRadialGradient(24,24,0,24,24,24);gr.addColorStop(0,`rgba(${rgb},1)`);gr.addColorStop(.3,`rgba(${rgb},.85)`);gr.addColorStop(.62,`rgba(${rgb},.18)`);gr.addColorStop(1,`rgba(${rgb},0)`);g.fillStyle=gr;g.fillRect(0,0,48,48);return c}
+  const SP=[sprite("255,255,255"),sprite("120,225,255"),sprite("175,150,255")];
+  const img=new Image();
+  img.onload=()=>{try{start()}catch(e){staticIntro(2200)}};
+  img.onerror=()=>staticIntro(2200);
+  img.src=MASK;
+
+  function start(){
+   /* ---- objetivos: silueta del símbolo y letras del nombre ---- */
+   const lr=logoEl.getBoundingClientRect(),nr=nameEl.getBoundingClientRect();
+   const M=96,mc=document.createElement("canvas");mc.width=mc.height=M;const mg=mc.getContext("2d");mg.drawImage(img,0,0,M,M);
+   const md=mg.getImageData(0,0,M,M).data,LT=[];
+   for(let i=0;i<M*M;i++){if(md[i*4+3]>70){const px=i%M,py=(i/M)|0;LT.push([lr.left+(px+R())/M*lr.width,lr.top+(py+R())/M*lr.height])}}
+   const cs=getComputedStyle(nameEl),fs=parseFloat(cs.fontSize),ls=parseFloat(cs.letterSpacing)||fs*.42;
+   const tc=document.createElement("canvas"),pad=8;tc.width=Math.ceil(nr.width)+pad*2;tc.height=Math.ceil(nr.height)+pad*2;
+   const tg=tc.getContext("2d");tg.font=`${cs.fontWeight} ${fs}px ${cs.fontFamily}`;tg.fillStyle="#fff";tg.textBaseline="alphabetic";
+   const txt="ZYNORA",ws=[...txt].map(ch=>tg.measureText(ch).width),span=ws.reduce((a,b)=>a+b,0)+ls*(txt.length-1);
+   const asc=tg.measureText("Z").actualBoundingBoxAscent||fs*.7,cx=nr.left+nr.width/2,cy=nr.top+nr.height/2;
+   const ox=cx-span/2,oy=cy+asc/2;let xx=ox;
+   [...txt].forEach((ch,i)=>{tg.fillText(ch,xx-nr.left+pad,oy-nr.top+pad);xx+=ws[i]+ls});
+   const td=tg.getImageData(0,0,tc.width,tc.height).data,NT=[];
+   for(let y=0;y<tc.height;y+=1){for(let x=0;x<tc.width;x+=1){if(td[(y*tc.width+x)*4+3]>140&&R()<.55)NT.push([nr.left-pad+x,nr.top-pad+y])}}
+   const shuf=a=>{for(let i=a.length-1;i>0;i--){const j=(R()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+   shuf(LT);shuf(NT);
+   /* ---- partículas ---- */
+   let N=cl(Math.round(W*H/450),560,1100);
+   const nL=Math.min(LT.length,Math.round(N*.45)),nN=Math.min(NT.length,Math.round(N*.33));
+   const ts=[0,.15,-.05][V],bx=[0,34*sc,0][V],by=[0,-9*sc,0][V],fsp=[1,1.25,.9][V],dir=R()<.5?-1:1;
+   const P=[];
+   for(let i=0;i<N;i++){
+    const z=R(),p={z,front:z>.62,r:.55+z*1.55,al:.4+.6*z,s1:R()*TAU,s2:R()*TAU,d:R(),vx:0,vy:0,g:0,tx:0,ty:0,tone:0};
+    if(V===0){p.x=R()*W;p.y=R()*H}
+    else if(V===1){p.x=-R()*W*.45+R()*W*.3;p.y=R()*H;p.vx=50*sc}
+    else{const a=R()*TAU,rad=Math.max(W,H)*(.3+R()*.5);p.x=W/2+Math.cos(a)*rad;p.y=H/2+Math.sin(a)*rad*.9}
+    if(i<nL){p.g=1;p.tx=LT[i][0]+(R()-.5)*.8;p.ty=LT[i][1]+(R()-.5)*.8}
+    else if(i<nL+nN){p.g=2;p.tx=NT[i-nL][0]+(R()-.5)*.6;p.ty=NT[i-nL][1]+(R()-.5)*.6}
+    const q=R();p.tone=q<.06?1:q<.12?2:0;
+    P.push(p)}
+   shuf(P);
+   /* ---- bucle ---- */
+   let t0=0,prev=0,fr=0,acc=0,shownL=false,shownN=false,active=P.length;
+   function frame(now){
+    if(done)return;if(!t0){t0=prev=now}
+    const t=(now-t0)/1000;let dt=(now-prev)/1000;prev=now;dt=cl(dt,0,.05);
+    if(fr<30&&fr>2){acc+=dt;if(fr===29&&acc/27>.034)active=Math.floor(active*.6)}fr++;
+    if(!shownL&&t>2.3){shownL=true;logoEl.classList.add("show")}
+    if(!shownN&&t>2.95){shownN=true;nameEl.classList.add("show")}
+    xb.clearRect(0,0,W,H);xf.clearRect(0,0,W,H);
+    const endF=1-sm((t-3.9)/.6),tint=sm((t-2)/1.4)*.8,gl=sm((t-2.5)/.7),gn=sm((t-3.2)/.7);
+    for(let i=0;i<active;i++){const p=P[i];
+     /* flujo orgánico */
+     const sp=(12+p.z*26)*sc*fsp,ang=(Math.sin(p.x*.006+t*.55+p.s1)+Math.cos(p.y*.005-t*.45+p.s2)+Math.sin((p.x+p.y)*.0023+t*.3))*1.55;
+     let fx=Math.cos(ang)*sp+bx*(.5+p.z),fy=Math.sin(ang)*sp+by*(.5+p.z);
+     if(V===2){const dx=p.x-W/2,dy=p.y-H/2,dd=Math.hypot(dx,dy)||1;fx+=-dy/dd*sp*.9*dir-dx/dd*sp*.25;fy+=dx/dd*sp*.9*dir-dy/dd*sp*.25}
+     let k=0;
+     if(p.g===1)k=sm((t-(.7+ts+p.d*.7))/1.4);else if(p.g===2)k=sm((t-(1.6+ts+p.d*.6))/1.4);
+     let dvx=fx,dvy=fy;
+     if(k>0){let ex=(p.tx-p.x)*3.4,ey=(p.ty-p.y)*3.4;const m=Math.hypot(ex,ey),mx=800*sc;if(m>mx){ex*=mx/m;ey*=mx/m}
+      dvx=fx*(1-k)+ex*k;dvy=fy*(1-k)+ey*k}
+     const a1=Math.min(1,dt*(3+k*3));p.vx+=(dvx-p.vx)*a1;p.vy+=(dvy-p.vy)*a1;
+     p.x+=p.vx*dt;p.y+=p.vy*dt;
+     if(!p.g||k<.2){const mg2=30;if(p.x<-mg2)p.x=W+mg2;else if(p.x>W+mg2)p.x=-mg2;if(p.y<-mg2)p.y=H+mg2;else if(p.y>H+mg2)p.y=-mg2}
+     if(k>.9){p.x+=Math.sin(t*2.4+p.s1)*.12;p.y+=Math.cos(t*2.1+p.s2)*.12}
+     /* opacidad */
+     let a=p.al*sm((t-p.d*.9)/.7)*endF;
+     if(p.g===1)a*=1-gl*(p.front?1:.82);else if(p.g===2)a*=1-gn*(p.front?1:.8);else if(p.front&&t>2.2)a*=.6;
+     if(a<.012)continue;
+     const d=p.r*4.4,c=p.front?xf:xb;
+     c.globalAlpha=a;c.drawImage(SP[0],p.x-d/2,p.y-d/2,d,d);
+     if(p.tone&&tint>.02){c.globalAlpha=a*tint;c.drawImage(SP[p.tone],p.x-d/2,p.y-d/2,d,d)}
+    }
+    xb.globalAlpha=1;xf.globalAlpha=1;
+    raf=requestAnimationFrame(frame)}
+   timer=setTimeout(finish,EXIT_AT);
+   raf=requestAnimationFrame(frame);
+  }
+ }
 })();
 </script>
 </body></html>
