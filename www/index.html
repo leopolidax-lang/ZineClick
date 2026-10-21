@@ -89,6 +89,11 @@ html.native{--sat:max(env(safe-area-inset-top,0px),32px)}html.native header{heig
  <div class="chips" id="genreChips"><button class="chip active" data-genre="Todo">Todos los géneros</button><button class="chip" data-genre="Ciencia ficción">Ciencia ficción</button><button class="chip" data-genre="Drama">Drama</button><button class="chip" data-genre="Misterio">Misterio</button><button class="chip" data-genre="Acción">Acción</button><button class="chip" data-genre="Animación">Animación</button></div>
  <div class="section-head" style="margin-bottom:6px"><div><h2 style="font-size:17px">Plataformas</h2><p>Filtra por dónde se puede ver en tu país.</p></div><select id="regionSelect" class="chip" style="background:#111625;color:white" aria-label="País"></select></div>
  <div class="chips" id="providerChips"></div>
+ <div class="panel" id="timeFilter" style="margin:10px 0 14px;padding:14px">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><strong>⏱ ¿Cuánto tiempo tienes?</strong><span id="timeLabel" style="color:var(--cyan);font-weight:700">Sin límite</span></div>
+  <input id="timeRange" type="range" min="30" max="180" step="10" value="120" style="width:100%;margin:10px 0 4px;accent-color:#64f4ff">
+  <div style="display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px"><span>30 min</span><button class="text-btn" id="timeClear" style="display:none">Quitar filtro</button><span>3 h</span></div>
+ </div>
  <div class="section-head"><div><h2 id="exploreHeading">Catálogo</h2><p id="exploreSub">Conecta TMDB desde ⚙ API para activar el catálogo real.</p></div><select id="sortSelect" class="chip" style="background:#111625;color:white"><option value="rating">Mejor puntuados</option><option value="year">Más recientes</option><option value="az">A–Z</option></select></div>
  <div class="grid" id="exploreGrid"></div>
 </main>
@@ -230,7 +235,8 @@ document.getElementById("sortSelect").onchange=renderExplore;updatePreferenceSum
 document.getElementById("verseSearch").addEventListener("keydown",e=>{if(e.key==="Enter")startVerseSearch()});
 async function liveSearch(q){const el=document.getElementById("exploreGrid");el.innerHTML='<div class="empty">Buscando en TMDB…</div>';try{const data=await tmdb("/search/multi",{query:q,include_adult:"false",page:1});titles=data.results.filter(x=>["movie","tv"].includes(x.media_type)).map(x=>normalize(x));sourceMode="live";renderExplore()}catch(e){el.innerHTML=`<div class="empty">${esc(e.message)}<br>También puedes revisar la conexión desde ⚙ API.</div>`}}
 async function loadTrending(){if(!getCredential()){renderHome();return}try{const data=await tmdb("/trending/all/week");titles=data.results.filter(x=>["movie","tv"].includes(x.media_type)).map(x=>normalize(x));sourceMode="live";renderHome();document.getElementById("trendStatus").textContent="Tendencias reales de TMDB · semana actual";document.getElementById("exploreSub").textContent="Datos conectados a TMDB."}catch(e){document.getElementById("trendStatus").textContent="No se pudo conectar: revisa ⚙ API";renderHome()}}
-async function loadExploreCatalog(){if(!getCredential())return;const el=document.getElementById("exploreGrid");el.innerHTML='<div class="empty">Cargando películas y series de TMDB…</div>';try{const pf=currentProvider?{with_watch_providers:currentProvider,watch_region:getRegion(),with_watch_monetization_types:"flatrate"}:{};const base={sort_by:"popularity.desc",include_adult:"false",...pf};const pages=currentProvider?[1,2]:[1];const reqs=[];pages.forEach(pg=>{reqs.push(tmdb("/discover/movie",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"movie"}))));reqs.push(tmdb("/discover/tv",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"tv"}))))});const combined=(await Promise.all(reqs)).flat();const seen=new Set();titles=combined.filter(x=>{if(seen.has(x.id))return false;seen.add(x.id);return true});sourceMode="live";renderExplore();if(currentProvider){const pv=providerList.find(q=>String(q.id)===String(currentProvider));document.getElementById("exploreSub").textContent="Disponible en "+(pv?pv.name:"la plataforma")+" · "+regionName(getRegion())+" (datos de TMDB)"}}catch(e){renderExplore();document.getElementById("exploreSub").textContent="No se pudo cargar el catálogo completo. Comprueba ⚙ API."}}
+let currentMaxRuntime=null;
+async function loadExploreCatalog(){if(!getCredential())return;const el=document.getElementById("exploreGrid");el.innerHTML='<div class="empty">Cargando películas y series de TMDB…</div>';try{const pf=currentProvider?{with_watch_providers:currentProvider,watch_region:getRegion(),with_watch_monetization_types:"flatrate"}:{};const base={sort_by:"popularity.desc",include_adult:"false",...pf};if(currentMaxRuntime){base["with_runtime.lte"]=currentMaxRuntime;base["with_runtime.gte"]=1}const pages=(currentProvider||currentMaxRuntime)?[1,2]:[1];const reqs=[];pages.forEach(pg=>{reqs.push(tmdb("/discover/movie",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"movie"}))));if(!currentMaxRuntime)reqs.push(tmdb("/discover/tv",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"tv"}))))});const combined=(await Promise.all(reqs)).flat();const seen=new Set();titles=combined.filter(x=>{if(seen.has(x.id))return false;seen.add(x.id);return true});sourceMode="live";renderExplore();if(currentMaxRuntime)document.getElementById("exploreSub").textContent="Películas de hasta "+currentMaxRuntime+" min · "+titles.length+" resultados (datos de TMDB)";if(currentProvider){const pv=providerList.find(q=>String(q.id)===String(currentProvider));document.getElementById("exploreSub").textContent="Disponible en "+(pv?pv.name:"la plataforma")+" · "+regionName(getRegion())+" (datos de TMDB)"}}catch(e){renderExplore();document.getElementById("exploreSub").textContent="No se pudo cargar el catálogo completo. Comprueba ⚙ API."}}
 const moodGenreIds={
   mystery:{movie:"9648,53",tv:"9648,80"},
   action:{movie:"28,12",tv:"10759"},
@@ -582,5 +588,16 @@ async function msPlay(tmdbId,mediaType,title){
   const item=await msFind(cfg,ext.imdb_id||"");
   rdPlay({download:msStreamUrl(cfg,item)},item.Name||title)
  }catch(e){alert(e.message)}}
+
+/* ===== Filtro por tiempo libre ===== */
+(function(){
+ const r=document.getElementById("timeRange"),lab=document.getElementById("timeLabel"),clr=document.getElementById("timeClear");let tm=null;
+ function fmtMinutes(n){return n>=60?Math.floor(n/60)+" h"+(n%60?" "+(n%60)+" min":""):n+" min"}
+ r.addEventListener("input",()=>{
+  currentMaxRuntime=Number(r.value);lab.textContent="Hasta "+fmtMinutes(currentMaxRuntime);clr.style.display="inline";
+  const chip=document.querySelector('#typeChips [data-kind="Película"]');if(chip&&currentKind!=="Película")chip.click();
+  clearTimeout(tm);tm=setTimeout(()=>{if(getCredential())loadExploreCatalog();else toast("Conecta TMDB en ⚙ API para usar este filtro")},350)});
+ clr.addEventListener("click",()=>{currentMaxRuntime=null;lab.textContent="Sin límite";clr.style.display="none";if(getCredential())loadExploreCatalog();else renderExplore()});
+})();
 </script>
 </body></html>
