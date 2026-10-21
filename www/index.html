@@ -49,6 +49,7 @@ footer{border-top:1px solid #1d2538;padding:24px 0;color:#7e8aa7;font-size:12px;
   <nav>
     <button class="active" data-page="home">Inicio</button>
     <button data-page="explore">Explorar</button>
+    <button data-page="upcoming">Estrenos</button>
     <button data-page="cineverse">CineVerse</button>
     <button data-page="lists">Mis listas</button>
     <button data-page="recommend">Para ti</button>
@@ -73,6 +74,10 @@ footer{border-top:1px solid #1d2538;padding:24px 0;color:#7e8aa7;font-size:12px;
  <div class="section-head"><div><h2>En tendencia</h2><p id="trendStatus">Catálogo de muestra · conecta TMDB para cargar datos reales</p></div><button class="text-btn" onclick="goPage('explore')">Ver catálogo ↗</button></div>
  <div class="grid" id="trendingGrid"></div>
 </section>
+<section class="section hidden" id="homeUpcomingSection">
+ <div class="section-head"><div><h2>Próximos estrenos</h2><p>Lo que llega pronto, con su tráiler.</p></div><button class="text-btn" onclick="goPage('upcoming')">Ver todos ↗</button></div>
+ <div class="grid" id="homeUpcomingGrid"></div>
+</section>
 <section class="section">
  <div class="section-head"><div><h2>Encuentra tu próximo favorito</h2><p>Elige un ambiente y descubre algo que encaje contigo.</p></div></div>
  <div class="split">
@@ -90,8 +95,17 @@ footer{border-top:1px solid #1d2538;padding:24px 0;color:#7e8aa7;font-size:12px;
  <div class="page-title"><h1>Explorar universo</h1><p>Encuentra películas, series, anime y documentales.</p></div>
  <div class="chips" id="typeChips"><button class="chip active" data-kind="Todo">Todo</button><button class="chip" data-kind="Película">Películas</button><button class="chip" data-kind="Serie">Series</button><button class="chip" data-kind="Anime">Anime</button><button class="chip" data-kind="Documental">Documentales</button></div>
  <div class="chips" id="genreChips"><button class="chip active" data-genre="Todo">Todos los géneros</button><button class="chip" data-genre="Ciencia ficción">Ciencia ficción</button><button class="chip" data-genre="Drama">Drama</button><button class="chip" data-genre="Misterio">Misterio</button><button class="chip" data-genre="Acción">Acción</button><button class="chip" data-genre="Animación">Animación</button></div>
+ <div class="section-head" style="margin-bottom:6px"><div><h2 style="font-size:17px">Plataformas</h2><p>Filtra por dónde se puede ver en tu país.</p></div><select id="regionSelect" class="chip" style="background:#111625;color:white" aria-label="País"></select></div>
+ <div class="chips" id="providerChips"></div>
  <div class="section-head"><div><h2 id="exploreHeading">Catálogo</h2><p id="exploreSub">Conecta TMDB desde ⚙ API para activar el catálogo real.</p></div><select id="sortSelect" class="chip" style="background:#111625;color:white"><option value="rating">Mejor puntuados</option><option value="year">Más recientes</option><option value="az">A–Z</option></select></div>
  <div class="grid" id="exploreGrid"></div>
+</main>
+
+<main id="upcomingPage" class="hidden">
+ <div class="page-title"><div class="eyebrow">Lo que viene</div><h1>Próximos estrenos</h1><p>Películas y series que se estrenan pronto. Abre una para ver su tráiler.</p></div>
+ <div class="chips" id="upcomingChips"><button class="chip active" data-ukind="Todo">Todo</button><button class="chip" data-ukind="Película">Películas</button><button class="chip" data-ukind="Serie">Series</button></div>
+ <div class="section-head"><div><p id="upcomingStatus"></p></div></div>
+ <div class="grid" id="upcomingGrid"></div>
 </main>
 
 <main id="cineversePage" class="hidden">
@@ -112,6 +126,15 @@ footer{border-top:1px solid #1d2538;padding:24px 0;color:#7e8aa7;font-size:12px;
  <div class="page-title"><h1>Mis listas</h1><p>Tu espacio para organizar las historias que te interesan.</p></div>
  <div class="chips" id="listChips"><button class="chip active" data-list="watchlist">Quiero ver <span id="count-watchlist"></span></button><button class="chip" data-list="favorites">Favoritos <span id="count-favorites"></span></button><button class="chip" data-list="watched">Ya vi <span id="count-watched"></span></button></div>
  <div class="grid" id="listsGrid"></div>
+ <div class="panel" style="margin-top:18px">
+  <div class="eyebrow">Respaldo</div><h2 style="margin:8px 0">Guarda tus listas</h2>
+  <p style="color:var(--muted);margin:0">Tus listas viven solo en este teléfono. Haz un respaldo antes de desinstalar o actualizar la app. No incluye tu credencial de TMDB.</p>
+  <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="backupShare()">⬆ Guardar / compartir</button><button class="btn" onclick="backupCopy()">⧉ Copiar</button><button class="btn" onclick="toggleRestore()">⬇ Restaurar</button></div>
+  <div id="restoreBox" class="hidden" style="margin-top:14px">
+   <textarea id="restoreText" placeholder="Pega aquí tu respaldo…" style="width:100%;min-height:110px;background:#080d18;color:white;border:1px solid #303950;border-radius:11px;padding:12px;font:12px monospace"></textarea>
+   <div class="actions" style="margin-top:10px"><button class="btn primary" onclick="restoreFromText()">Restaurar</button><label class="btn" style="cursor:pointer">Elegir archivo<input type="file" id="restoreFile" accept=".json,application/json,text/plain" hidden></label></div>
+  </div>
+ </div>
  <div class="notice">En este prototipo las listas se guardan en este navegador. La sincronización real entre dispositivos requiere configurar cuentas y una base de datos.</div>
 </main>
 
@@ -199,10 +222,10 @@ function verseRenderList(){const el=document.getElementById('verseList');el.inne
 function verseListMode(){const el=document.getElementById('verseList');verseListVisible=el.classList.contains('hidden');if(verseListVisible){el.classList.remove('hidden');verseRenderList()}else{el.classList.add('hidden')}}
 
 function searchMatch(t){return (t.title+" "+(t.genre||[]).join(" ")+" "+(t.cast||[]).join(" ")+" "+(t.character||"")).toLowerCase().includes(searchTerm.toLowerCase())}
-function renderHome(){draw("trendingGrid",[...titles].sort((a,b)=>b.rating-a.rating).slice(0,6));updatePreferenceSummary()}
+function renderHome(){backfillCache();draw("trendingGrid",[...titles].sort((a,b)=>b.rating-a.rating).slice(0,6));updatePreferenceSummary()}
 function renderExplore(){let a=titles.filter(t=>searchMatch(t)&&(currentKind==="Todo"||t.kind===currentKind)&&(currentGenre==="Todo"||(t.genre||[]).includes(currentGenre)));let s=document.getElementById("sortSelect").value;if(s==="rating")a.sort((x,y)=>y.rating-x.rating);if(s==="year")a.sort((x,y)=>(y.year||0)-(x.year||0));if(s==="az")a.sort((x,y)=>x.title.localeCompare(y.title));draw("exploreGrid",a);document.getElementById("exploreHeading").textContent=searchTerm?`Resultados para “${searchTerm}”`:"Catálogo";document.getElementById("exploreSub").textContent=sourceMode==="live"?"Datos obtenidos de TMDB. La disponibilidad de streaming se consulta por región.":"Catálogo de muestra. Pulsa ⚙ API para conectarte a TMDB."}
-function renderLists(){let arr=getList(currentList).map(id=>titles.find(t=>String(t.id)===String(id))||sampleTitles.find(t=>String(t.id)===String(id))).filter(Boolean).filter(searchMatch);draw("listsGrid",arr);["watchlist","favorites","watched"].forEach(k=>document.getElementById("count-"+k).textContent=`(${getList(k).length})`)}
-function goPage(p){document.querySelectorAll("main[id$='Page']").forEach(x=>x.classList.add("hidden"));document.getElementById(p+"Page").classList.remove("hidden");document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===p));if(p==="explore"){renderExplore();if(getCredential())loadExploreCatalog();}if(p==="lists")renderLists();if(p==="recommend")recommend(true);if(p==="cineverse"&&!verseNodes.length){verseStatus(getCredential()?"Busca una película o serie para comenzar.":"Conecta TMDB desde ⚙ API para explorar conexiones reales.");}window.scrollTo({top:0,behavior:"smooth"})}
+function renderLists(){let arr=getList(currentList).map(id=>findTitle(id)).filter(Boolean).filter(searchMatch);backfillCache();draw("listsGrid",arr);["watchlist","favorites","watched"].forEach(k=>document.getElementById("count-"+k).textContent=`(${getList(k).length})`)}
+function goPage(p){document.querySelectorAll("main[id$='Page']").forEach(x=>x.classList.add("hidden"));document.getElementById(p+"Page").classList.remove("hidden");document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===p));if(p==="explore"){renderExplore();if(getCredential())loadExploreCatalog();}if(p==="lists")renderLists();if(p==="upcoming")loadUpcoming();if(p==="recommend")recommend(true);if(p==="cineverse"&&!verseNodes.length){verseStatus(getCredential()?"Busca una película o serie para comenzar.":"Conecta TMDB desde ⚙ API para explorar conexiones reales.");}window.scrollTo({top:0,behavior:"smooth"})}
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>goPage(b.dataset.page));
 document.querySelectorAll("#typeChips .chip").forEach(b=>b.onclick=()=>{document.querySelectorAll("#typeChips .chip").forEach(x=>x.classList.remove("active"));b.classList.add("active");currentKind=b.dataset.kind;renderExplore()});
 document.querySelectorAll("#genreChips .chip").forEach(b=>b.onclick=()=>{document.querySelectorAll("#genreChips .chip").forEach(x=>x.classList.remove("active"));b.classList.remove("active");b.classList.add("active");currentGenre=b.dataset.genre;renderExplore()});
@@ -212,7 +235,7 @@ document.getElementById("sortSelect").onchange=renderExplore;updatePreferenceSum
 document.getElementById("verseSearch").addEventListener("keydown",e=>{if(e.key==="Enter")startVerseSearch()});
 async function liveSearch(q){const el=document.getElementById("exploreGrid");el.innerHTML='<div class="empty">Buscando en TMDB…</div>';try{const data=await tmdb("/search/multi",{query:q,include_adult:"false",page:1});titles=data.results.filter(x=>["movie","tv"].includes(x.media_type)).map(x=>normalize(x));sourceMode="live";renderExplore()}catch(e){el.innerHTML=`<div class="empty">${esc(e.message)}<br>También puedes revisar la conexión desde ⚙ API.</div>`}}
 async function loadTrending(){if(!getCredential()){renderHome();return}try{const data=await tmdb("/trending/all/week");titles=data.results.filter(x=>["movie","tv"].includes(x.media_type)).map(x=>normalize(x));sourceMode="live";renderHome();document.getElementById("trendStatus").textContent="Tendencias reales de TMDB · semana actual";document.getElementById("exploreSub").textContent="Datos conectados a TMDB."}catch(e){document.getElementById("trendStatus").textContent="No se pudo conectar: revisa ⚙ API";renderHome()}}
-async function loadExploreCatalog(){if(!getCredential())return;const el=document.getElementById("exploreGrid");el.innerHTML="<div class=\"empty\">Cargando películas y series de TMDB…</div>";try{const [movies,tv]=await Promise.all([tmdb("/discover/movie",{sort_by:"popularity.desc",include_adult:"false",page:1}),tmdb("/discover/tv",{sort_by:"popularity.desc",include_adult:"false",page:1})]);const combined=[...(movies.results||[]).map(x=>normalize({...x,media_type:"movie"})),...(tv.results||[]).map(x=>normalize({...x,media_type:"tv"}))];const seen=new Set();titles=combined.filter(x=>{if(seen.has(x.id))return false;seen.add(x.id);return true});sourceMode="live";renderExplore();}catch(e){renderExplore();document.getElementById("exploreSub").textContent="No se pudo cargar el catálogo completo. Comprueba ⚙ API."}}
+async function loadExploreCatalog(){if(!getCredential())return;const el=document.getElementById("exploreGrid");el.innerHTML='<div class="empty">Cargando películas y series de TMDB…</div>';try{const pf=currentProvider?{with_watch_providers:currentProvider,watch_region:getRegion(),with_watch_monetization_types:"flatrate"}:{};const base={sort_by:"popularity.desc",include_adult:"false",...pf};const pages=currentProvider?[1,2]:[1];const reqs=[];pages.forEach(pg=>{reqs.push(tmdb("/discover/movie",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"movie"}))));reqs.push(tmdb("/discover/tv",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"tv"}))))});const combined=(await Promise.all(reqs)).flat();const seen=new Set();titles=combined.filter(x=>{if(seen.has(x.id))return false;seen.add(x.id);return true});sourceMode="live";renderExplore();if(currentProvider){const pv=providerList.find(q=>String(q.id)===String(currentProvider));document.getElementById("exploreSub").textContent="Disponible en "+(pv?pv.name:"la plataforma")+" · "+regionName(getRegion())+" (datos de TMDB)"}}catch(e){renderExplore();document.getElementById("exploreSub").textContent="No se pudo cargar el catálogo completo. Comprueba ⚙ API."}}
 const moodGenreIds={
   mystery:{movie:"9648,53",tv:"9648,80"},
   action:{movie:"28,12",tv:"10759"},
@@ -316,10 +339,10 @@ async function recommend(second=false){
  }
 }
 function surpriseMe(){const t=titles[Math.floor(Math.random()*titles.length)];if(t)openDetail(t.id)}
-async function openDetail(id){let t=titles.find(x=>String(x.id)===String(id))||sampleTitles.find(x=>String(x.id)===String(id));if(!t)return;
- if(t.isLive&&getCredential()){try{const detail=await tmdb(`/${t.mediaType}/${t.tmdbId}`,{append_to_response:"credits,videos,watch/providers,images"});t={...t,desc:detail.overview||t.desc,genre:(detail.genres||[]).map(g=>g.name),cast:(detail.credits?.cast||[]).slice(0,12).map(c=>({id:c.id,name:c.name,character:c.character,profilePath:c.profile_path})),backdropPath:detail.backdrop_path||detail.images?.backdrops?.[0]?.file_path||t.backdropPath,posterPath:detail.poster_path||detail.images?.posters?.[0]?.file_path||t.posterPath,videos:detail.videos?.results||[],providers:detail["watch/providers"]?.results?.PA||null,runtime:detail.runtime,seasons:detail.number_of_seasons};}catch(e){toast("No se pudieron cargar todos los detalles.")}}
- const top=document.querySelector("#detailModal .modal-top");top.style.backgroundImage=t.backdropPath?`linear-gradient(90deg,#080b15e8 0%,#080b1599 55%,#080b1540 100%),url(https://image.tmdb.org/t/p/w1280${t.backdropPath})`:t.posterPath?`linear-gradient(90deg,#080b15d9 0%,#080b1577 65%,#080b1540 100%),url(https://image.tmdb.org/t/p/w780${t.posterPath})`:"linear-gradient(135deg,#182743,#15102b,#071a25)";top.style.backgroundSize="cover";top.style.backgroundPosition="center";document.getElementById("modalTitle").textContent=t.title;const trailer=(t.videos||[]).find(v=>v.site==="YouTube"&&/trailer|official/i.test(v.name))||(t.videos||[]).find(v=>v.site==="YouTube");const cast=t.cast||[];const providers=t.providers;const providerText=providers?["flatrate","rent","buy","free","ads"].flatMap(k=>(providers[k]||[]).map(p=>p.provider_name)).filter((v,i,a)=>a.indexOf(v)===i).join(", "):"No hay información regional confirmada en esta ficha. Consulta la disponibilidad en tu país.";
- document.getElementById("modalBody").innerHTML=`<div class="meta"><span>${t.year||"Año desconocido"}</span><span class="dot">●</span><span>${esc(t.kind)}</span><span class="dot">●</span><span>★ ${Number(t.rating||0).toFixed(1)}</span>${t.runtime?`<span class="dot">●</span><span>${t.runtime} min</span>`:""}${t.seasons?`<span class="dot">●</span><span>${t.seasons} temporadas</span>`:""}</div><div class="tag-row">${(t.genre||[]).map(g=>`<span class="tag">${esc(g)}</span>`).join("")}</div><h3>Sinopsis</h3><p>${esc(t.desc||"No hay sinopsis disponible.")}</p><h3>Reparto principal</h3><div class="cast">${cast.length?cast.map(n=>typeof n==="object"?`<button class="person" onclick="openPerson(${Number(n.id)})">${n.profilePath?`<img src="https://image.tmdb.org/t/p/w185${n.profilePath}" alt="" loading="lazy">`:""}<span>${esc(n.name)}<small>${esc(n.character||"Reparto")}</small></span></button>`:`<span class="person">${esc(n)}</span>`).join(""):'<span class="person">Conecta TMDB para consultar el reparto</span>' }</div><h3>Dónde verla en Panamá</h3><p>${esc(providerText)}</p><div class="actions">${trailer?`<button class="btn primary" onclick="window.open('https://www.youtube.com/watch?v=${encodeURIComponent(trailer.key)}','_blank','noopener')">▶ Ver tráiler</button>`:`<button class="btn primary" onclick="youtubeSearch('${encodeURIComponent(t.title+" tráiler oficial")}')">▶ Buscar tráiler</button>`}<button class="btn" onclick="toggleList('watchlist','${String(t.id)}')">＋ Quiero ver</button><button class="btn" onclick="toggleList('favorites','${String(t.id)}')">♡ Favorito</button><button class="btn" onclick="toggleList('watched','${String(t.id)}')">✓ Ya vi</button></div><div class="notice">${t.isLive?"Información consultada desde TMDB. La disponibilidad de proveedores depende de los datos regionales de TMDB.":"Ficha de muestra. Conecta TMDB para cargar información actualizada."} Para uso público, protege las credenciales con un backend.</div>`;
+async function openDetail(id){let t=findTitle(id);if(!t)return;
+ if(t.isLive&&getCredential()){try{const detail=await tmdb(`/${t.mediaType}/${t.tmdbId}`,{append_to_response:"credits,videos,watch/providers,images",include_video_language:"es,en,null",include_image_language:"es,en,null"});t={...t,desc:detail.overview||t.desc,genre:(detail.genres||[]).map(g=>g.name),cast:(detail.credits?.cast||[]).slice(0,12).map(c=>({id:c.id,name:c.name,character:c.character,profilePath:c.profile_path})),backdropPath:detail.backdrop_path||detail.images?.backdrops?.[0]?.file_path||t.backdropPath,posterPath:detail.poster_path||detail.images?.posters?.[0]?.file_path||t.posterPath,videos:detail.videos?.results||[],providers:detail["watch/providers"]?.results?.[getRegion()]||null,runtime:detail.runtime,seasons:detail.number_of_seasons};}catch(e){toast("No se pudieron cargar todos los detalles.")}}
+ const top=document.querySelector("#detailModal .modal-top");top.style.backgroundImage=t.backdropPath?`linear-gradient(90deg,#080b15e8 0%,#080b1599 55%,#080b1540 100%),url(https://image.tmdb.org/t/p/w1280${t.backdropPath})`:t.posterPath?`linear-gradient(90deg,#080b15d9 0%,#080b1577 65%,#080b1540 100%),url(https://image.tmdb.org/t/p/w780${t.posterPath})`:"linear-gradient(135deg,#182743,#15102b,#071a25)";top.style.backgroundSize="cover";top.style.backgroundPosition="center";document.getElementById("modalTitle").textContent=t.title;const trailer=pickTrailer(t.videos);const cast=t.cast||[];const providers=t.providers;const providerText=providers?["flatrate","rent","buy","free","ads"].flatMap(k=>(providers[k]||[]).map(p=>p.provider_name)).filter((v,i,a)=>a.indexOf(v)===i).join(", "):"No hay información regional confirmada en esta ficha. Consulta la disponibilidad en tu país.";
+ document.getElementById("modalBody").innerHTML=`<div class="meta"><span>${t.year||"Año desconocido"}</span><span class="dot">●</span><span>${esc(t.kind)}</span><span class="dot">●</span><span>★ ${Number(t.rating||0).toFixed(1)}</span>${t.runtime?`<span class="dot">●</span><span>${t.runtime} min</span>`:""}${t.seasons?`<span class="dot">●</span><span>${t.seasons} temporadas</span>`:""}</div><div class="tag-row">${(t.genre||[]).map(g=>`<span class="tag">${esc(g)}</span>`).join("")}</div><h3>Sinopsis</h3><p>${esc(t.desc||"No hay sinopsis disponible.")}</p><h3>Reparto principal</h3><div class="cast">${cast.length?cast.map(n=>typeof n==="object"?`<button class="person" onclick="openPerson(${Number(n.id)})">${n.profilePath?`<img src="https://image.tmdb.org/t/p/w185${n.profilePath}" alt="" loading="lazy">`:""}<span>${esc(n.name)}<small>${esc(n.character||"Reparto")}</small></span></button>`:`<span class="person">${esc(n)}</span>`).join(""):'<span class="person">Conecta TMDB para consultar el reparto</span>' }</div><h3>Dónde verla en ${esc(regionName(getRegion()))}</h3><p>${esc(providerText)}</p><div class="actions">${trailer?`<button class="btn primary" onclick="window.open('https://www.youtube.com/watch?v=${encodeURIComponent(trailer.key)}','_blank','noopener')">▶ Ver tráiler</button>`:`<button class="btn primary" onclick="youtubeSearch('${encodeURIComponent(t.title+" tráiler oficial")}')">▶ Buscar tráiler</button>`}<button class="btn" onclick="toggleList('watchlist','${String(t.id)}')">＋ Quiero ver</button><button class="btn" onclick="toggleList('favorites','${String(t.id)}')">♡ Favorito</button><button class="btn" onclick="toggleList('watched','${String(t.id)}')">✓ Ya vi</button></div><div class="notice">${t.isLive?"Información consultada desde TMDB. La disponibilidad de proveedores depende de los datos regionales de TMDB.":"Ficha de muestra. Conecta TMDB para cargar información actualizada."} Para uso público, protege las credenciales con un backend.</div>`;
  document.getElementById("detailModal").classList.add("open")}
 async function openPerson(personId){
  try{
@@ -332,23 +355,102 @@ async function openPerson(personId){
 }
 async function openCredit(mediaType,tmdbId){
  try{
-  const d=await tmdb(`/${mediaType}/${tmdbId}`,{append_to_response:"credits,videos,watch/providers,images"});
-  const t={id:`${mediaType}-${tmdbId}`,tmdbId,mediaType,isLive:true,title:d.title||d.name,kind:mediaType==="tv"?"Serie":"Película",year:(d.release_date||d.first_air_date||"").slice(0,4),rating:d.vote_average,desc:d.overview,genre:(d.genres||[]).map(g=>g.name),posterPath:d.poster_path,backdropPath:d.backdrop_path||d.images?.backdrops?.[0]?.file_path,cast:(d.credits?.cast||[]).slice(0,12).map(c=>({id:c.id,name:c.name,character:c.character,profilePath:c.profile_path})),videos:d.videos?.results||[],providers:d["watch/providers"]?.results?.PA||null,runtime:d.runtime,seasons:d.number_of_seasons};
+  const d=await tmdb(`/${mediaType}/${tmdbId}`,{append_to_response:"credits,videos,watch/providers,images",include_video_language:"es,en,null",include_image_language:"es,en,null"});
+  const t={id:`${mediaType}-${tmdbId}`,tmdbId,mediaType,isLive:true,title:d.title||d.name,kind:mediaType==="tv"?"Serie":"Película",year:(d.release_date||d.first_air_date||"").slice(0,4),rating:d.vote_average,desc:d.overview,genre:(d.genres||[]).map(g=>g.name),posterPath:d.poster_path,backdropPath:d.backdrop_path||d.images?.backdrops?.[0]?.file_path,cast:(d.credits?.cast||[]).slice(0,12).map(c=>({id:c.id,name:c.name,character:c.character,profilePath:c.profile_path})),videos:d.videos?.results||[],providers:d["watch/providers"]?.results?.[getRegion()]||null,runtime:d.runtime,seasons:d.number_of_seasons};
   titles.unshift(t);openDetail(t.id);
  }catch(e){toast("No se pudo abrir ese título.");}
 }
 function closeModal(){document.getElementById("detailModal").classList.remove("open")}
 document.getElementById("detailModal").addEventListener("click",e=>{if(e.target.id==="detailModal")closeModal()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeApiModal()}});
-function toggleList(k,id){let a=getList(k).map(String);if(a.includes(String(id))){a=a.filter(x=>x!==String(id));toast("Quitado de "+({watchlist:"Quiero ver",favorites:"Favoritos",watched:"Ya vi"}[k]))}else{a.push(String(id));toast("Guardado en "+({watchlist:"Quiero ver",favorites:"Favoritos",watched:"Ya vi"}[k]))}setList(k,a);renderLists()}
+function toggleList(k,id){let a=getList(k).map(String);if(a.includes(String(id))){a=a.filter(x=>x!==String(id));toast("Quitado de "+({watchlist:"Quiero ver",favorites:"Favoritos",watched:"Ya vi"}[k]))}else{a.push(String(id));{const t0=findTitle(id);if(t0){const c0=getCache();c0[String(id)]=snap(t0);setCache(c0)}}toast("Guardado en "+({watchlist:"Quiero ver",favorites:"Favoritos",watched:"Ya vi"}[k]))}setList(k,a);renderLists()}
 function youtubeSearch(q){window.open("https://www.youtube.com/results?search_query="+q,"_blank","noopener")}
 function openApiModal(){document.getElementById("tmdbCredential").value=getCredential();document.getElementById("apiModal").classList.add("open");document.getElementById("apiStatus").textContent=getCredential()?"Ya hay una credencial guardada en este navegador. Puedes probarla de nuevo.":"La credencial se guardará únicamente en el almacenamiento local de este navegador para este prototipo. No la compartas ni uses este método en una web pública."}
 function closeApiModal(){document.getElementById("apiModal").classList.remove("open")}
 document.getElementById("apiModal").addEventListener("click",e=>{if(e.target.id==="apiModal")closeApiModal()});
 document.getElementById("apiSettingsBtn").onclick=openApiModal;
-async function saveTmdbCredential(){const cred=document.getElementById("tmdbCredential").value.trim();if(!cred){document.getElementById("apiStatus").textContent="Pega primero tu API Key o Read Access Token.";return}localStorage.setItem(tmdbCredentialKey,cred);document.getElementById("apiStatus").textContent="Probando conexión con TMDB…";try{const data=await tmdb("/configuration");sourceMode="live";document.getElementById("apiStatus").textContent="¡Conexión correcta! TMDB responde. Cargando tendencias…";await loadTrending();renderExplore();closeApiModal();toast("TMDB conectado correctamente")}catch(e){document.getElementById("apiStatus").textContent=e.message;}}
+async function saveTmdbCredential(){const cred=document.getElementById("tmdbCredential").value.trim();if(!cred){document.getElementById("apiStatus").textContent="Pega primero tu API Key o Read Access Token.";return}localStorage.setItem(tmdbCredentialKey,cred);document.getElementById("apiStatus").textContent="Probando conexión con TMDB…";try{const data=await tmdb("/configuration");sourceMode="live";document.getElementById("apiStatus").textContent="¡Conexión correcta! TMDB responde. Cargando tendencias…";await loadTrending();loadProviders();loadUpcoming(true);renderExplore();closeApiModal();toast("TMDB conectado correctamente")}catch(e){document.getElementById("apiStatus").textContent=e.message;}}
 function clearTmdbCredential(){localStorage.removeItem(tmdbCredentialKey);sourceMode="sample";titles=[...sampleTitles];document.getElementById("apiStatus").textContent="Credencial eliminada de este navegador.";renderHome();renderExplore();toast("Credencial eliminada")}
 document.getElementById("accountBtn").onclick=()=>toast("Cuentas y sincronización se añadirán en la fase de backend.");
-renderHome();renderExplore();renderLists();if(getCredential())loadTrending();
+
+// ===== Región, plataformas, estrenos, respaldo (v7) =====
+let currentProvider=null, providerList=[], upcomingCache=null, upcomingKind="Todo";
+const regions={PA:"Panamá",MX:"México",CO:"Colombia",AR:"Argentina",CL:"Chile",PE:"Perú",EC:"Ecuador",CR:"Costa Rica",GT:"Guatemala",DO:"Rep. Dominicana",ES:"España",US:"Estados Unidos"};
+const cacheKey="cc_v3_titlecache";
+function getRegion(){try{return localStorage.getItem("cc_region")||"PA"}catch(e){return "PA"}}
+function regionName(c){return regions[c]||c}
+function pickTrailer(v){v=(v||[]).filter(x=>x.site==="YouTube");const sc=x=>(x.type==="Trailer"?4:x.type==="Teaser"?2:0)+(x.official?1:0)+(x.iso_639_1==="es"?.5:0);return v.slice().sort((a,b)=>sc(b)-sc(a))[0]||null}
+
+function getCache(){try{return JSON.parse(localStorage.getItem(cacheKey)||"{}")}catch(e){return{}}}
+function setCache(c){try{localStorage.setItem(cacheKey,JSON.stringify(c))}catch(e){}}
+function snap(t){return{id:t.id,tmdbId:t.tmdbId,mediaType:t.mediaType,title:t.title,year:t.year,kind:t.kind,genre:t.genre,rating:t.rating,posterPath:t.posterPath||null,backdropPath:t.backdropPath||null,colors:t.colors,emoji:t.emoji,mood:t.mood,isLive:!!t.isLive,desc:String(t.desc||"").slice(0,180)}}
+function findTitle(id){const s=String(id);return titles.find(x=>String(x.id)===s)||(upcomingCache&&upcomingCache.list.find(x=>String(x.id)===s))||sampleTitles.find(x=>String(x.id)===s)||getCache()[s]||null}
+function backfillCache(){try{const c=getCache();let ch=false;["watchlist","favorites","watched"].forEach(k=>getList(k).forEach(id=>{const s=String(id);if(!c[s]){const t=titles.find(x=>String(x.id)===s)||sampleTitles.find(x=>String(x.id)===s);if(t){c[s]=snap(t);ch=true}}}));if(ch)setCache(c)}catch(e){}}
+
+function initRegionSelect(){const el=document.getElementById("regionSelect");if(!el)return;el.innerHTML=Object.entries(regions).map(([c,n])=>`<option value="${c}">${n}</option>`).join("");el.value=getRegion()}
+function renderProviderChips(){const el=document.getElementById("providerChips");if(!el)return;if(!getCredential()){el.innerHTML='<div class="notice" style="margin:0">Conecta TMDB desde ⚙ API para filtrar por plataforma.</div>';return}el.innerHTML='<button class="chip'+(currentProvider?'':' active')+'" data-prov="">Todas</button>'+providerList.map(p=>'<button class="chip'+(String(currentProvider)===String(p.id)?' active':'')+'" data-prov="'+p.id+'">'+esc(p.name)+'</button>').join("")}
+async function loadProviders(){if(!getCredential()){renderProviderChips();return}try{const r=getRegion();const [m,t]=await Promise.all([tmdb("/watch/providers/movie",{watch_region:r}),tmdb("/watch/providers/tv",{watch_region:r})]);const map=new Map();[...(m.results||[]),...(t.results||[])].forEach(p=>{if(!map.has(p.provider_id))map.set(p.provider_id,{id:p.provider_id,name:p.provider_name,prio:(p.display_priorities&&p.display_priorities[r]!=null)?p.display_priorities[r]:(p.display_priority||99)})});providerList=[...map.values()].sort((a,b)=>a.prio-b.prio).slice(0,12)}catch(e){providerList=[]}renderProviderChips()}
+
+function ymd(d){return d.toISOString().slice(0,10)}
+function fmtDate(s){if(!s)return"";return new Date(s+"T12:00:00").toLocaleDateString("es",{day:"numeric",month:"short",year:"numeric"})}
+function cardUp(t){return `<article class="card" onclick="openDetail('${String(t.id).replace(/'/g,"")}')">${poster(t)}<h3>${esc(t.title)}</h3><div class="sub">Estreno ${fmtDate(t.releaseDate)} · ${(t.genre||[]).slice(0,2).map(esc).join(" / ")||t.kind}</div></article>`}
+async function loadUpcoming(quiet){
+ if(!getCredential()){renderUpcoming();return}
+ if(upcomingCache&&Date.now()-upcomingCache.at<1800000){renderUpcoming();return}
+ const st=document.getElementById("upcomingStatus");if(st&&!quiet)st.textContent="Buscando estrenos…";
+ try{
+  const from=ymd(new Date()),to=ymd(new Date(Date.now()+150*864e5));
+  const mv={sort_by:"popularity.desc",include_adult:"false","primary_release_date.gte":from,"primary_release_date.lte":to};
+  const tv={sort_by:"popularity.desc",include_adult:"false","first_air_date.gte":from,"first_air_date.lte":to,without_genres:"10763,10767"};
+  const [m1,m2,t1]=await Promise.all([tmdb("/discover/movie",{...mv,page:1}),tmdb("/discover/movie",{...mv,page:2}),tmdb("/discover/tv",{...tv,page:1})]);
+  const mk=(x,type)=>({...normalize({...x,media_type:type},type),releaseDate:x.release_date||x.first_air_date||""});
+  const byDate=(a,b)=>a.releaseDate.localeCompare(b.releaseDate);
+  const seen=new Set();
+  const list=[...(m1.results||[]),...(m2.results||[])].map(x=>mk(x,"movie")).concat((t1.results||[]).map(x=>mk(x,"tv"))).filter(x=>x.releaseDate&&!seen.has(x.id)&&seen.add(x.id)).sort(byDate);
+  const top=[...(m1.results||[]).slice(0,4).map(x=>mk(x,"movie")),...(t1.results||[]).slice(0,2).map(x=>mk(x,"tv"))].filter(x=>x.releaseDate).sort(byDate);
+  upcomingCache={at:Date.now(),list,top};
+  renderUpcoming();
+ }catch(e){if(st)st.textContent=e.message}
+}
+function renderUpcoming(){
+ const st=document.getElementById("upcomingStatus"),grid=document.getElementById("upcomingGrid"),hg=document.getElementById("homeUpcomingGrid"),hs=document.getElementById("homeUpcomingSection");
+ if(!getCredential()){if(grid)grid.innerHTML='<div class="empty">Conecta TMDB desde ⚙ API para ver los próximos estrenos.</div>';if(st)st.textContent="Se necesita la conexión con TMDB.";if(hs)hs.classList.add("hidden");return}
+ const all=upcomingCache?upcomingCache.list:[];
+ if(hs&&hg&&upcomingCache&&upcomingCache.top.length){hs.classList.remove("hidden");hg.innerHTML=upcomingCache.top.map(cardUp).join("")}
+ if(!grid)return;
+ if(!all.length){grid.innerHTML='<div class="empty">Cargando estrenos…</div>';return}
+ const list=all.filter(t=>upcomingKind==="Todo"||t.kind===upcomingKind);
+ let html="",last="";
+ list.forEach(t=>{const m=new Date(t.releaseDate+"T12:00:00").toLocaleDateString("es",{month:"long",year:"numeric"});if(m!==last){last=m;html+=`<h2 style="grid-column:1/-1;margin:14px 0 0;text-transform:capitalize">${esc(m)}</h2>`}html+=cardUp(t)});
+ grid.innerHTML=html||'<div class="empty">No hay estrenos con ese filtro.</div>';
+ if(st)st.textContent=`${list.length} estrenos en los próximos 5 meses · fecha de estreno según TMDB`;
+}
+
+function cleanSnap(t,id){const pp=v=>(typeof v==="string"&&/^\/[\w.-]+$/.test(v))?v:null;const kinds=["Película","Serie","Anime","Documental"];const tv=t.mediaType==="tv";return{id:id,tmdbId:Number(t.tmdbId)||undefined,mediaType:tv?"tv":(t.mediaType==="movie"?"movie":undefined),title:String(t.title||"Sin título").slice(0,200),year:Number(t.year)||null,kind:kinds.includes(t.kind)?t.kind:(tv?"Serie":"Película"),genre:Array.isArray(t.genre)?t.genre.slice(0,6).map(x=>String(x).slice(0,40)):[],rating:Number(t.rating)||0,posterPath:pp(t.posterPath),backdropPath:pp(t.backdropPath),colors:palette(id),emoji:tv?"▣":"✦",mood:Array.isArray(t.mood)?t.mood.filter(x=>typeof x==="string"&&/^\w+$/.test(x)):[],isLive:!!Number(t.tmdbId),desc:String(t.desc||"").slice(0,200)}}
+function buildBackup(){const lists={};["watchlist","favorites","watched"].forEach(k=>lists[k]=getList(k).map(String));const tt={};new Set(Object.values(lists).flat()).forEach(id=>{const t=findTitle(id);if(t)tt[id]=snap(t)});let taste={};try{taste=getTaste()}catch(e){}return JSON.stringify({app:"CineClick",version:1,exportedAt:new Date().toISOString(),region:getRegion(),lists,titles:tt,taste})}
+async function backupCopy(){const txt=buildBackup();try{await navigator.clipboard.writeText(txt);toast("Respaldo copiado. Pégalo en una nota o mensaje para guardarlo.")}catch(e){const box=document.getElementById("restoreBox"),ta=document.getElementById("restoreText");box.classList.remove("hidden");ta.value=txt;ta.select();try{document.execCommand("copy");toast("Respaldo copiado")}catch(_){toast("Selecciona el texto y cópialo")}}}
+async function backupShare(){const txt=buildBackup();const name="cineclick-respaldo-"+ymd(new Date())+".json";
+ try{const Sh=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Share;if(Sh){await Sh.share({title:"Respaldo CineClick",text:txt,dialogTitle:"Guardar respaldo"});return}}catch(e){if(/cancel/i.test(String((e&&e.message)||e)))return}
+ try{const file=new File([txt],name,{type:"application/json"});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"Respaldo CineClick"});return}}catch(e){if(e&&e.name==="AbortError")return}
+ if(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()){return backupCopy()}
+ try{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"application/json"}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("Respaldo descargado")}catch(e){backupCopy()}}
+function toggleRestore(){document.getElementById("restoreBox").classList.toggle("hidden")}
+function applyBackup(txt){let d;try{d=JSON.parse(txt)}catch(e){toast("Ese texto no es un respaldo válido");return}
+ if(!d||d.app!=="CineClick"||!d.lists){toast("Eso no es un respaldo de CineClick");return}
+ const okId=x=>/^[\w-]{1,40}$/.test(x);let added=0;const c=getCache();
+ ["watchlist","favorites","watched"].forEach(k=>{const cur=new Set(getList(k).map(String));(Array.isArray(d.lists[k])?d.lists[k]:[]).forEach(id=>{id=String(id);if(okId(id)&&!cur.has(id)){cur.add(id);added++}});setList(k,[...cur])});
+ Object.entries(d.titles||{}).forEach(([id,t])=>{if(okId(id)&&t&&typeof t==="object"&&!c[id])c[id]=cleanSnap(t,id)});setCache(c);
+ try{if(d.taste&&Array.isArray(d.taste.liked)){const cur=getTaste();const mg=(a,b)=>[...new Set([...(a||[]),...(b||[])].map(String))];saveTaste({...cur,liked:mg(cur.liked,d.taste.liked),disliked:mg(cur.disliked,d.taste.disliked),ratings:{...(d.taste.ratings||{}),...(cur.ratings||{})},moods:{...(d.taste.moods||{}),...(cur.moods||{})}})}}catch(e){}
+ if(d.region&&regions[d.region]){try{localStorage.setItem("cc_region",d.region)}catch(e){}initRegionSelect()}
+ renderLists();document.getElementById("restoreBox").classList.add("hidden");document.getElementById("restoreText").value="";
+ toast(added?`Se restauraron ${added} títulos`:"Tus listas ya estaban al día")}
+function restoreFromText(){const t=document.getElementById("restoreText").value.trim();if(!t){toast("Pega primero tu respaldo");return}applyBackup(t)}
+
+document.getElementById("restoreFile").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>applyBackup(String(r.result));r.readAsText(f);e.target.value=""});
+document.getElementById("providerChips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;currentProvider=b.dataset.prov||null;renderProviderChips();loadExploreCatalog()});
+document.getElementById("regionSelect").addEventListener("change",e=>{try{localStorage.setItem("cc_region",e.target.value)}catch(_){}currentProvider=null;providerList=[];renderProviderChips();loadProviders();if(getCredential())loadExploreCatalog()});
+document.querySelectorAll("#upcomingChips .chip").forEach(b=>b.onclick=()=>{document.querySelectorAll("#upcomingChips .chip").forEach(x=>x.classList.remove("active"));b.classList.add("active");upcomingKind=b.dataset.ukind;renderUpcoming()});
+initRegionSelect();renderProviderChips();
+renderHome();renderExplore();renderLists();if(getCredential()){loadTrending();loadProviders();loadUpcoming(true)}
 </script>
 </body></html>
