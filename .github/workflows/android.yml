@@ -68,11 +68,21 @@ jobs:
       - name: Sincronizar con Android
         run: npx cap sync android
 
-      - name: Clave de firma estable (para poder actualizar sin desinstalar)
-        uses: actions/cache@v4
-        with:
-          path: ~/.android/debug.keystore
-          key: debug-keystore-v1
+      - name: Clave de firma fija (para poder actualizar sin desinstalar)
+        run: |
+          mkdir -p ~/.android
+          if [ -f zineclick-debug.keystore ]; then
+            cp zineclick-debug.keystore ~/.android/debug.keystore
+            echo "Usando la clave fija del proyecto"
+          else
+            echo "ATENCION: falta zineclick-debug.keystore en el repositorio"
+          fi
+
+      - name: Número de versión (sube solo en cada compilación)
+        run: |
+          sed -i "s/versionCode [0-9]*/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i "s/versionName \"[^\"]*\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
+          grep -n "versionCode\|versionName" android/app/build.gradle
 
       - name: Compilar APK
         working-directory: android
