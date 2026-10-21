@@ -5,6 +5,10 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: android-build
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -26,7 +30,49 @@ jobs:
       - name: Crear proyecto Android
         run: |
           if [ ! -d android ]; then npx cap add android; fi
-          npx cap sync android
+
+      - name: Poner ícono y pantalla de inicio propios
+        continue-on-error: true
+        run: |
+          if [ -f icon.png ] && [ -f icon-foreground.png ]; then
+            python3 -m venv /tmp/venv
+            /tmp/venv/bin/pip install pillow
+            /tmp/venv/bin/python - <<'PY'
+          from PIL import Image, ImageDraw
+          import glob, os
+          res = 'android/app/src/main/res'
+          full = Image.open('icon.png').convert('RGBA')
+          fg = Image.open('icon-foreground.png').convert('RGBA')
+          sizes = {'mdpi': (48, 108), 'hdpi': (72, 162), 'xhdpi': (96, 216),
+                   'xxhdpi': (144, 324), 'xxxhdpi': (192, 432)}
+          for d, (legacy, foreground) in sizes.items():
+              folder = f'{res}/mipmap-{d}'
+              os.makedirs(folder, exist_ok=True)
+              full.resize((legacy, legacy), Image.LANCZOS).convert('RGB').save(f'{folder}/ic_launcher.png')
+              r = full.resize((legacy, legacy), Image.LANCZOS)
+              m = Image.new('L', (legacy * 4, legacy * 4), 0)
+              ImageDraw.Draw(m).ellipse((0, 0, legacy * 4 - 1, legacy * 4 - 1), fill=255)
+              r.putalpha(m.resize((legacy, legacy), Image.LANCZOS))
+              r.save(f'{folder}/ic_launcher_round.png')
+              fg.resize((foreground, foreground), Image.LANCZOS).save(f'{folder}/ic_launcher_foreground.png')
+          os.makedirs(f'{res}/values', exist_ok=True)
+          with open(f'{res}/values/ic_launcher_background.xml', 'w') as f:
+              f.write('<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#000000</color>\n</resources>\n')
+          for p in glob.glob(f'{res}/drawable*/splash.png'):
+              w, h = Image.open(p).size
+              Image.new('RGB', (w, h), (0, 0, 0)).save(p)
+          print('Ícono y splash aplicados')
+          PY
+          fi
+
+      - name: Sincronizar con Android
+        run: npx cap sync android
+
+      - name: Clave de firma estable (para poder actualizar sin desinstalar)
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: debug-keystore-v1
 
       - name: Compilar APK
         working-directory: android
