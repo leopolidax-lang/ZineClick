@@ -483,6 +483,8 @@ async function rdResolve(input){
  return rdUnrestrict(input)}
 function rdPlay(r,title){
  const url=r.download;
+ const zp=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.ZinePlayer;
+ if(zp&&zp.play){zp.play({url:url,title:title||""}).catch(e=>alert("No se pudo abrir el reproductor: "+((e&&e.message)||e)));return}
  document.getElementById("rdPlayerTitle").textContent=title||"Reproductor";
  const v=document.getElementById("rdVideo");v.src=url;v.play().catch(()=>{});
  document.getElementById("rdCompat").onclick=async()=>{
