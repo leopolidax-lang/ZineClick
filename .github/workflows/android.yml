@@ -68,11 +68,11 @@ jobs:
       - name: Sincronizar con Android
         run: npx cap sync android
 
-      - name: Nombre de la app (Zinora)
+      - name: Nombre de la app (Zynora)
         run: |
           F=android/app/src/main/res/values/strings.xml
-          sed -i 's|<string name="app_name">[^<]*</string>|<string name="app_name">Zinora</string>|' "$F"
-          sed -i 's|<string name="title_activity_main">[^<]*</string>|<string name="title_activity_main">Zinora</string>|' "$F"
+          sed -i 's|<string name="app_name">[^<]*</string>|<string name="app_name">Zynora</string>|' "$F"
+          sed -i 's|<string name="title_activity_main">[^<]*</string>|<string name="title_activity_main">Zynora</string>|' "$F"
           grep -n "app_name\|title_activity_main" "$F"
 
       - name: Clave de firma fija (para poder actualizar sin desinstalar)
@@ -451,5 +451,5 @@ jobs:
       - name: Guardar APK
         uses: actions/upload-artifact@v4
         with:
-          name: Zinora-APK
+          name: Zynora-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
