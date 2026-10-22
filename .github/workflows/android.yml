@@ -76,13 +76,18 @@ jobs:
           grep -n "app_name\|title_activity_main" "$F"
 
       - name: Clave de firma fija (para poder actualizar sin desinstalar)
+        env:
+          KEYSTORE_B64: ${{ secrets.ZINE_KEYSTORE_B64 }}
         run: |
           mkdir -p ~/.android
-          if [ -f zineclick-debug.keystore ]; then
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
+            echo "Usando la clave guardada en los Secrets del repositorio"
+          elif [ -f zineclick-debug.keystore ]; then
             cp zineclick-debug.keystore ~/.android/debug.keystore
-            echo "Usando la clave fija del proyecto"
+            echo "::warning::La clave de firma sigue dentro del repositorio (público). Guárdala en el secreto ZINE_KEYSTORE_B64 y borra zineclick-debug.keystore del repo."
           else
-            echo "::error::Falta el archivo zineclick-debug.keystore en la raiz del repositorio. Sin el no se puede actualizar la app sin desinstalar."
+            echo "::error::No hay clave de firma. Crea el secreto ZINE_KEYSTORE_B64 (la clave en base64) en Settings > Secrets and variables > Actions. Sin la misma clave no se puede actualizar la app sin desinstalar."
             exit 1
           fi
 
