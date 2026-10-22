@@ -19,6 +19,9 @@
 </script>
 <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
 <script defer src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+<script src="supabase.js"></script>
+<script src="config.js"></script>
+<script src="sync.js"></script>
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -147,7 +150,7 @@
 </main>
 <main id="profilePage" class="hidden" aria-label="Perfil">
  <button class="st-back" id="prBack" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="18" height="18"><path d="m15 18-6-6 6-6"/></svg>Volver</button>
- <div class="page-title"><div class="eyebrow">Tu espacio</div><h1>Perfil</h1><p>Tu perfil se guarda solo en este dispositivo.</p></div>
+ <div class="page-title"><div class="eyebrow">Tu espacio</div><h1>Perfil</h1><p>Tu perfil se guarda en este dispositivo y, si inicias sesión, también en tu cuenta.</p></div>
  <div class="st-grid">
   <section class="st-card" aria-labelledby="prH1">
    <div class="pr-head"><div class="pr-av" id="prAv" aria-hidden="true">P</div><div class="pr-who"><b id="prName">Tu perfil</b><small id="prSince"></small></div></div>
@@ -170,7 +173,7 @@
   <section class="st-card" aria-labelledby="prH4">
    <h2 id="prH4">Atajos</h2>
    <div class="actions" style="margin-top:12px"><button class="btn primary" type="button" id="prGoLists">Mis listas y respaldo</button><button class="btn" type="button" id="prGoSettings">Ajustes</button></div>
-   <div class="notice" style="margin-top:14px">Zynora todavía no tiene cuentas: tu perfil y tus listas no se sincronizan entre dispositivos. Para pasarlos a otro teléfono usa el respaldo en Mis listas.</div>
+   <div class="notice" style="margin-top:14px">Cargando estado de la cuenta…</div>
   </section>
  </div>
 </main>
@@ -273,7 +276,7 @@ const keys={watchlist:"cc_v2_watchlist",favorites:"cc_v2_favorites",watched:"cc_
 const tmdbCredentialKey="cc_tmdb_credential";
 const genreMap={28:"Acción",12:"Aventura",16:"Animación",35:"Comedia",80:"Crimen",99:"Documental",18:"Drama",10751:"Familia",14:"Fantasía",36:"Historia",27:"Terror",10402:"Música",9648:"Misterio",10749:"Romance",878:"Ciencia ficción",10770:"Película de TV",53:"Suspenso",10752:"Bélica",37:"Western",10759:"Acción",10762:"Infantil",10763:"Noticias",10764:"Reality",10765:"Ciencia ficción",10766:"Telenovela",10767:"Talk show",10768:"Política",10749:"Romance"};
 function getList(k){try{return JSON.parse(localStorage.getItem(keys[k])||"[]")}catch(e){return []}}
-function setList(k,arr){localStorage.setItem(keys[k],JSON.stringify(arr))}
+function setList(k,arr){localStorage.setItem(keys[k],JSON.stringify(arr));zsAffMemo=null}
 function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2200)}
 function getCredential(){try{return localStorage.getItem(tmdbCredentialKey)||""}catch(e){return ""}}
 function isBearer(cred){return cred.trim().startsWith("eyJ")||cred.trim().split(".").length===3}
@@ -515,7 +518,7 @@ function getTaste(){
   try{return JSON.parse(localStorage.getItem("cineclick_taste_v1")||'{"liked":[],"disliked":[],"ratings":{},"moods":{}}')}
   catch(e){return {liked:[],disliked:[],ratings:{},moods:{}}}
 }
-function saveTaste(t){localStorage.setItem("cineclick_taste_v1",JSON.stringify(t));updatePreferenceSummary()}
+function saveTaste(t){localStorage.setItem("cineclick_taste_v1",JSON.stringify(t));zsAffMemo=null;updatePreferenceSummary()}
 function updatePreferenceSummary(){
  const el=document.getElementById("preferenceSummary");if(!el)return;
  const t=getTaste(), liked=t.liked.length, disliked=t.disliked.length, rated=Object.keys(t.ratings).length;
@@ -536,12 +539,32 @@ function moodScore(t,mood){
  };
  return (rules[mood]||/./).test(text)?1:0.15;
 }
+/* Afinidad por género: valoraciones (1-5, el 3 es neutro) + favoritos + vistos. Se recalcula solo cuando cambian. */
+var zsAffMemo=null;
+function zsAffinity(){
+  if(zsAffMemo)return zsAffMemo;
+  const aff={},taste=getTaste(),cache=getCache();
+  const add=(id,w)=>{const t=cache[id]||findTitle(id);if(!t)return;(t.genre||[]).forEach(g=>{aff[g]=(aff[g]||0)+w})};
+  Object.entries(taste.ratings||{}).forEach(([id,r])=>add(String(id),(Number(r)-3)*0.8));
+  getList("favorites").forEach(id=>add(String(id),0.8));
+  getList("watched").forEach(id=>add(String(id),0.3));
+  return zsAffMemo=aff}
+/* Lo llama sync.js cuando llegan datos de la nube o se cambia de cuenta. */
+window.ZS_REFRESH=function(){
+  zsAffMemo=null;
+  try{zySettings=zyLoad();zyApply()}catch(e){}
+  try{prApplyAvatar();if(!document.getElementById("profilePage").classList.contains("hidden"))prRender()}catch(e){}
+  try{renderLists()}catch(e){}
+  try{updatePreferenceSummary()}catch(e){}
+  try{initRegionSelect()}catch(e){}
+};
 function scoreRecommendation(t,mood){
  const taste=getTaste(), id=String(t.id), genres=(t.genre||[]);
  let score=(Number(t.rating)||0)*0.5 + Math.min(Number(t.popularity)||0,100)/100;
  score+=moodScore(t,mood)*2;
  for(const g of genres){if(taste.moods[g])score+=taste.moods[g]*0.7}
   score+=zyGenreBoost(genres);
+  {const aff=zsAffinity();for(const g of genres)score+=Math.max(-2,Math.min(2,aff[g]||0))*0.5;if(taste.ratings&&taste.ratings[id])score-=2}
  if(taste.liked.includes(id))score-=3;
  if(taste.disliked.includes(id))score-=100;
  if(getList("watched").map(String).includes(id))score-=1.5;
