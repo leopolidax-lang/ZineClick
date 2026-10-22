@@ -27,6 +27,12 @@ jobs:
       - name: Instalar dependencias
         run: npm install
 
+      - name: Preparar www (app web + supabase-js + configuración)
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+        run: node scripts/prepare-www.mjs
+
       - name: Crear proyecto Android
         run: |
           if [ ! -d android ]; then npx cap add android; fi
@@ -67,6 +73,26 @@ jobs:
 
       - name: Sincronizar con Android
         run: npx cap sync android
+
+      - name: Enlace de retorno para iniciar sesión con Google (deep link)
+        run: |
+          python3 - <<'PY'
+          m = 'android/app/src/main/AndroidManifest.xml'
+          t = open(m, encoding='utf-8').read()
+          if 'auth-callback' not in t:
+              f = ('        <intent-filter>\n'
+                   '            <action android:name="android.intent.action.VIEW" />\n'
+                   '            <category android:name="android.intent.category.DEFAULT" />\n'
+                   '            <category android:name="android.intent.category.BROWSABLE" />\n'
+                   '            <data android:scheme="com.zineclick.app" android:host="auth-callback" />\n'
+                   '        </intent-filter>\n')
+              i = t.find('</activity>')
+              assert i > 0, 'No se encontró <activity> en el manifest'
+              t = t[:i] + f + '    ' + t[i:]
+              open(m, 'w', encoding='utf-8').write(t)
+          print('Deep link auth-callback añadido')
+          PY
+          grep -n "auth-callback" android/app/src/main/AndroidManifest.xml
 
       - name: Nombre de la app (Zynora)
         run: |
