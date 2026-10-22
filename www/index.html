@@ -7,6 +7,16 @@
 <title>Zynora — Descubre tu próxima historia</title>
 <link rel="icon" type="image/png" href="img/favicon-192.png">
 <script>try{if(!sessionStorage.getItem("zc_intro"))document.documentElement.classList.add("intro-on")}catch(e){document.documentElement.classList.add("intro-on")}</script>
+<script>
+/* Seguro anti-pantalla-negra: si algo falla, quita la intro y muestra el error */
+(function(){
+ function rescue(msg){
+  try{document.documentElement.classList.remove("intro-on");var i=document.getElementById("intro");if(i)i.style.display="none";
+  if(msg){var d=document.createElement("div");d.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:999;background:#300;color:#fff;font:12px sans-serif;padding:10px;word-break:break-all";d.textContent="Error: "+msg;(document.body||document.documentElement).appendChild(d)}}catch(e){}}
+ window.addEventListener("error",function(e){rescue((e.message||"")+" (línea "+(e.lineno||"?")+")")});
+ setTimeout(function(){if(document.documentElement.classList.contains("intro-on"))rescue("")},7000);
+})();
+</script>
 <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
 <script defer src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
 <link rel="stylesheet" href="css/styles.css">
