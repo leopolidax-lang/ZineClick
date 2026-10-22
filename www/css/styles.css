@@ -303,3 +303,29 @@ html::-webkit-scrollbar,body::-webkit-scrollbar,*::-webkit-scrollbar{display:non
 /* Al abrir el tráiler, la ficha de atrás se oculta (evita el rectángulo celeste que se transparentaba) */
 html.tr-open #detailModal{visibility:hidden}
 #trailerModal{-webkit-backdrop-filter:none;backdrop-filter:none;background:#02040bf5}
+
+/* ===== Perfil ===== */
+#profilePage .page-title{margin-top:6px}
+.avatar,.pf-p{color:var(--pr-a,var(--cyan))}
+.pr-head{display:flex;align-items:center;gap:16px;padding-bottom:6px}
+.pr-av{flex:none;width:68px;height:68px;border-radius:50%;display:grid;place-items:center;font-size:30px;font-weight:800;color:#06101c;background:linear-gradient(145deg,var(--pr-a,var(--cyan)),var(--pr-b,#8b5cf6));box-shadow:0 8px 30px rgba(var(--acc-rgb),.18)}
+.pr-who{min-width:0}.pr-who b{display:block;font-size:21px;letter-spacing:-.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pr-who small{color:var(--muted)}
+#prInput{width:100%;margin-top:12px;background:#080d18;color:#fff;border:1px solid #303950;border-radius:12px;padding:12px 14px;font:inherit}
+#prInput:focus{outline:0;border-color:var(--cyan)}
+.pr-colors{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.pr-colors button{width:40px;height:40px;border-radius:50%;border:2px solid transparent;padding:0}
+.pr-colors button[aria-checked="true"]{border-color:#fff;box-shadow:inset 0 0 0 3px #0d1220}
+.pr-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+.pr-stat{padding:14px 6px;border-radius:16px;border:1px solid #283149;background:#111725;color:inherit;text-align:center}
+.pr-stat b{display:block;font-size:26px;letter-spacing:-.5px}.pr-stat span{color:var(--muted);font-size:12.5px}
+.pr-stat:active,.pr-stat:focus-visible{border-color:var(--cyan);outline:0}
+.pr-bar{display:grid;grid-template-columns:minmax(80px,34%) 1fr;gap:10px;align-items:center;margin-top:12px;font-size:13px}
+.pr-bar i{display:block;height:9px;border-radius:99px;background:linear-gradient(90deg,var(--cyan),#8b5cf6);width:var(--w)}
+html[data-theme="amoled"] .pr-stat{background:#05070b;border-color:#1a2235}
+html[data-theme="amoled"] #prInput{background:#05070b;border-color:#1c2438}
+/* ===== Cargar más ===== */
+.ex-more{justify-content:center;margin:18px 0 6px}.ex-more[hidden]{display:none}
+/* ===== Logo TMDB en créditos ===== */
+.st-tmdb{display:flex;align-items:center;gap:14px;margin:12px 0 4px}
+.st-tmdb img{flex:none;width:56px;height:56px;border-radius:14px}
+.st-tmdb p{margin:0;color:var(--muted);font-size:13px}
