@@ -2,7 +2,7 @@
 // y genera www/config.js con las variables de GitHub si existen.
 import { cpSync, mkdirSync, existsSync, writeFileSync, readFileSync } from "node:fs";
 
-for (const f of ["www/index.html", "www/styles.css", "www/sync.js"]) {
+for (const f of ["www/index.html", "www/css/styles.css", "www/sync.js"]) {
   if (!existsSync(f)) { console.error(`Falta ${f}. Revisa que subiste los archivos a www/.`); process.exit(1); }
 }
 mkdirSync("www", { recursive: true });
