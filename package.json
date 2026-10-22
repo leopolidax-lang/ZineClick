@@ -5,6 +5,7 @@
   "description": "ZineClick Android app",
   "dependencies": {
     "@capacitor/android": "^7.4.3",
+    "@capacitor/app": "^7.0.0",
     "@capacitor/core": "^7.4.3",
     "@capacitor/share": "^7.0.0"
   },
