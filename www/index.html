@@ -66,18 +66,25 @@
 </main>
 
 <main id="explorePage" class="hidden">
- <div class="page-title"><h1>Explorar universo</h1><p>Encuentra películas, series, anime y documentales.</p></div>
- <div class="chips" id="typeChips"><button class="chip active" data-kind="Todo">Todo</button><button class="chip" data-kind="Película">Películas</button><button class="chip" data-kind="Serie">Series</button><button class="chip" data-kind="Anime">Anime</button><button class="chip" data-kind="Documental">Documentales</button></div>
- <div class="chips" id="genreChips"><button class="chip active" data-genre="Todo">Todos los géneros</button><button class="chip" data-genre="Ciencia ficción">Ciencia ficción</button><button class="chip" data-genre="Drama">Drama</button><button class="chip" data-genre="Misterio">Misterio</button><button class="chip" data-genre="Acción">Acción</button><button class="chip" data-genre="Animación">Animación</button></div>
- <div class="section-head" style="margin-bottom:6px"><div><h2 style="font-size:17px">Plataformas</h2><p>Filtra por dónde se puede ver en tu país.</p></div><select id="regionSelect" class="chip" style="background:#111625;color:white" aria-label="País"></select></div>
- <div class="chips" id="providerChips"></div>
- <div class="panel" id="timeFilter" style="margin:10px 0 14px;padding:14px">
+ <div class="page-title ex-title"><h1>Explorar <span class="acc">cine</span></h1><p>Encuentra tu próxima historia.</p></div>
+ <div class="chips ex-types" id="typeChips"><button class="chip active" data-kind="Todo">Todo</button><button class="chip" data-kind="Película">Películas</button><button class="chip" data-kind="Serie">Series</button><button class="chip" data-kind="Anime">Anime</button><button class="chip" data-kind="Documental">Documentales</button></div>
+ <section class="ex-sec" aria-labelledby="exGenTitle">
+  <div class="ex-head"><h2 id="exGenTitle">Géneros</h2><button class="text-btn" id="genreToggle" aria-expanded="false" aria-controls="genreChips">Ver todos ›</button></div>
+ <div class="chips ex-genres" id="genreChips"><button class="chip active" data-genre="Todo">Todos los géneros</button><button class="chip" data-genre="Ciencia ficción">Ciencia ficción</button><button class="chip" data-genre="Drama">Drama</button><button class="chip" data-genre="Misterio">Misterio</button><button class="chip" data-genre="Acción">Acción</button><button class="chip" data-genre="Animación">Animación</button></div>
+ </section>
+ <section class="ex-sec" aria-labelledby="exWhereTitle">
+  <div class="ex-head"><h2 id="exWhereTitle">Dónde ver</h2></div>
+  <label class="ex-region"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-5.6-7-11a7 7 0 0 1 14 0c0 5.4-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><select id="regionSelect" aria-label="País"></select><svg class="ex-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></label>
+  <div class="chips ex-prov" id="providerChips"></div>
+ </section>
+ <div class="panel ex-time" id="timeFilter" style="margin:10px 0 14px;padding:14px">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><strong>⏱ ¿Cuánto tiempo tienes?</strong><span id="timeLabel" style="color:var(--cyan);font-weight:700">Sin límite</span></div>
   <input id="timeRange" type="range" min="30" max="180" step="10" value="120" style="width:100%;margin:10px 0 4px;accent-color:#64f4ff">
   <div style="display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px"><span>30 min</span><button class="text-btn" id="timeClear" style="display:none">Quitar filtro</button><span>3 h</span></div>
  </div>
  <div class="section-head"><div><h2 id="exploreHeading">Catálogo</h2><p id="exploreSub">Conecta TMDB desde P → API para activar el catálogo real.</p></div><select id="sortSelect" class="chip" style="background:#111625;color:white"><option value="rating">Mejor puntuados</option><option value="year">Más recientes</option><option value="az">A–Z</option></select></div>
  <div class="grid" id="exploreGrid"></div>
+ <div class="ex-bar" id="exFilterBar" role="group" aria-label="Filtros activos" hidden><button type="button" id="exFilterGo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="20" height="20"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Filtros <span class="ex-n" id="exFilterN">0</span></button><button type="button" id="exFilterClear">Limpiar</button></div>
 </main>
 
 <main id="upcomingPage" class="hidden">
@@ -126,6 +133,47 @@
   <div id="preferenceSummary" class="notice" style="margin-top:14px">Todavía estamos conociendo tus gustos. Marca títulos como interesantes o descártalos para personalizar la selección.</div>
 </div>
  <section class="section"><div class="grid" id="recommendGrid2"></div></section>
+</main>
+<main id="settingsPage" class="hidden" aria-label="Ajustes">
+ <button class="st-back" id="stBack" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="18" height="18"><path d="m15 18-6-6 6-6"/></svg>Volver</button>
+ <div class="page-title"><div class="eyebrow">Personalización</div><h1>Ajustes</h1><p>Haz Zynora tuyo. Los cambios se aplican al instante y se guardan en este dispositivo.</p></div>
+ <div class="st-grid">
+  <section class="st-card" aria-labelledby="stH1">
+   <h2 id="stH1">Apariencia</h2>
+   <div class="st-row st-first"><div class="st-line"><div class="st-lab"><b id="stL1">Negro AMOLED</b><small>Fondo negro puro, sin resplandores. Ahorra batería en pantallas OLED.</small></div><button class="st-sw" type="button" role="switch" aria-checked="false" aria-labelledby="stL1" data-key="amoled"></button></div></div>
+   <div class="st-row"><div class="st-lab"><b>Color de acento</b><small>Botones, filtros y detalles activos.</small></div>
+    <div class="st-seg" role="radiogroup" aria-label="Color de acento" data-key="accent"><button type="button" role="radio" aria-checked="false" data-val="cyan"><i class="st-dot" style="background:#64f4ff"></i>Cian</button><button type="button" role="radio" aria-checked="false" data-val="violet"><i class="st-dot" style="background:#b69cff"></i>Violeta</button><button type="button" role="radio" aria-checked="false" data-val="neutral"><i class="st-dot" style="background:#dfe5f2"></i>Neutro</button></div></div>
+   <div class="st-row"><div class="st-line"><div class="st-lab"><b id="stL2">Reducir animaciones</b><small id="stMotionNote">Quita transiciones, el desplazamiento suave y el avance automático de la portada.</small></div><button class="st-sw" type="button" role="switch" aria-checked="false" aria-labelledby="stL2" data-key="reduceMotion"></button></div></div>
+   <div class="st-row"><div class="st-lab"><b>Tamaño de las tarjetas</b><small>Cuántos títulos caben en cada fila del catálogo y de tus listas.</small></div>
+    <div class="st-seg" role="radiogroup" aria-label="Tamaño de las tarjetas" data-key="cards"><button type="button" role="radio" aria-checked="false" data-val="compact">Compactas</button><button type="button" role="radio" aria-checked="false" data-val="normal">Normales</button><button type="button" role="radio" aria-checked="false" data-val="large">Grandes</button></div></div>
+  </section>
+  <section class="st-card" aria-labelledby="stH2">
+   <h2 id="stH2">Descubrimiento</h2>
+   <div class="st-row st-first"><div class="st-lab"><b>Contenido preferido</b><small>Con qué empieza Explorar y los recomendadores. Puedes cambiarlo en cualquier momento y el catálogo completo sigue disponible.</small></div>
+    <div class="st-seg" role="radiogroup" aria-label="Contenido preferido" data-key="kind"><button type="button" role="radio" aria-checked="false" data-val="movies">Películas</button><button type="button" role="radio" aria-checked="false" data-val="series">Series</button><button type="button" role="radio" aria-checked="false" data-val="both">Ambos</button></div></div>
+   <div class="st-row"><div class="st-lab"><b>Géneros favoritos</b><small>Toca para marcar o quitar. Los marcados aparecen primero en Explorar.</small></div><div class="st-gchips" id="stGenres"></div></div>
+   <div class="st-row"><div class="st-lab"><b>Orden inicial en Explorar</b></div>
+    <div class="st-seg" role="radiogroup" aria-label="Orden inicial" data-key="sort"><button type="button" role="radio" aria-checked="false" data-val="rating">Mejor puntuados</button><button type="button" role="radio" aria-checked="false" data-val="year">Recientes</button><button type="button" role="radio" aria-checked="false" data-val="az">A–Z</button></div></div>
+   <div class="st-row"><div class="st-line"><div class="st-lab"><b id="stL3">Priorizar mis géneros</b><small>Tus géneros favoritos salen antes en el catálogo y pesan más en las recomendaciones. Nada se oculta.</small></div><button class="st-sw" type="button" role="switch" aria-checked="false" aria-labelledby="stL3" data-key="prioritize"></button></div></div>
+  </section>
+  <section class="st-card" aria-labelledby="stH3">
+   <h2 id="stH3">Datos y almacenamiento</h2>
+   <div class="st-row st-first"><div class="st-lab"><b>Guardado solo en este dispositivo</b><small>Así está ahora mismo lo que Zynora guarda en tu teléfono o navegador.</small></div><dl class="st-kv" id="stData"></dl></div>
+   <div class="st-row"><div class="st-lab"><b>Sincronización</b><small>Ninguna. Zynora no tiene cuentas ni servidor propio, así que nada se sincroniza entre dispositivos. Para pasar tus listas a otro teléfono usa «Respaldo» en Mis listas.</small></div></div>
+   <div class="st-row"><div class="st-lab"><b>Exportar preferencias</b><small>Genera un archivo con tus ajustes de esta pantalla. No incluye listas, credenciales ni tokens.</small></div>
+    <div class="actions" style="margin-top:12px"><button class="btn primary" type="button" data-act="export-share">⬆ Guardar / compartir</button><button class="btn" type="button" data-act="export-copy">⧉ Copiar</button></div></div>
+   <div class="st-row"><div class="st-lab"><b>Restablecer preferencias</b><small>Vuelve los ajustes de esta pantalla a sus valores originales. No borra listas, favoritos, historial, señales de gusto, credenciales ni el país elegido.</small></div>
+    <div class="actions" style="margin-top:12px"><button class="btn" type="button" id="stReset" data-act="reset">Restablecer preferencias</button></div></div>
+  </section>
+  <section class="st-card" aria-labelledby="stH4">
+   <h2 id="stH4">Acerca de Zynora</h2>
+   <div class="st-row st-first"><div class="st-line"><div class="st-lab"><b>Zynora</b><small>Descubre tu próxima historia.</small></div><span class="st-ver" id="stVersion">Versión 1.0</span></div></div>
+   <div class="st-row"><div class="st-lab"><b>Créditos y fuentes de datos</b></div>
+    <ul class="st-list"><li><b>TMDB</b> — catálogo, pósters, reparto y tendencias. Este producto usa la API de TMDB, pero no está respaldado ni certificado por TMDB. <span class="st-en">This product uses the TMDB API but is not endorsed or certified by TMDB.</span></li><li><b>JustWatch</b> — datos de disponibilidad en plataformas, entregados a través de TMDB.</li><li><b>YouTube</b> — los tráilers se reproducen con su reproductor incrustado.</li><li><b>Plyr</b> — reproductor de video (licencia MIT).</li><li><b>Real-Debrid, Jellyfin/Emby y VLC</b> — opcionales; solo se usan si tú los configuras.</li></ul></div>
+   <div class="st-row"><div class="st-lab"><b>Privacidad</b></div>
+    <ul class="st-list"><li>Zynora no tiene cuentas, publicidad ni analíticas propias. Tus listas, gustos y ajustes se quedan en este dispositivo.</li><li>Cuando buscas o exploras, tus consultas se envían a TMDB usando tu credencial. Al abrir un tráiler, YouTube recibe esa solicitud.</li><li>Tu credencial de TMDB, el token de Real-Debrid y los datos de tu servidor se guardan solo aquí y nunca se incluyen en respaldos ni exportaciones.</li><li>El reproductor se descarga de cdn.plyr.io al abrir la app.</li><li>Si desinstalas la app, estos datos se borran. Haz un respaldo antes desde Mis listas.</li></ul></div>
+  </section>
+ </div>
 </main>
 <footer><span>✦ ZineClick <span style="color:var(--cyan)">/</span> CineVerse beta</span><span>Prototipo · Conexiones consultadas en TMDB · Sin cuentas reales todavía</span></footer>
 </div>
@@ -270,7 +318,7 @@ function heroPic(t,first){
  const tm="https://image.tmdb.org/t/p/",wide=t.backdropPath?tm+"w1280"+t.backdropPath:tm+"w780"+t.posterPath,tall=t.posterPath?tm+"w780"+t.posterPath:wide;
  return `<picture><source media="(max-width:700px)" srcset="${esc(tall)}"><img src="${esc(wide)}" alt="" draggable="false"${first?"":' loading="lazy"'}></picture>`}
 function heroSlideW(){const tr=document.getElementById("heroTrack"),sl=tr.firstElementChild;return sl?sl.offsetWidth+(parseFloat(getComputedStyle(tr).columnGap)||12):0}
-function heroGo(i){const tr=document.getElementById("heroTrack"),n=tr.children.length;if(!n)return;i=Math.max(0,Math.min(n-1,i));tr.scrollTo({left:i*heroSlideW(),behavior:"smooth"})}
+function heroGo(i){const tr=document.getElementById("heroTrack"),n=tr.children.length;if(!n)return;i=Math.max(0,Math.min(n-1,i));tr.scrollTo({left:i*heroSlideW(),behavior:zyReduceMotion()?"auto":"smooth"})}
 function heroMark(){const tr=document.getElementById("heroTrack"),w=heroSlideW();if(!w)return;heroIdx=Math.max(0,Math.min(tr.children.length-1,Math.round(tr.scrollLeft/w)));document.querySelectorAll("#heroDots .hc-dot").forEach((d,k)=>{d.classList.toggle("on",k===heroIdx);d.setAttribute("aria-selected",k===heroIdx)})}
 function heroSetup(){
  const tr=document.getElementById("heroTrack");
@@ -282,10 +330,10 @@ function heroSetup(){
  document.getElementById("heroNext").onclick=()=>{heroTouch=Date.now();heroGo(heroIdx+1)};
  document.getElementById("heroDots").addEventListener("click",e=>{const d=e.target.closest(".hc-dot");if(d){heroTouch=Date.now();heroGo(Number(d.dataset.i))}});
  window.addEventListener("resize",()=>heroGo(heroIdx));
- if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches){
+ {
   heroTimer=setInterval(()=>{
    const n=document.getElementById("heroTrack").children.length;
-   if(n<2||document.hidden||document.getElementById("homePage").classList.contains("hidden")||document.querySelector(".modal-wrap.open")||Date.now()-heroTouch<9000)return;
+   if(zyReduceMotion()||n<2||document.hidden||document.getElementById("homePage").classList.contains("hidden")||document.querySelector(".modal-wrap.open")||Date.now()-heroTouch<9000)return;
    heroGo(heroIdx+1>=n?0:heroIdx+1)},6500)}
  heroInit=true}
 function renderHero(){
@@ -315,16 +363,16 @@ function rdTokenLink(){return '<div class="actions" style="margin-top:14px"><but
  $("pfApi").onclick=()=>openApiModal("tmdb");
  $("pfRd").onclick=()=>{closeRail();rdLibrary()};
  $("pfMs").onclick=()=>openApiModal("ms");
- $("pfSettings").onclick=()=>{closeRail();toast("Ajustes: próximamente.")};
+ $("pfSettings").onclick=()=>openSettings();
  document.addEventListener("keydown",e=>{if(e.key==="Escape")closeRail()});
  window.addEventListener("resize",()=>{if($("pfRail").classList.contains("open"))setRailTop()});
 })();
 
 function searchMatch(t){return (t.title+" "+(t.genre||[]).join(" ")+" "+(t.cast||[]).join(" ")+" "+(t.character||"")).toLowerCase().includes(searchTerm.toLowerCase())}
 function renderHome(){backfillCache();renderHero();draw("trendingGrid",[...titles].sort((a,b)=>b.rating-a.rating).slice(0,6));updatePreferenceSummary()}
-function renderExplore(){let a=titles.filter(t=>searchMatch(t)&&(currentKind==="Todo"||t.kind===currentKind)&&(currentGenre==="Todo"||(t.genre||[]).includes(currentGenre)));let s=document.getElementById("sortSelect").value;if(s==="rating")a.sort((x,y)=>y.rating-x.rating);if(s==="year")a.sort((x,y)=>(y.year||0)-(x.year||0));if(s==="az")a.sort((x,y)=>x.title.localeCompare(y.title));draw("exploreGrid",a);if(!a.length&&searchTerm.trim().length>=2)document.getElementById("exploreGrid").innerHTML=`<div class="empty">Sin resultados para “${esc(searchTerm.trim())}”. Prueba con otro nombre o revisa la ortografía.</div>`;document.getElementById("exploreHeading").textContent=searchTerm?`Resultados para “${searchTerm}”`:"Catálogo";document.getElementById("exploreSub").textContent=sourceMode==="live"?"Datos obtenidos de TMDB. La disponibilidad de streaming se consulta por región.":"Catálogo de muestra. Pulsa P → API para conectarte a TMDB."}
+function renderExplore(){let a=titles.filter(t=>searchMatch(t)&&(currentKind==="Todo"||t.kind===currentKind)&&(currentGenre==="Todo"||(t.genre||[]).includes(currentGenre)));let s=document.getElementById("sortSelect").value;if(s==="rating")a.sort((x,y)=>y.rating-x.rating);if(s==="year")a.sort((x,y)=>(y.year||0)-(x.year||0));if(s==="az")a.sort((x,y)=>x.title.localeCompare(y.title));draw("exploreGrid",zyPrefSort(a));if(!a.length&&searchTerm.trim().length>=2)document.getElementById("exploreGrid").innerHTML=`<div class="empty">Sin resultados para “${esc(searchTerm.trim())}”. Prueba con otro nombre o revisa la ortografía.</div>`;document.getElementById("exploreHeading").textContent=searchTerm?`Resultados para “${searchTerm}”`:"Catálogo";document.getElementById("exploreSub").textContent=sourceMode==="live"?"Datos obtenidos de TMDB. La disponibilidad de streaming se consulta por región.":"Catálogo de muestra. Pulsa P → API para conectarte a TMDB.";zyUpdateFilterBar()}
 function renderLists(){let arr=getList(currentList).map(id=>findTitle(id)).filter(Boolean).filter(searchMatch);backfillCache();draw("listsGrid",arr);["watchlist","favorites","watched"].forEach(k=>document.getElementById("count-"+k).textContent=`(${getList(k).length})`)}
-function goPage(p){document.querySelectorAll("main[id$='Page']").forEach(x=>x.classList.add("hidden"));document.getElementById(p+"Page").classList.remove("hidden");document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===p));if(p==="explore"){renderExplore();if(getCredential())loadExploreCatalog();}if(p==="lists")renderLists();if(p==="upcoming")loadUpcoming();if(p==="recommend")recommend(true);if(p==="cineverse"&&!verseNodes.length){verseStatus(getCredential()?"Busca una película o serie para comenzar.":"Conecta TMDB desde P → API para explorar conexiones reales.");}window.scrollTo({top:0,behavior:"smooth"})}
+function goPage(p){document.querySelectorAll("main[id$='Page']").forEach(x=>x.classList.add("hidden"));document.getElementById(p+"Page").classList.remove("hidden");document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===p));if(p==="explore"){renderExplore();if(getCredential())loadExploreCatalog();}if(p==="lists")renderLists();if(p==="upcoming")loadUpcoming();if(p==="recommend")recommend(true);if(p==="cineverse"&&!verseNodes.length){verseStatus(getCredential()?"Busca una película o serie para comenzar.":"Conecta TMDB desde P → API para explorar conexiones reales.");}window.scrollTo({top:0,behavior:zyReduceMotion()?"auto":"smooth"});zyAfterNav(p)}
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>goPage(b.dataset.page));
 document.querySelectorAll("#typeChips .chip").forEach(b=>b.onclick=()=>{document.querySelectorAll("#typeChips .chip").forEach(x=>x.classList.remove("active"));b.classList.add("active");currentKind=b.dataset.kind;renderExplore()});
 document.querySelectorAll("#genreChips .chip").forEach(b=>b.onclick=()=>{document.querySelectorAll("#genreChips .chip").forEach(x=>x.classList.remove("active"));b.classList.remove("active");b.classList.add("active");currentGenre=b.dataset.genre;renderExplore()});
@@ -335,7 +383,7 @@ document.querySelectorAll("#listChips .chip").forEach(b=>b.onclick=()=>{document
   const q=searchTerm.trim();let active=document.querySelector("main:not(.hidden)");
   clearTimeout(searchTimer);searchSeq++;if(searchCtrl){searchCtrl.abort();searchCtrl=null}
   if(active.id==="listsPage"){renderLists();return}
-  if(active.id==="homePage"){if(!q)return;goPage("explore");active=null}
+  if(active.id==="homePage"||active.id==="settingsPage"){if(!q)return;goPage("explore");active=null}
   if(getCredential()&&q.length>=2){searchTimer=setTimeout(()=>liveSearch(q),now?0:350)}
   else if(getCredential()&&!q){loadExploreCatalog()}
   else renderExplore()}
@@ -412,6 +460,7 @@ function scoreRecommendation(t,mood){
  let score=(Number(t.rating)||0)*0.5 + Math.min(Number(t.popularity)||0,100)/100;
  score+=moodScore(t,mood)*2;
  for(const g of genres){if(taste.moods[g])score+=taste.moods[g]*0.7}
+  score+=zyGenreBoost(genres);
  if(taste.liked.includes(id))score-=3;
  if(taste.disliked.includes(id))score-=100;
  if(getList("watched").map(String).includes(id))score-=1.5;
@@ -471,7 +520,7 @@ async function recommend(second=false){
  updatePreferenceSummary();
  if(!second){
   document.getElementById("recommendResultsSection").hidden=false;
-  document.getElementById("recommendResultsSection").scrollIntoView({behavior:"smooth",block:"start"});
+  document.getElementById("recommendResultsSection").scrollIntoView({behavior:zyReduceMotion()?"auto":"smooth",block:"start"});
  }
 }
 function surpriseMe(){openRoulette()}
@@ -544,8 +593,8 @@ function findTitle(id){const s=String(id);return titles.find(x=>String(x.id)===s
 function backfillCache(){try{const c=getCache();let ch=false;["watchlist","favorites","watched"].forEach(k=>getList(k).forEach(id=>{const s=String(id);if(!c[s]){const t=titles.find(x=>String(x.id)===s)||sampleTitles.find(x=>String(x.id)===s);if(t){c[s]=snap(t);ch=true}}}));if(ch)setCache(c)}catch(e){}}
 
 function initRegionSelect(){const el=document.getElementById("regionSelect");if(!el)return;el.innerHTML=Object.entries(regions).map(([c,n])=>`<option value="${c}">${n}</option>`).join("");el.value=getRegion()}
-function renderProviderChips(){const el=document.getElementById("providerChips");if(!el)return;if(!getCredential()){el.innerHTML='<div class="notice" style="margin:0">Conecta TMDB desde P → API para filtrar por plataforma.</div>';return}el.innerHTML='<button class="chip'+(currentProvider?'':' active')+'" data-prov="">Todas</button>'+providerList.map(p=>'<button class="chip'+(String(currentProvider)===String(p.id)?' active':'')+'" data-prov="'+p.id+'">'+esc(p.name)+'</button>').join("")}
-async function loadProviders(){if(!getCredential()){renderProviderChips();return}try{const r=getRegion();const [m,t]=await Promise.all([tmdb("/watch/providers/movie",{watch_region:r}),tmdb("/watch/providers/tv",{watch_region:r})]);const map=new Map();[...(m.results||[]),...(t.results||[])].forEach(p=>{if(!map.has(p.provider_id))map.set(p.provider_id,{id:p.provider_id,name:p.provider_name,prio:(p.display_priorities&&p.display_priorities[r]!=null)?p.display_priorities[r]:(p.display_priority||99)})});providerList=[...map.values()].sort((a,b)=>a.prio-b.prio).slice(0,12)}catch(e){providerList=[]}renderProviderChips()}
+function renderProviderChips(){const el=document.getElementById("providerChips");if(!el)return;if(!getCredential()){el.innerHTML='<div class="notice" style="margin:0">Conecta TMDB desde P → API para filtrar por plataforma.</div>';return}el.innerHTML='<button class="chip'+(currentProvider?'':' active')+'" data-prov="">Todas</button>'+providerList.map(p=>'<button class="chip prov-card'+(String(currentProvider)===String(p.id)?' active':'')+'" data-prov="'+p.id+'">'+(/^\/[\w.-]+$/.test(p.logo||"")?'<img src="https://image.tmdb.org/t/p/w92'+p.logo+'" alt="" loading="lazy">':'')+'<span>'+esc(p.name)+'</span></button>').join("")}
+async function loadProviders(){if(!getCredential()){renderProviderChips();return}try{const r=getRegion();const [m,t]=await Promise.all([tmdb("/watch/providers/movie",{watch_region:r}),tmdb("/watch/providers/tv",{watch_region:r})]);const map=new Map();[...(m.results||[]),...(t.results||[])].forEach(p=>{if(!map.has(p.provider_id))map.set(p.provider_id,{id:p.provider_id,name:p.provider_name,logo:p.logo_path||"",prio:(p.display_priorities&&p.display_priorities[r]!=null)?p.display_priorities[r]:(p.display_priority||99)})});providerList=[...map.values()].sort((a,b)=>a.prio-b.prio).slice(0,12)}catch(e){providerList=[]}renderProviderChips()}
 
 function ymd(d){return d.toISOString().slice(0,10)}
 function fmtDate(s){if(!s)return"";return new Date(s+"T12:00:00").toLocaleDateString("es",{day:"numeric",month:"short",year:"numeric"})}
@@ -860,6 +909,181 @@ function rouTick(i,steps){rouBeep(420+(i/steps)*380,0.06,0.10,"square")}
 function rouWin(){[523.25,659.25,783.99,1046.5].forEach((f,k)=>rouBeep(f,0.45,0.16,"triangle",k*0.09));try{navigator.vibrate&&navigator.vibrate(35)}catch(e){}}
 function toggleRouSound(){rouSound=!rouSound;try{localStorage.setItem("cc_rou_sound",rouSound?"1":"0")}catch(e){}document.getElementById("rouSnd").textContent=rouSound?"🔊":"🔇";if(rouSound)rouBeep(660,0.1,0.12)}
 
+/* ===== Ajustes y personalización (v1) =====
+   Usa su propia clave "zy_settings_v1". No lee ni modifica ninguna clave existente
+   (listas, caché, gustos, credenciales, región...). Restablecer solo borra esa clave. */
+var ZY_VERSION="1.0",zyKey="zy_settings_v1",zySettings=null,zyGenreList=[],zyResetTimer=null,zyPrev="home";
+var zyDefaults={amoled:false,accent:"cyan",reduceMotion:false,cards:"normal",kind:"both",genres:[],sort:"rating",prioritize:true};
+function zySystemReduce(){try{return window.matchMedia("(prefers-reduced-motion: reduce)").matches}catch(e){return false}}
+function zyReduceMotion(){return document.documentElement.classList.contains("reduce-motion")}
+function zySanitize(r){
+  const d={...zyDefaults,genres:[]};if(!r||typeof r!=="object")return d;
+  d.amoled=r.amoled===true;
+  d.accent=["cyan","violet","neutral"].includes(r.accent)?r.accent:"cyan";
+  d.reduceMotion=r.reduceMotion===true;
+  d.cards=["compact","normal","large"].includes(r.cards)?r.cards:"normal";
+  d.kind=["movies","series","both"].includes(r.kind)?r.kind:"both";
+  d.genres=Array.isArray(r.genres)?[...new Set(r.genres.map(x=>String(x).slice(0,40)))].slice(0,30):[];
+  d.sort=["rating","year","az"].includes(r.sort)?r.sort:"rating";
+  d.prioritize=r.prioritize!==false;
+  return d}
+function zyLoad(){try{return zySanitize(JSON.parse(localStorage.getItem(zyKey)||"null"))}catch(e){return zySanitize(null)}}
+function zySave(){try{localStorage.setItem(zyKey,JSON.stringify(zySettings));return true}catch(e){toast("No se pudo guardar este ajuste en el dispositivo.");return false}}
+
+/* --- aplicar al instante --- */
+function zyApply(){
+  const d=document.documentElement,s=zySettings;if(!s)return;
+  if(s.amoled)d.setAttribute("data-theme","amoled");else d.removeAttribute("data-theme");
+  d.setAttribute("data-accent",s.accent);
+  if(s.cards==="normal")d.removeAttribute("data-cards");else d.setAttribute("data-cards",s.cards);
+  d.classList.toggle("reduce-motion",!!s.reduceMotion||zySystemReduce());
+  const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content",s.amoled?"#000000":"#070910")}
+
+/* --- Explorar: preferencias iniciales (no restringen el catálogo) --- */
+function zyApplyStartup(){
+  const s=zySettings;if(!s)return;
+  currentKind=({movies:"Película",series:"Serie",both:"Todo"})[s.kind]||"Todo";
+  document.querySelectorAll("#typeChips .chip").forEach(x=>x.classList.toggle("active",x.dataset.kind===currentKind));
+  const so=document.getElementById("sortSelect");if(so)so.value=s.sort;
+  const kv=({movies:"Película",series:"Serie",both:"all"})[s.kind]||"all";
+  ["kind","kind2"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=kv});
+  renderExplore()}
+function zySyncGenreChips(){
+  const box=document.getElementById("genreChips");if(!box||!zySettings)return;
+  const favs=zySettings.genres,chips=[...box.querySelectorAll(".chip")];
+  const all=chips.find(c=>c.dataset.genre==="Todo"),rest=chips.filter(c=>c!==all);
+  rest.forEach(c=>c.classList.toggle("fav",favs.includes(c.dataset.genre)));
+  rest.sort((a,b)=>{const fa=favs.includes(a.dataset.genre)?0:1,fb=favs.includes(b.dataset.genre)?0:1;return fa-fb||(Number(a.dataset.i)-Number(b.dataset.i))});
+  if(all)box.appendChild(all);rest.forEach(c=>box.appendChild(c))}
+function zyPrefSort(a){
+  const s=zySettings;
+  if(!s||!s.prioritize||!s.genres.length||currentGenre!=="Todo"||searchTerm.trim())return a;
+  const f=[],o=[];a.forEach(t=>((t.genre||[]).some(g=>s.genres.includes(g))?f:o).push(t));return f.concat(o)}
+function zyGenreBoost(genres){
+  const s=zySettings;if(!s||!s.prioritize||!s.genres.length)return 0;
+  return (genres||[]).some(g=>s.genres.includes(g))?1.2:0}
+
+/* --- barra de filtros de Explorar --- */
+function zyFilterCount(){return (currentKind!=="Todo"?1:0)+(currentGenre!=="Todo"?1:0)+(currentProvider?1:0)+(currentMaxRuntime?1:0)}
+function zyUpdateFilterBar(){
+  const bar=document.getElementById("exFilterBar"),pg=document.getElementById("explorePage");if(!bar||!pg)return;
+  const n=zyFilterCount(),show=n>0&&!pg.classList.contains("hidden");
+  bar.hidden=!show;document.body.classList.toggle("ex-bar-on",show);pg.classList.toggle("has-bar",show);
+  const c=document.getElementById("exFilterN");if(c)c.textContent=String(n)}
+function zyClearFilters(){
+  currentKind="Todo";currentGenre="Todo";currentProvider=null;currentMaxRuntime=null;
+  document.querySelectorAll("#typeChips .chip").forEach(x=>x.classList.toggle("active",x.dataset.kind==="Todo"));
+  document.querySelectorAll("#genreChips .chip").forEach(x=>x.classList.toggle("active",x.dataset.genre==="Todo"));
+  const r=document.getElementById("timeRange"),l=document.getElementById("timeLabel"),c=document.getElementById("timeClear");
+  if(r)r.value="120";if(l)l.textContent="Sin límite";if(c)c.style.display="none";
+  renderProviderChips();
+  if(getCredential())loadExploreCatalog();else renderExplore();
+  zyUpdateFilterBar();toast("Filtros limpiados")}
+
+/* --- navegación de Ajustes --- */
+function openSettings(){
+  const cur=document.querySelector("main:not(.hidden)");
+  const id=cur?cur.id.replace(/Page$/,""):"home";
+  if(id!=="settings")zyPrev=id;
+  closeRail();goPage("settings");
+  try{if(!(history.state&&history.state.zy==="settings"))history.pushState({zy:"settings"},"")}catch(e){}}
+function closeSettings(){
+  try{if(history.state&&history.state.zy==="settings"){history.back();return}}catch(e){}
+  goPage(zyPrev||"home")}
+function zyAfterNav(p){
+  zyUpdateFilterBar();
+  if(p==="settings")zyRenderSettings()}
+
+/* --- pantalla de Ajustes --- */
+function zyFmtBytes(n){return n<1024?n+" B":n<1048576?(n/1024).toFixed(n<10240?1:0)+" KB":(n/1048576).toFixed(1)+" MB"}
+function zyRenderData(){
+  const el=document.getElementById("stData");if(!el)return;
+  let taste={liked:[],disliked:[]};try{const t=getTaste();taste={liked:t.liked||[],disliked:t.disliked||[]}}catch(e){}
+  let cache=0;try{cache=Object.keys(getCache()).length}catch(e){}
+  let bytes=0;try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(/^(cc_|cineclick_|zy_|zc_)/.test(k))bytes+=(k.length+(localStorage.getItem(k)||"").length)*2}}catch(e){}
+  let stored=false;try{stored=localStorage.getItem(zyKey)!==null}catch(e){}
+  const n=k=>getList(k).length;
+  const rows=[
+   ["Listas (Quiero ver · Favoritos · Ya vi)",n("watchlist")+" · "+n("favorites")+" · "+n("watched")],
+   ["Señales de gusto (MoodMatch)",taste.liked.length+" me interesan · "+taste.disliked.length+" descartados"],
+   ["Fichas guardadas para tus listas",String(cache)],
+   ["País del catálogo",regionName(getRegion())],
+   ["Credencial de TMDB",getCredential()?"Guardada":"No configurada"],
+   ["Token de Real-Debrid",rdToken()?"Guardado":"No configurado"],
+   ["Servidor multimedia",msLoad()?"Configurado":"No configurado"],
+   ["Ajustes de esta pantalla",stored?"Personalizados":"Valores originales"],
+   ["Espacio usado (aprox.)",zyFmtBytes(bytes)]];
+  el.innerHTML=rows.map(r=>`<div><dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd></div>`).join("")}
+function zyRenderSettings(){
+  const P=document.getElementById("settingsPage");if(!P||!zySettings)return;
+  const s=zySettings,sysRed=zySystemReduce();
+  P.querySelectorAll(".st-sw").forEach(b=>{
+    const k=b.dataset.key;let on=!!s[k];
+    if(k==="reduceMotion"){on=on||sysRed;b.disabled=sysRed}
+    b.setAttribute("aria-checked",on?"true":"false")});
+  const note=document.getElementById("stMotionNote");
+  if(note)note.textContent=sysRed?"Tu dispositivo ya pide reducir animaciones, así que Zynora lo respeta siempre.":"Quita transiciones, el desplazamiento suave y el avance automático de la portada.";
+  P.querySelectorAll(".st-seg").forEach(g=>g.querySelectorAll("button").forEach(b=>b.setAttribute("aria-checked",String(s[g.dataset.key])===b.dataset.val?"true":"false")));
+  const gb=document.getElementById("stGenres");
+  if(gb)gb.innerHTML=zyGenreList.map(g=>`<button type="button" class="chip st-gchip${s.genres.includes(g)?" active":""}" role="checkbox" aria-checked="${s.genres.includes(g)}" data-g="${esc(g)}">${esc(g)}</button>`).join("");
+  zyRenderData()}
+function zySet(key,val){
+  if(!zySettings||!(key in zyDefaults))return;
+  zySettings[key]=val;zySettings=zySanitize(zySettings);zySave();zyApply();
+  if(key==="kind"||key==="sort")zyApplyStartup();
+  if(key==="genres"||key==="prioritize"){zySyncGenreChips();renderExplore()}
+  zyRenderSettings()}
+
+/* --- exportar / restablecer --- */
+function zyPrefsJson(){return JSON.stringify({app:"Zynora",type:"preferences",version:1,exportedAt:new Date().toISOString(),region:getRegion(),settings:zySettings},null,2)}
+async function zyExportCopy(){
+  const txt=zyPrefsJson();
+  try{await navigator.clipboard.writeText(txt);toast("Preferencias copiadas");return}catch(e){}
+  try{const ta=document.createElement("textarea");ta.value=txt;ta.style.cssText="position:fixed;opacity:0;top:0";document.body.appendChild(ta);ta.select();const ok=document.execCommand("copy");ta.remove();toast(ok?"Preferencias copiadas":"No se pudo copiar")}catch(e){toast("No se pudo copiar")}}
+async function zyExportShare(){
+  const txt=zyPrefsJson(),name="zynora-preferencias-"+ymd(new Date())+".json";
+  try{const Sh=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Share;if(Sh){await Sh.share({title:"Preferencias de Zynora",text:txt,dialogTitle:"Guardar preferencias"});return}}catch(e){if(/cancel/i.test(String((e&&e.message)||e)))return}
+  try{const file=new File([txt],name,{type:"application/json"});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"Preferencias de Zynora"});return}}catch(e){if(e&&e.name==="AbortError")return}
+  if(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())return zyExportCopy();
+  try{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"application/json"}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("Archivo descargado")}catch(e){zyExportCopy()}}
+function zyReset(btn){
+  if(!btn.dataset.armed){
+    btn.dataset.armed="1";btn.textContent="Toca otra vez para confirmar";
+    clearTimeout(zyResetTimer);zyResetTimer=setTimeout(()=>{delete btn.dataset.armed;btn.textContent="Restablecer preferencias"},4000);return}
+  clearTimeout(zyResetTimer);delete btn.dataset.armed;btn.textContent="Restablecer preferencias";
+  try{localStorage.removeItem(zyKey)}catch(e){}   /* única clave que se borra */
+  zySettings=zySanitize(null);zyApply();zySyncGenreChips();zyApplyStartup();zyRenderSettings();
+  toast("Preferencias restablecidas. Tus listas y datos siguen intactos.")}
+
+/* --- arranque --- */
+function zyBind(){
+  const P=document.getElementById("settingsPage");
+  P.addEventListener("click",e=>{
+    const sw=e.target.closest(".st-sw");if(sw){if(!sw.disabled)zySet(sw.dataset.key,sw.getAttribute("aria-checked")!=="true");return}
+    const rb=e.target.closest(".st-seg button");if(rb){zySet(rb.parentNode.dataset.key,rb.dataset.val);return}
+    const gc=e.target.closest(".st-gchip");
+    if(gc){const g=gc.dataset.g,cur=zySettings.genres;zySet("genres",cur.includes(g)?cur.filter(x=>x!==g):cur.concat(g));return}
+    if(e.target.closest("#stBack")){closeSettings();return}
+    const a=e.target.closest("[data-act]");if(!a)return;
+    if(a.dataset.act==="export-share")zyExportShare();
+    else if(a.dataset.act==="export-copy")zyExportCopy();
+    else if(a.dataset.act==="reset")zyReset(a)});
+  window.addEventListener("popstate",()=>{if(!P.classList.contains("hidden"))goPage(zyPrev||"home")});
+  const ex=document.getElementById("explorePage");
+  ["click","input"].forEach(ev=>ex.addEventListener(ev,()=>setTimeout(zyUpdateFilterBar,0)));
+  document.getElementById("exFilterClear").addEventListener("click",zyClearFilters);
+  document.getElementById("exFilterGo").addEventListener("click",()=>{const t=document.getElementById("typeChips");if(t)t.scrollIntoView({behavior:zyReduceMotion()?"auto":"smooth",block:"start"})});
+  const gt=document.getElementById("genreToggle");
+  gt.addEventListener("click",()=>{const box=document.getElementById("genreChips"),open=!box.classList.contains("open");box.classList.toggle("open",open);gt.setAttribute("aria-expanded",String(open));gt.textContent=open?"Ver menos ‹":"Ver todos ›"});
+  try{const mq=window.matchMedia("(prefers-reduced-motion: reduce)");const on=()=>{zyApply();if(!P.classList.contains("hidden"))zyRenderSettings()};if(mq.addEventListener)mq.addEventListener("change",on);else if(mq.addListener)mq.addListener(on)}catch(e){}
+  (async()=>{try{const A=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.App;if(A&&A.getInfo){const i=await A.getInfo();if(i&&i.version)document.getElementById("stVersion").textContent="Versión "+i.version+(i.build?" ("+i.build+")":"")}}catch(e){}})();
+  document.getElementById("stVersion").textContent="Versión "+ZY_VERSION}
+function zyInit(){
+  zySettings=zyLoad();
+  zyGenreList=[...document.querySelectorAll("#genreChips .chip")].filter(b=>b.dataset.genre&&b.dataset.genre!=="Todo").map((b,i)=>{b.dataset.i=String(i);return b.dataset.genre});
+  zyApply();zySyncGenreChips();zyBind();zyApplyStartup();zyUpdateFilterBar()}
+zyInit();
+
 /* ===== Intro cinematográfica: partículas que revelan el símbolo y el nombre =====
    Una vez por sesión · toca para saltarla · 3 versiones que se alternan · respeta "reducir animaciones" */
 (function(){
@@ -872,7 +1096,7 @@ function toggleRouSound(){rouSound=!rouSound;try{localStorage.setItem("cc_rou_so
  function staticIntro(ms){el.classList.add("static");setTimeout(()=>{logoEl.classList.add("show");nameEl.classList.add("show")},60);timer=setTimeout(finish,ms)}
  el.addEventListener("pointerdown",finish);
  setTimeout(finish,8000);
- if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){staticIntro(1600);return}
+ if(zyReduceMotion()){staticIntro(1600);return}
  try{run()}catch(e){staticIntro(2200)}
 
  function run(){
