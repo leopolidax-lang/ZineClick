@@ -227,6 +227,7 @@ const sampleTitles = [
 {id:12,title:"The Good Place",year:2016,kind:"Serie",genre:["Comedia"],rating:8.2,emoji:"☼",colors:["#70b7b1","#1c3150"],desc:"Una mujer llega a una aparente utopía y trata de descubrir qué significa realmente ser buena persona.",cast:["Kristen Bell","Ted Danson","William Jackson Harper"],mood:["comfort","mind"]}
 ];
 let titles=[...sampleTitles], sourceMode="sample", currentList="watchlist", currentKind="Todo", currentGenre="Todo", searchTerm="", tmdbMode=null, heroPool=[];
+const titleReg=new Map();let liveQ="";
 const keys={watchlist:"cc_v2_watchlist",favorites:"cc_v2_favorites",watched:"cc_v2_watched"};
 const tmdbCredentialKey="cc_tmdb_credential";
 const genreMap={28:"Acción",12:"Aventura",16:"Animación",35:"Comedia",80:"Crimen",99:"Documental",18:"Drama",10751:"Familia",14:"Fantasía",36:"Historia",27:"Terror",10402:"Música",9648:"Misterio",10749:"Romance",878:"Ciencia ficción",10770:"Película de TV",53:"Suspenso",10752:"Bélica",37:"Western",10759:"Acción",10762:"Infantil",10763:"Noticias",10764:"Reality",10765:"Ciencia ficción",10766:"Telenovela",10767:"Talk show",10768:"Política",10749:"Romance"};
@@ -262,7 +263,8 @@ async function tmdb(path,params={},opts={}){
  let res;try{res=await fetch(url,{headers,signal:opts.signal})}catch(e){if(e&&e.name==="AbortError")throw e;throw netErr("TMDB")}
  if(!res.ok)throw httpErr("TMDB",res.status);
  try{return await res.json()}catch(e){throw appErr("http","TMDB envió una respuesta que no se pudo leer. Inténtalo de nuevo.")}}
-function normalize(item,forcedType){const isTv=forcedType==="tv"||item.media_type==="tv";const kind=isTv?"Serie":(item.media_type==="person"?"Persona":"Película");const title=item.title||item.name||"Sin título";const date=item.release_date||item.first_air_date||"";const genres=(item.genre_ids||[]).map(id=>genreMap[id]).filter(Boolean);const colors=palette(item.id||title);return {id:(isTv?"tv_":"movie_")+(item.id),tmdbId:item.id,mediaType:isTv?"tv":"movie",title,year:date?Number(date.slice(0,4)):null,kind,genre:genres,rating:Number(item.vote_average||0),emoji:isTv?"▣":"✦",colors,desc:item.overview||"No hay sinopsis disponible en español.",cast:[],posterPath:item.poster_path||null,backdropPath:item.backdrop_path||null,originalTitle:item.original_title||item.original_name||title,mood:guessMood(genres),isLive:true}}
+function normalize(item,forcedType){const __t=normalize0(item,forcedType);try{titleReg.set(String(__t.id),__t);if(titleReg.size>2500)titleReg.delete(titleReg.keys().next().value)}catch(e){}return __t}
+function normalize0(item,forcedType){const isTv=forcedType==="tv"||item.media_type==="tv";const kind=isTv?"Serie":(item.media_type==="person"?"Persona":"Película");const title=item.title||item.name||"Sin título";const date=item.release_date||item.first_air_date||"";const genres=(item.genre_ids||[]).map(id=>genreMap[id]).filter(Boolean);const colors=palette(item.id||title);return {id:(isTv?"tv_":"movie_")+(item.id),tmdbId:item.id,mediaType:isTv?"tv":"movie",title,year:date?Number(date.slice(0,4)):null,kind,genre:genres,rating:Number(item.vote_average||0),emoji:isTv?"▣":"✦",colors,desc:item.overview||"No hay sinopsis disponible en español.",cast:[],posterPath:item.poster_path||null,backdropPath:item.backdrop_path||null,originalTitle:item.original_title||item.original_name||title,mood:guessMood(genres),isLive:true}}
 function palette(seed){let n=0;for(let i=0;i<String(seed).length;i++)n=(n*31+String(seed).charCodeAt(i))>>>0;const h=n%360;return [`hsl(${h} 55% 38%)`,`hsl(${(h+75)%360} 55% 12%)`]}
 function guessMood(gs){let a=[];if(gs.includes("Misterio")||gs.includes("Crimen")||gs.includes("Suspenso"))a.push("mystery");if(gs.includes("Acción")||gs.includes("Aventura"))a.push("action");if(gs.includes("Ciencia ficción"))a.push("scifi");if(gs.includes("Drama")||gs.includes("Historia"))a.push("mind");if(gs.includes("Comedia")||gs.includes("Familia")||gs.includes("Animación"))a.push("comfort");return a}
 function poster(t){const img=t.posterPath?`<img src="https://image.tmdb.org/t/p/w500${t.posterPath}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;z-index:0">`:"";return `<div class="poster" style="--c1:${t.colors[0]};--c2:${t.colors[1]}">${img}${t.posterPath?"":`<span class="symbol">${t.emoji}</span>`}<span class="rating">★ ${Number(t.rating||0).toFixed(1)}</span><span class="type">${t.kind}</span><span class="poster-name">${esc(t.title)}</span></div>`}
@@ -370,7 +372,7 @@ function rdTokenLink(){return '<div class="actions" style="margin-top:14px"><but
 
 function searchMatch(t){return (t.title+" "+(t.genre||[]).join(" ")+" "+(t.cast||[]).join(" ")+" "+(t.character||"")).toLowerCase().includes(searchTerm.toLowerCase())}
 function renderHome(){backfillCache();renderHero();draw("trendingGrid",[...titles].sort((a,b)=>b.rating-a.rating).slice(0,6));updatePreferenceSummary()}
-function renderExplore(){let a=titles.filter(t=>searchMatch(t)&&(currentKind==="Todo"||t.kind===currentKind)&&(currentGenre==="Todo"||(t.genre||[]).includes(currentGenre)));let s=document.getElementById("sortSelect").value;if(s==="rating")a.sort((x,y)=>y.rating-x.rating);if(s==="year")a.sort((x,y)=>(y.year||0)-(x.year||0));if(s==="az")a.sort((x,y)=>x.title.localeCompare(y.title));draw("exploreGrid",zyPrefSort(a));if(!a.length&&searchTerm.trim().length>=2)document.getElementById("exploreGrid").innerHTML=`<div class="empty">Sin resultados para “${esc(searchTerm.trim())}”. Prueba con otro nombre o revisa la ortografía.</div>`;document.getElementById("exploreHeading").textContent=searchTerm?`Resultados para “${searchTerm}”`:"Catálogo";document.getElementById("exploreSub").textContent=sourceMode==="live"?"Datos obtenidos de TMDB. La disponibilidad de streaming se consulta por región.":"Catálogo de muestra. Pulsa P → API para conectarte a TMDB.";zyUpdateFilterBar()}
+function renderExplore(){let a=titles.filter(t=>((liveQ&&searchTerm.trim().toLowerCase()===liveQ)||searchMatch(t))&&(currentKind==="Todo"||t.kind===currentKind)&&(currentGenre==="Todo"||(t.genre||[]).includes(currentGenre)));let s=document.getElementById("sortSelect").value;if(s==="rating")a.sort((x,y)=>y.rating-x.rating);if(s==="year")a.sort((x,y)=>(y.year||0)-(x.year||0));if(s==="az")a.sort((x,y)=>x.title.localeCompare(y.title));draw("exploreGrid",zyPrefSort(a));if(!a.length&&searchTerm.trim().length>=2)document.getElementById("exploreGrid").innerHTML=`<div class="empty">Sin resultados para “${esc(searchTerm.trim())}”. Prueba con otro nombre o revisa la ortografía.</div>`;document.getElementById("exploreHeading").textContent=searchTerm?`Resultados para “${searchTerm}”`:"Catálogo";document.getElementById("exploreSub").textContent=sourceMode==="live"?"Datos obtenidos de TMDB. La disponibilidad de streaming se consulta por región.":"Catálogo de muestra. Pulsa P → API para conectarte a TMDB.";zyUpdateFilterBar()}
 function renderLists(){let arr=getList(currentList).map(id=>findTitle(id)).filter(Boolean).filter(searchMatch);backfillCache();draw("listsGrid",arr);["watchlist","favorites","watched"].forEach(k=>document.getElementById("count-"+k).textContent=`(${getList(k).length})`)}
 function goPage(p){document.querySelectorAll("main[id$='Page']").forEach(x=>x.classList.add("hidden"));document.getElementById(p+"Page").classList.remove("hidden");document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===p));if(p==="explore"){renderExplore();if(getCredential())loadExploreCatalog();}if(p==="lists")renderLists();if(p==="upcoming")loadUpcoming();if(p==="recommend")recommend(true);if(p==="cineverse"&&!verseNodes.length){verseStatus(getCredential()?"Busca una película o serie para comenzar.":"Conecta TMDB desde P → API para explorar conexiones reales.");}window.scrollTo({top:0,behavior:zyReduceMotion()?"auto":"smooth"});zyAfterNav(p)}
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>goPage(b.dataset.page));
@@ -406,7 +408,19 @@ async function liveSearch(q){
   const ctrl=new AbortController();searchCtrl=ctrl;
   try{
    const data=await tmdb("/search/multi",{query:q,include_adult:"false",page:1},{signal:ctrl.signal});
-   results=data.results.filter(x=>["movie","tv"].includes(x.media_type)).map(x=>normalize(x));
+   const fold=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+   const fq=fold(q),toks=fq.split(/\s+/).filter(Boolean);
+   const direct=data.results.filter(x=>["movie","tv"].includes(x.media_type)).map(x=>normalize(x));
+   const people=data.results.filter(x=>x.media_type==="person"&&(x.popularity||0)>=3&&toks.every(k=>fold(x.name).includes(k))).sort((a,b)=>(b.popularity||0)-(a.popularity||0)).slice(0,2);
+   let credits=[];
+   if(people.length){
+    try{
+     const pc=await Promise.all(people.map(p=>tmdb(`/person/${p.id}/combined_credits`,{},{signal:ctrl.signal})));
+     credits=pc.flatMap(c=>(c.cast||[]).filter(x=>x.poster_path&&["movie","tv"].includes(x.media_type)&&(x.vote_count||0)>=10&&!(x.genre_ids||[]).some(g=>g===10767||g===10763)&&!/\b(self|himself|herself)\b/i.test(x.character||"")).sort((a,b)=>(b.popularity||0)-(a.popularity||0)).slice(0,24)).map(x=>normalize(x))
+    }catch(e){if(e&&e.name==="AbortError")throw e}
+   }
+   const byTitle=direct.filter(t=>fold(t.title).includes(fq)),seenR=new Set();
+   results=[...byTitle,...credits,...direct].filter(t=>{const k=String(t.id);if(seenR.has(k))return false;seenR.add(k);return true});
    searchCache.set(key,{t:Date.now(),r:results});
    if(searchCache.size>30)searchCache.delete(searchCache.keys().next().value)
   }catch(e){
@@ -416,7 +430,7 @@ async function liveSearch(q){
   }finally{if(searchCtrl===ctrl)searchCtrl=null}
  }
  if(seq!==searchSeq)return;
- titles=results.slice();sourceMode="live";renderExplore()}
+ liveQ=q.toLowerCase();titles=results.slice();sourceMode="live";renderExplore()}
 async function loadTrending(){if(!getCredential()){renderHome();return}try{const data=await tmdb("/trending/all/week");titles=data.results.filter(x=>["movie","tv"].includes(x.media_type)).map(x=>normalize(x));heroPool=titles.slice();sourceMode="live";renderHome();document.getElementById("trendStatus").textContent="Tendencias reales de TMDB · semana actual";document.getElementById("exploreSub").textContent="Datos conectados a TMDB."}catch(e){document.getElementById("trendStatus").textContent=errMsg(e,"No se pudieron cargar las tendencias.");renderHome()}}
 let currentMaxRuntime=null;
 async function loadExploreCatalog(){if(!getCredential())return;const el=document.getElementById("exploreGrid");el.innerHTML='<div class="empty">Cargando películas y series de TMDB…</div>';try{const pf=currentProvider?{with_watch_providers:currentProvider,watch_region:getRegion(),with_watch_monetization_types:"flatrate"}:{};const base={sort_by:"popularity.desc",include_adult:"false",...pf};if(currentMaxRuntime){base["with_runtime.lte"]=currentMaxRuntime;base["with_runtime.gte"]=1}const pages=(currentProvider||currentMaxRuntime)?[1,2]:[1];const reqs=[];pages.forEach(pg=>{reqs.push(tmdb("/discover/movie",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"movie"}))));if(!currentMaxRuntime)reqs.push(tmdb("/discover/tv",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"tv"}))))});const combined=(await Promise.all(reqs)).flat();if(searchTerm.trim().length>=2)return;const seen=new Set();titles=combined.filter(x=>{if(seen.has(x.id))return false;seen.add(x.id);return true});sourceMode="live";renderExplore();if(currentMaxRuntime)document.getElementById("exploreSub").textContent="Películas de hasta "+currentMaxRuntime+" min · "+titles.length+" resultados (datos de TMDB)";if(currentProvider){const pv=providerList.find(q=>String(q.id)===String(currentProvider));document.getElementById("exploreSub").textContent="Disponible en "+(pv?pv.name:"la plataforma")+" · "+regionName(getRegion())+" (datos de TMDB)"}}catch(e){if(searchTerm.trim().length>=2)return;if(!titles.length||sourceMode!=="live"){document.getElementById("exploreGrid").innerHTML=errBox(e,"loadExploreCatalog()")}else renderExplore();document.getElementById("exploreSub").textContent=errMsg(e,"No se pudo cargar el catálogo completo.")}}
@@ -524,7 +538,7 @@ async function recommend(second=false){
  }
 }
 function surpriseMe(){openRoulette()}
-async function openDetail(id){let t=findTitle(id);if(!t)return;
+async function openDetail(id){let t=findTitle(id);if(!t){const m=/^(movie|tv)_(\d+)$/.exec(String(id));if(m&&getCredential())return openCredit(m[1],Number(m[2]));toast("No se pudo abrir este título. Inténtalo de nuevo.");return}
  if(t.isLive&&getCredential()){try{const detail=await tmdb(`/${t.mediaType}/${t.tmdbId}`,{append_to_response:"credits,videos,watch/providers,images,recommendations,similar",include_video_language:"es,en,null",include_image_language:"es,en,null"});t={...t,desc:detail.overview||t.desc,genre:(detail.genres||[]).map(g=>g.name),cast:(detail.credits?.cast||[]).slice(0,12).map(c=>({id:c.id,name:c.name,character:c.character,profilePath:c.profile_path})),backdropPath:detail.backdrop_path||detail.images?.backdrops?.[0]?.file_path||t.backdropPath,posterPath:detail.poster_path||detail.images?.posters?.[0]?.file_path||t.posterPath,videos:detail.videos?.results||[],providers:detail["watch/providers"]?.results?.[getRegion()]||null,runtime:detail.runtime,seasons:detail.number_of_seasons,...liveExtras(detail,t.mediaType)};}catch(e){toast(errMsg(e,"No se pudieron cargar todos los detalles."))}}
  const top=document.querySelector("#detailModal .modal-top");top.style.backgroundImage=t.backdropPath?`linear-gradient(90deg,#080b15e8 0%,#080b1599 55%,#080b1540 100%),url(https://image.tmdb.org/t/p/w1280${t.backdropPath})`:t.posterPath?`linear-gradient(90deg,#080b15d9 0%,#080b1577 65%,#080b1540 100%),url(https://image.tmdb.org/t/p/w780${t.posterPath})`:"linear-gradient(135deg,#182743,#15102b,#071a25)";top.style.backgroundSize="cover";top.style.backgroundPosition="center";document.getElementById("modalTitle").textContent=t.title;const trailer=pickTrailer(t.videos);const cast=t.cast||[];const providers=t.providers;const providerText=providers?["flatrate","rent","buy","free","ads"].flatMap(k=>(providers[k]||[]).map(p=>p.provider_name)).filter((v,i,a)=>a.indexOf(v)===i).join(", "):"No hay información regional confirmada en esta ficha. Consulta la disponibilidad en tu país.";
  const id1=String(t.id),T=[["cast","Reparto"],["det","Detalles"],["where","Dónde ver"],["sim","Similares"]];
@@ -555,7 +569,7 @@ async function openCredit(mediaType,tmdbId){
  try{
   const d=await tmdb(`/${mediaType}/${tmdbId}`,{append_to_response:"credits,videos,watch/providers,images,recommendations,similar",include_video_language:"es,en,null",include_image_language:"es,en,null"});
   const t={id:`${mediaType}-${tmdbId}`,tmdbId,mediaType,isLive:true,title:d.title||d.name,kind:mediaType==="tv"?"Serie":"Película",year:(d.release_date||d.first_air_date||"").slice(0,4),rating:d.vote_average,desc:d.overview,genre:(d.genres||[]).map(g=>g.name),posterPath:d.poster_path,backdropPath:d.backdrop_path||d.images?.backdrops?.[0]?.file_path,cast:(d.credits?.cast||[]).slice(0,12).map(c=>({id:c.id,name:c.name,character:c.character,profilePath:c.profile_path})),videos:d.videos?.results||[],providers:d["watch/providers"]?.results?.[getRegion()]||null,runtime:d.runtime,seasons:d.number_of_seasons,...liveExtras(d,mediaType)};
-  titles.unshift(t);openDetail(t.id);
+  titleReg.set(String(t.id),t);titles.unshift(t);openDetail(t.id);
  }catch(e){toast(errMsg(e,"No se pudo abrir ese título."));}
 }
 function closeModal(){detailId=null;document.getElementById("detailModal").classList.remove("open")}
@@ -589,7 +603,7 @@ function pickTrailer(v){v=(v||[]).filter(x=>x.site==="YouTube");const sc=x=>(x.t
 function getCache(){try{return JSON.parse(localStorage.getItem(cacheKey)||"{}")}catch(e){return{}}}
 function setCache(c){try{localStorage.setItem(cacheKey,JSON.stringify(c))}catch(e){}}
 function snap(t){return{id:t.id,tmdbId:t.tmdbId,mediaType:t.mediaType,title:t.title,year:t.year,kind:t.kind,genre:t.genre,rating:t.rating,posterPath:t.posterPath||null,backdropPath:t.backdropPath||null,colors:t.colors,emoji:t.emoji,mood:t.mood,isLive:!!t.isLive,desc:String(t.desc||"").slice(0,180)}}
-function findTitle(id){const s=String(id);return titles.find(x=>String(x.id)===s)||(upcomingCache&&upcomingCache.list.find(x=>String(x.id)===s))||sampleTitles.find(x=>String(x.id)===s)||getCache()[s]||null}
+function findTitle(id){const s=String(id);return titles.find(x=>String(x.id)===s)||titleReg.get(s)||heroPool.find(x=>String(x.id)===s)||(upcomingCache&&upcomingCache.list.find(x=>String(x.id)===s))||sampleTitles.find(x=>String(x.id)===s)||getCache()[s]||null}
 function backfillCache(){try{const c=getCache();let ch=false;["watchlist","favorites","watched"].forEach(k=>getList(k).forEach(id=>{const s=String(id);if(!c[s]){const t=titles.find(x=>String(x.id)===s)||sampleTitles.find(x=>String(x.id)===s);if(t){c[s]=snap(t);ch=true}}}));if(ch)setCache(c)}catch(e){}}
 
 function initRegionSelect(){const el=document.getElementById("regionSelect");if(!el)return;el.innerHTML=Object.entries(regions).map(([c,n])=>`<option value="${c}">${n}</option>`).join("");el.value=getRegion()}
@@ -796,8 +810,8 @@ function openTrailer(key){
  key=decodeURIComponent(key||"");
  document.getElementById("trailerFrame").src="https://www.youtube-nocookie.com/embed/"+encodeURIComponent(key)+"?autoplay=1&rel=0&playsinline=1";
  document.getElementById("trailerExt").onclick=()=>window.open("https://www.youtube.com/watch?v="+encodeURIComponent(key),"_blank","noopener");
- document.getElementById("trailerModal").classList.add("open")}
-function closeTrailer(){document.getElementById("trailerFrame").src="about:blank";document.getElementById("trailerModal").classList.remove("open")}
+ document.documentElement.classList.add("tr-open");document.getElementById("trailerModal").classList.add("open")}
+function closeTrailer(){document.documentElement.classList.remove("tr-open");document.getElementById("trailerFrame").src="about:blank";document.getElementById("trailerModal").classList.remove("open")}
 document.getElementById("trailerModal").addEventListener("click",e=>{if(e.target.id==="trailerModal")closeTrailer()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeTrailer()});
 
@@ -1094,7 +1108,10 @@ zyInit();
  const EXIT_AT=4300;let done=false,timer,raf=0;
  function finish(){if(done)return;done=true;clearTimeout(timer);cancelAnimationFrame(raf);el.classList.add("out");try{sessionStorage.setItem("zc_intro","1")}catch(e){}setTimeout(()=>{document.documentElement.classList.remove("intro-on");el.remove()},750)}
  function staticIntro(ms){el.classList.add("static");setTimeout(()=>{logoEl.classList.add("show");nameEl.classList.add("show")},60);timer=setTimeout(finish,ms)}
- el.addEventListener("pointerdown",finish);
+ let swallowUntil=0;
+ const swallow=e=>{if(Date.now()<swallowUntil){e.stopImmediatePropagation();e.preventDefault()}};
+ ["pointerup","touchend","mouseup","click"].forEach(ev=>document.addEventListener(ev,swallow,true));
+ el.addEventListener("pointerdown",()=>{swallowUntil=Date.now()+600;finish()});
  setTimeout(finish,8000);
  if(zyReduceMotion()){staticIntro(1600);return}
  try{run()}catch(e){staticIntro(2200)}
