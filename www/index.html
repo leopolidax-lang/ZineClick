@@ -84,6 +84,7 @@
  </div>
  <div class="section-head"><div><h2 id="exploreHeading">Catálogo</h2><p id="exploreSub">Conecta TMDB desde P → API para activar el catálogo real.</p></div><select id="sortSelect" class="chip" style="background:#111625;color:white"><option value="rating">Mejor puntuados</option><option value="year">Más recientes</option><option value="az">A–Z</option></select></div>
  <div class="grid" id="exploreGrid"></div>
+ <div class="actions ex-more" id="exMoreWrap" hidden><button class="btn" id="exMore" type="button">Cargar más</button></div>
  <div class="ex-bar" id="exFilterBar" role="group" aria-label="Filtros activos" hidden><button type="button" id="exFilterGo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="20" height="20"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Filtros <span class="ex-n" id="exFilterN">0</span></button><button type="button" id="exFilterClear">Limpiar</button></div>
 </main>
 
@@ -134,6 +135,35 @@
 </div>
  <section class="section"><div class="grid" id="recommendGrid2"></div></section>
 </main>
+<main id="profilePage" class="hidden" aria-label="Perfil">
+ <button class="st-back" id="prBack" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="18" height="18"><path d="m15 18-6-6 6-6"/></svg>Volver</button>
+ <div class="page-title"><div class="eyebrow">Tu espacio</div><h1>Perfil</h1><p>Tu perfil se guarda solo en este dispositivo.</p></div>
+ <div class="st-grid">
+  <section class="st-card" aria-labelledby="prH1">
+   <div class="pr-head"><div class="pr-av" id="prAv" aria-hidden="true">P</div><div class="pr-who"><b id="prName">Tu perfil</b><small id="prSince"></small></div></div>
+   <div class="st-row"><div class="st-lab"><b id="prH1">Tu nombre</b><small>Aparece en tu perfil y su inicial se usa en el botón de arriba.</small></div><input id="prInput" type="text" maxlength="24" autocomplete="off" placeholder="¿Cómo te llamas?" aria-labelledby="prH1"></div>
+   <div class="st-row"><div class="st-lab"><b>Color del avatar</b></div><div class="pr-colors" id="prColors" role="radiogroup" aria-label="Color del avatar"></div></div>
+  </section>
+  <section class="st-card" aria-labelledby="prH2">
+   <h2 id="prH2">Tu actividad</h2>
+   <div class="pr-stats">
+    <button class="pr-stat" type="button" data-list="watchlist"><b id="prN1">0</b><span>Quiero ver</span></button>
+    <button class="pr-stat" type="button" data-list="favorites"><b id="prN2">0</b><span>Favoritos</span></button>
+    <button class="pr-stat" type="button" data-list="watched"><b id="prN3">0</b><span>Ya vi</span></button>
+   </div>
+   <dl class="st-kv" id="prKv"></dl>
+  </section>
+  <section class="st-card" aria-labelledby="prH3">
+   <h2 id="prH3">Tus géneros</h2>
+   <div id="prGenres"></div>
+  </section>
+  <section class="st-card" aria-labelledby="prH4">
+   <h2 id="prH4">Atajos</h2>
+   <div class="actions" style="margin-top:12px"><button class="btn primary" type="button" id="prGoLists">Mis listas y respaldo</button><button class="btn" type="button" id="prGoSettings">Ajustes</button></div>
+   <div class="notice" style="margin-top:14px">Zynora todavía no tiene cuentas: tu perfil y tus listas no se sincronizan entre dispositivos. Para pasarlos a otro teléfono usa el respaldo en Mis listas.</div>
+  </section>
+ </div>
+</main>
 <main id="settingsPage" class="hidden" aria-label="Ajustes">
  <button class="st-back" id="stBack" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="18" height="18"><path d="m15 18-6-6 6-6"/></svg>Volver</button>
  <div class="page-title"><div class="eyebrow">Personalización</div><h1>Ajustes</h1><p>Haz Zynora tuyo. Los cambios se aplican al instante y se guardan en este dispositivo.</p></div>
@@ -169,7 +199,8 @@
    <h2 id="stH4">Acerca de Zynora</h2>
    <div class="st-row st-first"><div class="st-line"><div class="st-lab"><b>Zynora</b><small>Descubre tu próxima historia.</small></div><span class="st-ver" id="stVersion">Versión 1.0</span></div></div>
    <div class="st-row"><div class="st-lab"><b>Créditos y fuentes de datos</b></div>
-    <ul class="st-list"><li><b>TMDB</b> — catálogo, pósters, reparto y tendencias. Este producto usa la API de TMDB, pero no está respaldado ni certificado por TMDB. <span class="st-en">This product uses the TMDB API but is not endorsed or certified by TMDB.</span></li><li><b>JustWatch</b> — datos de disponibilidad en plataformas, entregados a través de TMDB.</li><li><b>YouTube</b> — los tráilers se reproducen con su reproductor incrustado.</li><li><b>Plyr</b> — reproductor de video (licencia MIT).</li><li><b>Real-Debrid, Jellyfin/Emby y VLC</b> — opcionales; solo se usan si tú los configuras.</li></ul></div>
+    <div class="st-tmdb"><img src="img/tmdb-logo.png" alt="Logo de TMDB" width="64" height="64" loading="lazy"><p>Este producto usa la API de TMDB, pero no está respaldado ni certificado por TMDB. <span class="st-en">This product uses the TMDB API but is not endorsed or certified by TMDB.</span></p></div>
+    <ul class="st-list"><li><b>TMDB</b> — catálogo, pósters, reparto y tendencias.</li><li><b>JustWatch</b> — datos de disponibilidad en plataformas, entregados a través de TMDB.</li><li><b>YouTube</b> — los tráilers se reproducen con su reproductor incrustado.</li><li><b>Plyr</b> — reproductor de video (licencia MIT).</li><li><b>Real-Debrid, Jellyfin/Emby y VLC</b> — opcionales; solo se usan si tú los configuras.</li></ul></div>
    <div class="st-row"><div class="st-lab"><b>Privacidad</b></div>
     <ul class="st-list"><li>Zynora no tiene cuentas, publicidad ni analíticas propias. Tus listas, gustos y ajustes se quedan en este dispositivo.</li><li>Cuando buscas o exploras, tus consultas se envían a TMDB usando tu credencial. Al abrir un tráiler, YouTube recibe esa solicitud.</li><li>Tu credencial de TMDB, el token de Real-Debrid y los datos de tu servidor se guardan solo aquí y nunca se incluyen en respaldos ni exportaciones.</li><li>El reproductor se descarga de cdn.plyr.io al abrir la app.</li><li>Si desinstalas la app, estos datos se borran. Haz un respaldo antes desde Mis listas.</li></ul></div>
   </section>
@@ -227,7 +258,7 @@ const sampleTitles = [
 {id:12,title:"The Good Place",year:2016,kind:"Serie",genre:["Comedia"],rating:8.2,emoji:"☼",colors:["#70b7b1","#1c3150"],desc:"Una mujer llega a una aparente utopía y trata de descubrir qué significa realmente ser buena persona.",cast:["Kristen Bell","Ted Danson","William Jackson Harper"],mood:["comfort","mind"]}
 ];
 let titles=[...sampleTitles], sourceMode="sample", currentList="watchlist", currentKind="Todo", currentGenre="Todo", searchTerm="", tmdbMode=null, heroPool=[];
-const titleReg=new Map();let liveQ="";
+const titleReg=new Map();let liveQ="";let exMoreState=null,exCatBase=null,exMoreBusy=false;
 const keys={watchlist:"cc_v2_watchlist",favorites:"cc_v2_favorites",watched:"cc_v2_watched"};
 const tmdbCredentialKey="cc_tmdb_credential";
 const genreMap={28:"Acción",12:"Aventura",16:"Animación",35:"Comedia",80:"Crimen",99:"Documental",18:"Drama",10751:"Familia",14:"Fantasía",36:"Historia",27:"Terror",10402:"Música",9648:"Misterio",10749:"Romance",878:"Ciencia ficción",10770:"Película de TV",53:"Suspenso",10752:"Bélica",37:"Western",10759:"Acción",10762:"Infantil",10763:"Noticias",10764:"Reality",10765:"Ciencia ficción",10766:"Telenovela",10767:"Talk show",10768:"Política",10749:"Romance"};
@@ -361,7 +392,7 @@ function rdTokenLink(){return '<div class="actions" style="margin-top:14px"><but
  const $=id=>document.getElementById(id);
  $("accountBtn").onclick=()=>$("pfRail").classList.contains("open")?closeRail():openRail();
  $("pfScrim").onclick=closeRail;
- $("pfProfile").onclick=()=>toast("Tu perfil y la sincronización se añadirán más adelante.");
+ $("pfProfile").onclick=()=>openProfile();
  $("pfApi").onclick=()=>openApiModal("tmdb");
  $("pfRd").onclick=()=>{closeRail();rdLibrary()};
  $("pfMs").onclick=()=>openApiModal("ms");
@@ -385,7 +416,7 @@ document.querySelectorAll("#listChips .chip").forEach(b=>b.onclick=()=>{document
   const q=searchTerm.trim();let active=document.querySelector("main:not(.hidden)");
   clearTimeout(searchTimer);searchSeq++;if(searchCtrl){searchCtrl.abort();searchCtrl=null}
   if(active.id==="listsPage"){renderLists();return}
-  if(active.id==="homePage"||active.id==="settingsPage"){if(!q)return;goPage("explore");active=null}
+  if(active.id==="homePage"||active.id==="settingsPage"||active.id==="profilePage"){if(!q)return;goPage("explore");active=null}
   if(getCredential()&&q.length>=2){searchTimer=setTimeout(()=>liveSearch(q),now?0:350)}
   else if(getCredential()&&!q){loadExploreCatalog()}
   else renderExplore()}
@@ -402,7 +433,7 @@ async function liveSearch(q){
  if(searchCtrl){searchCtrl.abort();searchCtrl=null}
  let hit=searchCache.get(key);
  if(hit&&Date.now()-hit.t>300000){searchCache.delete(key);hit=null}
- let results=hit&&hit.r;
+ let results=hit&&hit.r,totalPages=hit?(hit.tp||1):1;
  if(!results){
   el.innerHTML='<div class="empty">Buscando en TMDB…</div>';
   const ctrl=new AbortController();searchCtrl=ctrl;
@@ -416,12 +447,12 @@ async function liveSearch(q){
    if(people.length){
     try{
      const pc=await Promise.all(people.map(p=>tmdb(`/person/${p.id}/combined_credits`,{},{signal:ctrl.signal})));
-     credits=pc.flatMap(c=>(c.cast||[]).filter(x=>x.poster_path&&["movie","tv"].includes(x.media_type)&&(x.vote_count||0)>=10&&!(x.genre_ids||[]).some(g=>g===10767||g===10763)&&!/\b(self|himself|herself)\b/i.test(x.character||"")).sort((a,b)=>(b.popularity||0)-(a.popularity||0)).slice(0,24)).map(x=>normalize(x))
+     credits=pc.flatMap((c,i)=>(people[i].known_for_department==="Directing"?(c.crew||[]).filter(z=>z.job==="Director"):(c.cast||[])).filter(x=>x.poster_path&&["movie","tv"].includes(x.media_type)&&(x.vote_count||0)>=10&&!(x.genre_ids||[]).some(g=>g===10767||g===10763)&&!/\b(self|himself|herself)\b/i.test(x.character||"")).sort((a,b)=>(b.popularity||0)-(a.popularity||0)).slice(0,24)).map(x=>normalize(x))
     }catch(e){if(e&&e.name==="AbortError")throw e}
    }
    const byTitle=direct.filter(t=>fold(t.title).includes(fq)),seenR=new Set();
    results=[...byTitle,...credits,...direct].filter(t=>{const k=String(t.id);if(seenR.has(k))return false;seenR.add(k);return true});
-   searchCache.set(key,{t:Date.now(),r:results});
+   totalPages=data.total_pages||1;searchCache.set(key,{t:Date.now(),r:results,tp:totalPages});
    if(searchCache.size>30)searchCache.delete(searchCache.keys().next().value)
   }catch(e){
    if(e&&e.name==="AbortError")return;
@@ -430,10 +461,36 @@ async function liveSearch(q){
   }finally{if(searchCtrl===ctrl)searchCtrl=null}
  }
  if(seq!==searchSeq)return;
- liveQ=q.toLowerCase();titles=results.slice();sourceMode="live";renderExplore()}
+ liveQ=q.toLowerCase();titles=results.slice();sourceMode="live";exMoreState=totalPages>1?{q,page:1,total:totalPages}:null;renderExplore();exMoreUpdate()}
 async function loadTrending(){if(!getCredential()){renderHome();return}try{const data=await tmdb("/trending/all/week");titles=data.results.filter(x=>["movie","tv"].includes(x.media_type)).map(x=>normalize(x));heroPool=titles.slice();sourceMode="live";renderHome();document.getElementById("trendStatus").textContent="Tendencias reales de TMDB · semana actual";document.getElementById("exploreSub").textContent="Datos conectados a TMDB."}catch(e){document.getElementById("trendStatus").textContent=errMsg(e,"No se pudieron cargar las tendencias.");renderHome()}}
+
+/* ===== Cargar más resultados (búsqueda y catálogo) ===== */
+function exMoreUpdate(){const w=document.getElementById("exMoreWrap");if(w)w.hidden=!(exMoreState&&(exMoreState.cat||exMoreState.page<exMoreState.total))}
+async function exMoreLoad(){
+ if(!exMoreState||exMoreBusy||!getCredential())return;
+ const b=document.getElementById("exMore"),st=exMoreState,next=st.page+1;exMoreBusy=true;b.disabled=true;b.textContent="Cargando…";
+ try{
+  let add=[];
+  if(st.cat){
+   const base=exCatBase||{sort_by:"popularity.desc",include_adult:"false"};
+   const reqs=[tmdb("/discover/movie",{...base,page:next}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"movie"})))];
+   if(!currentMaxRuntime)reqs.push(tmdb("/discover/tv",{...base,page:next}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"tv"}))));
+   add=(await Promise.all(reqs)).flat()
+  }else{
+   const data=await tmdb("/search/multi",{query:st.q,include_adult:"false",page:next});
+   add=(data.results||[]).filter(x=>["movie","tv"].includes(x.media_type)).map(x=>normalize(x));
+   st.total=data.total_pages||st.total
+  }
+  if(exMoreState!==st)return;
+  const have=new Set(titles.map(t=>String(t.id)));
+  titles=[...titles,...add.filter(t=>!have.has(String(t.id)))];
+  st.page=next;renderExplore()
+ }catch(e){toast(errMsg(e,"No se pudo cargar más."))}
+ finally{exMoreBusy=false;b.disabled=false;b.textContent="Cargar más";exMoreUpdate()}
+}
+document.getElementById("exMore").addEventListener("click",exMoreLoad);
 let currentMaxRuntime=null;
-async function loadExploreCatalog(){if(!getCredential())return;const el=document.getElementById("exploreGrid");el.innerHTML='<div class="empty">Cargando películas y series de TMDB…</div>';try{const pf=currentProvider?{with_watch_providers:currentProvider,watch_region:getRegion(),with_watch_monetization_types:"flatrate"}:{};const base={sort_by:"popularity.desc",include_adult:"false",...pf};if(currentMaxRuntime){base["with_runtime.lte"]=currentMaxRuntime;base["with_runtime.gte"]=1}const pages=(currentProvider||currentMaxRuntime)?[1,2]:[1];const reqs=[];pages.forEach(pg=>{reqs.push(tmdb("/discover/movie",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"movie"}))));if(!currentMaxRuntime)reqs.push(tmdb("/discover/tv",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"tv"}))))});const combined=(await Promise.all(reqs)).flat();if(searchTerm.trim().length>=2)return;const seen=new Set();titles=combined.filter(x=>{if(seen.has(x.id))return false;seen.add(x.id);return true});sourceMode="live";renderExplore();if(currentMaxRuntime)document.getElementById("exploreSub").textContent="Películas de hasta "+currentMaxRuntime+" min · "+titles.length+" resultados (datos de TMDB)";if(currentProvider){const pv=providerList.find(q=>String(q.id)===String(currentProvider));document.getElementById("exploreSub").textContent="Disponible en "+(pv?pv.name:"la plataforma")+" · "+regionName(getRegion())+" (datos de TMDB)"}}catch(e){if(searchTerm.trim().length>=2)return;if(!titles.length||sourceMode!=="live"){document.getElementById("exploreGrid").innerHTML=errBox(e,"loadExploreCatalog()")}else renderExplore();document.getElementById("exploreSub").textContent=errMsg(e,"No se pudo cargar el catálogo completo.")}}
+async function loadExploreCatalog(){if(!getCredential())return;exMoreState=null;exMoreUpdate();const el=document.getElementById("exploreGrid");el.innerHTML='<div class="empty">Cargando películas y series de TMDB…</div>';try{const pf=currentProvider?{with_watch_providers:currentProvider,watch_region:getRegion(),with_watch_monetization_types:"flatrate"}:{};const base={sort_by:"popularity.desc",include_adult:"false",...pf};if(currentMaxRuntime){base["with_runtime.lte"]=currentMaxRuntime;base["with_runtime.gte"]=1}const pages=(currentProvider||currentMaxRuntime)?[1,2]:[1];const reqs=[];pages.forEach(pg=>{reqs.push(tmdb("/discover/movie",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"movie"}))));if(!currentMaxRuntime)reqs.push(tmdb("/discover/tv",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"tv"}))))});const combined=(await Promise.all(reqs)).flat();if(searchTerm.trim().length>=2)return;const seen=new Set();titles=combined.filter(x=>{if(seen.has(x.id))return false;seen.add(x.id);return true});sourceMode="live";exCatBase=base;exMoreState={cat:true,page:pages[pages.length-1]};renderExplore();exMoreUpdate();if(currentMaxRuntime)document.getElementById("exploreSub").textContent="Películas de hasta "+currentMaxRuntime+" min · "+titles.length+" resultados (datos de TMDB)";if(currentProvider){const pv=providerList.find(q=>String(q.id)===String(currentProvider));document.getElementById("exploreSub").textContent="Disponible en "+(pv?pv.name:"la plataforma")+" · "+regionName(getRegion())+" (datos de TMDB)"}}catch(e){if(searchTerm.trim().length>=2)return;if(!titles.length||sourceMode!=="live"){document.getElementById("exploreGrid").innerHTML=errBox(e,"loadExploreCatalog()")}else renderExplore();document.getElementById("exploreSub").textContent=errMsg(e,"No se pudo cargar el catálogo completo.")}}
 const moodGenreIds={
   mystery:{movie:"9648,53",tv:"9648,80"},
   action:{movie:"28,12",tv:"10759"},
@@ -1006,6 +1063,7 @@ function closeSettings(){
   goPage(zyPrev||"home")}
 function zyAfterNav(p){
   zyUpdateFilterBar();
+  if(p==="profile")prRender();
   if(p==="settings")zyRenderSettings()}
 
 /* --- pantalla de Ajustes --- */
@@ -1096,6 +1154,44 @@ function zyInit(){
   zySettings=zyLoad();
   zyGenreList=[...document.querySelectorAll("#genreChips .chip")].filter(b=>b.dataset.genre&&b.dataset.genre!=="Todo").map((b,i)=>{b.dataset.i=String(i);return b.dataset.genre});
   zyApply();zySyncGenreChips();zyBind();zyApplyStartup();zyUpdateFilterBar()}
+
+/* ===== Perfil local ===== */
+const PR_KEY="zc_profile_v1",PR_COLORS=[null,["#a78bfa","#ff67c8"],["#34d399","#0ea5e9"],["#fbbf24","#f97316"],["#f472b6","#8b5cf6"],["#e2e8f0","#64748b"]];
+let prPrev="home";
+function prGet(){try{const p=JSON.parse(localStorage.getItem(PR_KEY)||"{}");return{name:String(p.name||"").slice(0,24),color:Number.isInteger(p.color)&&p.color>=0&&p.color<PR_COLORS.length?p.color:0,since:Number(p.since)||0}}catch(e){return{name:"",color:0,since:0}}}
+function prSave(p){try{localStorage.setItem(PR_KEY,JSON.stringify(p))}catch(e){}}
+function prInitial(p){const n=(p.name||"").trim();return n?Array.from(n)[0].toUpperCase():"P"}
+function prApplyAvatar(){
+ let p=prGet();if(!p.since){p.since=Date.now();prSave(p)}
+ const c=PR_COLORS[p.color],r=document.documentElement.style,ini=prInitial(p);
+ ["accountBtn","pfProfile","prAv"].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=ini});
+ if(c){r.setProperty("--pr-a",c[0]);r.setProperty("--pr-b",c[1])}else{r.removeProperty("--pr-a");r.removeProperty("--pr-b")}}
+function prRender(){
+ const p=prGet(),cache=getCache(),W={favorites:3,watched:2,watchlist:1},gc={},kc={"Película":0,"Serie":0},seen=new Set();
+ const L={watchlist:getList("watchlist"),favorites:getList("favorites"),watched:getList("watched")};
+ document.getElementById("prN1").textContent=L.watchlist.length;document.getElementById("prN2").textContent=L.favorites.length;document.getElementById("prN3").textContent=L.watched.length;
+ ["favorites","watched","watchlist"].forEach(k=>L[k].forEach(id=>{const s=String(id),t=cache[s]||findTitle(s);if(!t)return;(t.genre||[]).forEach(g=>{gc[g]=(gc[g]||0)+W[k]});if(!seen.has(s)){seen.add(s);if(kc[t.kind]!=null)kc[t.kind]++}}));
+ const inp=document.getElementById("prInput");if(inp&&document.activeElement!==inp)inp.value=p.name;
+ document.getElementById("prName").textContent=p.name.trim()||"Tu perfil";
+ document.getElementById("prSince").textContent=p.since?"En Zynora desde "+new Date(p.since).toLocaleDateString("es",{month:"long",year:"numeric"}):"";
+ document.getElementById("prColors").innerHTML=PR_COLORS.map((c,i)=>`<button type="button" role="radio" aria-checked="${i===p.color}" data-c="${i}" aria-label="${i===0?"Color del acento":"Color "+i}" style="background:${c?`linear-gradient(145deg,${c[0]},${c[1]})`:"linear-gradient(145deg,var(--cyan),#8b5cf6)"}"></button>`).join("");
+ const top=Object.entries(gc).sort((a,b)=>b[1]-a[1]).slice(0,5),max=top.length?top[0][1]:1;
+ document.getElementById("prGenres").innerHTML=top.length?top.map(([g,n])=>`<div class="pr-bar"><span>${esc(g)}</span><i style="--w:${Math.max(8,Math.round(n/max*100))}%"></i></div>`).join(""):'<p class="muted" style="margin:10px 0 0">Marca títulos como favoritos, vistos o por ver y aquí aparecerán tus géneros.</p>';
+ const tot=kc["Película"]+kc["Serie"],fav=kc["Película"]===kc["Serie"]?"Por igual":(kc["Película"]>kc["Serie"]?"Películas":"Series");
+ document.getElementById("prKv").innerHTML=tot?`<div><dt>Títulos guardados</dt><dd>${tot}</dd></div><div><dt>Películas / series</dt><dd>${kc["Película"]} / ${kc["Serie"]}</dd></div><div><dt>Formato que más guardas</dt><dd>${fav}</dd></div>${top.length?`<div><dt>Género principal</dt><dd>${esc(top[0][0])}</dd></div>`:""}`:`<div><dt>Títulos guardados</dt><dd>0</dd></div>`}
+function openProfile(){const cur=document.querySelector("main:not(.hidden)");const id=cur?cur.id.replace(/Page$/,""):"home";if(id!=="profile")prPrev=id;closeRail();goPage("profile");try{if(!(history.state&&history.state.zy==="profile"))history.pushState({zy:"profile"},"")}catch(e){}}
+function closeProfile(){try{if(history.state&&history.state.zy==="profile"){history.back();return}}catch(e){}goPage(prPrev||"home")}
+(function(){
+ const $=id=>document.getElementById(id);
+ $("prBack").onclick=closeProfile;
+ $("prInput").addEventListener("input",e=>{const p=prGet();p.name=e.target.value.slice(0,24);prSave(p);prApplyAvatar();$("prName").textContent=p.name.trim()||"Tu perfil"});
+ $("prColors").addEventListener("click",e=>{const b=e.target.closest("button[data-c]");if(!b)return;const p=prGet();p.color=Number(b.dataset.c);prSave(p);prApplyAvatar();prRender()});
+ document.querySelectorAll("#profilePage .pr-stat").forEach(b=>b.onclick=()=>{currentList=b.dataset.list;document.querySelectorAll("#listChips .chip").forEach(x=>x.classList.toggle("active",x.dataset.list===currentList));goPage("lists")});
+ $("prGoLists").onclick=()=>goPage("lists");
+ $("prGoSettings").onclick=()=>openSettings();
+ window.addEventListener("popstate",()=>{if(!$("profilePage").classList.contains("hidden"))goPage(prPrev||"home")});
+ prApplyAvatar()})();
+
 zyInit();
 
 /* ===== Intro cinematográfica: partículas que revelan el símbolo y el nombre =====
