@@ -329,3 +329,22 @@ html[data-theme="amoled"] #prInput{background:#05070b;border-color:#1c2438}
 .st-tmdb{display:flex;align-items:center;gap:14px;margin:12px 0 4px}
 .st-tmdb img{flex:none;width:56px;height:56px;border-radius:14px}
 .st-tmdb p{margin:0;color:var(--muted);font-size:13px}
+
+/* ===== Cuentas y sincronización (Zynora) ===== */
+.zs-modal{width:min(440px,100%)}
+.zs-top{position:relative;padding:22px 22px 4px}.zs-top h2{margin:0;font-size:24px;letter-spacing:-.5px;padding-right:90px}
+.zs-modal .modal-body{padding:14px 22px 24px}
+.zs-modal label{display:block;font-weight:750;margin:14px 0 7px;font-size:13px}
+.zs-in{width:100%;background:#080d18;color:#fff;border:1px solid #303950;border-radius:11px;padding:13px;outline:none;font-size:16px}
+.zs-in:focus{border-color:var(--cyan)}
+.zs-seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#080d18;border:1px solid #29344d;border-radius:12px;padding:4px;margin-bottom:14px}
+.zs-seg button{border:0;background:none;color:#aab5d0;padding:9px;border-radius:9px;font-weight:750}
+.zs-seg button.on{background:#1b2540;color:#fff}
+.zs-g{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff!important;color:#1f1f1f!important;border:0!important}
+.zs-or{display:flex;align-items:center;gap:10px;color:#8593b2;font-size:12px;margin:16px 0 0}
+.zs-or:before,.zs-or:after{content:"";flex:1;height:1px;background:#293149}
+.zs-modal .btn:disabled{opacity:.55;pointer-events:none}
+.zs-rate{display:flex;align-items:center;gap:4px;margin:12px 0}
+.zs-rate span{font-size:13px;color:#aab5d0;margin-right:8px}
+.zs-rate button{background:none;border:0;font-size:26px;line-height:1;padding:2px 3px;color:#3a4560}
+.zs-rate button.on{color:#fbbf24}
