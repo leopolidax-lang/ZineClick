@@ -296,3 +296,10 @@ body.ex-bar-on .toast{bottom:88px}
 @media(max-width:700px){.st-card{padding:20px 16px 4px;border-radius:20px}.st-seg button{font-size:12.5px;padding:6px 3px}}
 html[data-theme="amoled"] .search input,html[data-theme="amoled"] #sortSelect,html[data-theme="amoled"] .recommend-form select,html[data-theme="amoled"] .recommend-form input{background:#05070b!important;border-color:#1c2438}
 html[data-theme="amoled"] .avatar{background:#0a0d14}
+
+/* ===== Sin barras de desplazamiento en ningún lugar ===== */
+html,body,*{scrollbar-width:none;-ms-overflow-style:none}
+html::-webkit-scrollbar,body::-webkit-scrollbar,*::-webkit-scrollbar{display:none;width:0;height:0;background:transparent}
+/* Al abrir el tráiler, la ficha de atrás se oculta (evita el rectángulo celeste que se transparentaba) */
+html.tr-open #detailModal{visibility:hidden}
+#trailerModal{-webkit-backdrop-filter:none;backdrop-filter:none;background:#02040bf5}
