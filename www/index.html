@@ -275,7 +275,7 @@ const titleReg=new Map();let liveQ="";let exMoreState=null,exCatBase=null,exMore
 const keys={watchlist:"cc_v2_watchlist",favorites:"cc_v2_favorites",watched:"cc_v2_watched"};
 const tmdbCredentialKey="cc_tmdb_credential";
 const genreMap={28:"Acción",12:"Aventura",16:"Animación",35:"Comedia",80:"Crimen",99:"Documental",18:"Drama",10751:"Familia",14:"Fantasía",36:"Historia",27:"Terror",10402:"Música",9648:"Misterio",10749:"Romance",878:"Ciencia ficción",10770:"Película de TV",53:"Suspenso",10752:"Bélica",37:"Western",10759:"Acción",10762:"Infantil",10763:"Noticias",10764:"Reality",10765:"Ciencia ficción",10766:"Telenovela",10767:"Talk show",10768:"Política",10749:"Romance"};
-function getList(k){try{return JSON.parse(localStorage.getItem(keys[k])||"[]")}catch(e){return []}}
+function getList(k){try{const v=JSON.parse(localStorage.getItem(keys[k])||"[]");return Array.isArray(v)?v:[]}catch(e){return []}}
 function setList(k,arr){localStorage.setItem(keys[k],JSON.stringify(arr));zsAffMemo=null}
 function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2200)}
 function getCredential(){try{return localStorage.getItem(tmdbCredentialKey)||""}catch(e){return ""}}
@@ -515,7 +515,8 @@ const moodGenreIds={
   adventure:{movie:"12,14",tv:"10759,10765"}
 };
 function getTaste(){
-  try{return JSON.parse(localStorage.getItem("cineclick_taste_v1")||'{"liked":[],"disliked":[],"ratings":{},"moods":{}}')}
+  try{const v=JSON.parse(localStorage.getItem("cineclick_taste_v1")||"null")||{};
+  return {liked:Array.isArray(v.liked)?v.liked:[],disliked:Array.isArray(v.disliked)?v.disliked:[],ratings:(v.ratings&&typeof v.ratings==="object")?v.ratings:{},moods:(v.moods&&typeof v.moods==="object")?v.moods:{}}}
   catch(e){return {liked:[],disliked:[],ratings:{},moods:{}}}
 }
 function saveTaste(t){localStorage.setItem("cineclick_taste_v1",JSON.stringify(t));zsAffMemo=null;updatePreferenceSummary()}
@@ -690,7 +691,7 @@ function getRegion(){try{return localStorage.getItem("cc_region")||"PA"}catch(e)
 function regionName(c){return regions[c]||c}
 function pickTrailer(v){v=(v||[]).filter(x=>x.site==="YouTube");const sc=x=>(x.type==="Trailer"?4:x.type==="Teaser"?2:0)+(x.official?1:0)+(x.iso_639_1==="es"?.5:0);return v.slice().sort((a,b)=>sc(b)-sc(a))[0]||null}
 
-function getCache(){try{return JSON.parse(localStorage.getItem(cacheKey)||"{}")}catch(e){return{}}}
+function getCache(){try{const v=JSON.parse(localStorage.getItem(cacheKey)||"{}");return(v&&typeof v==="object"&&!Array.isArray(v))?v:{}}catch(e){return{}}}
 function setCache(c){try{localStorage.setItem(cacheKey,JSON.stringify(c))}catch(e){}}
 function snap(t){return{id:t.id,tmdbId:t.tmdbId,mediaType:t.mediaType,title:t.title,year:t.year,kind:t.kind,genre:t.genre,rating:t.rating,posterPath:t.posterPath||null,backdropPath:t.backdropPath||null,colors:t.colors,emoji:t.emoji,mood:t.mood,isLive:!!t.isLive,desc:String(t.desc||"").slice(0,180)}}
 function findTitle(id){const s=String(id);return titles.find(x=>String(x.id)===s)||titleReg.get(s)||heroPool.find(x=>String(x.id)===s)||(upcomingCache&&upcomingCache.list.find(x=>String(x.id)===s))||sampleTitles.find(x=>String(x.id)===s)||getCache()[s]||null}
@@ -1190,7 +1191,7 @@ function zyInit(){
 
 /* ===== Perfil local ===== */
 const PR_KEY="zc_profile_v1",PR_COLORS=[null,["#a78bfa","#ff67c8"],["#34d399","#0ea5e9"],["#fbbf24","#f97316"],["#f472b6","#8b5cf6"],["#e2e8f0","#64748b"]];
-let prPrev="home";
+var prPrev="home";
 function prGet(){try{const p=JSON.parse(localStorage.getItem(PR_KEY)||"{}");return{name:String(p.name||"").slice(0,24),color:Number.isInteger(p.color)&&p.color>=0&&p.color<PR_COLORS.length?p.color:0,since:Number(p.since)||0}}catch(e){return{name:"",color:0,since:0}}}
 function prSave(p){try{localStorage.setItem(PR_KEY,JSON.stringify(p))}catch(e){}}
 function prInitial(p){const n=(p.name||"").trim();return n?Array.from(n)[0].toUpperCase():"P"}
