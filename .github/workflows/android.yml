@@ -104,24 +104,75 @@ jobs:
       - name: Clave de firma fija (para poder actualizar sin desinstalar)
         env:
           KEYSTORE_B64: ${{ secrets.ZINE_KEYSTORE_B64 }}
+          KS_PASS_IN: ${{ secrets.ZINE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS_IN: ${{ secrets.ZINE_KEY_ALIAS }}
+          KEY_PASS_IN: ${{ secrets.ZINE_KEY_PASSWORD }}
+          EXPECTED_SHA256: ${{ vars.SIGN_SHA256 }}
         run: |
-          mkdir -p ~/.android
+          set -e
+          KS=android/app/zine.keystore
           if [ -n "$KEYSTORE_B64" ]; then
-            echo "$KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
-            echo "Usando la clave guardada en los Secrets del repositorio"
+            echo "$KEYSTORE_B64" | tr -d ' \r\n' | base64 -d > "$KS"
+            echo "Usando la clave del secreto ZINE_KEYSTORE_B64"
           elif [ -f zineclick-debug.keystore ]; then
-            cp zineclick-debug.keystore ~/.android/debug.keystore
+            cp zineclick-debug.keystore "$KS"
             echo "::warning::La clave de firma sigue dentro del repositorio (público). Guárdala en el secreto ZINE_KEYSTORE_B64 y borra zineclick-debug.keystore del repo."
           else
-            echo "::error::No hay clave de firma. Crea el secreto ZINE_KEYSTORE_B64 (la clave en base64) en Settings > Secrets and variables > Actions. Sin la misma clave no se puede actualizar la app sin desinstalar."
+            echo "::error::No hay clave de firma. Crea el secreto ZINE_KEYSTORE_B64 en Settings > Secrets and variables > Actions."
             exit 1
           fi
+          KS_PASS="${KS_PASS_IN:-android}"
+          KEY_ALIAS="${KEY_ALIAS_IN:-androiddebugkey}"
+          KEY_PASS="${KEY_PASS_IN:-$KS_PASS}"
+          echo "::add-mask::$KS_PASS"
+          echo "::add-mask::$KEY_PASS"
+          if ! keytool -list -v -keystore "$KS" -storepass "$KS_PASS" -alias "$KEY_ALIAS" > /tmp/ks.txt 2>&1; then
+            echo "::error::No se pudo abrir la clave de firma (base64 dañado, o alias/contraseña distintos a androiddebugkey/android). Si usaste otros, crea los secretos ZINE_KEY_ALIAS, ZINE_KEYSTORE_PASSWORD y ZINE_KEY_PASSWORD."
+            head -5 /tmp/ks.txt
+            exit 1
+          fi
+          SHA=$(grep -m1 "SHA256:" /tmp/ks.txt | sed 's/.*SHA256: *//')
+          echo "Huella SHA-256 de la clave: $SHA"
+          NORM=$(echo "$SHA" | tr -d ': ' | tr 'A-F' 'a-f')
+          if [ -n "$EXPECTED_SHA256" ]; then
+            EXP=$(echo "$EXPECTED_SHA256" | tr -d ': ' | tr 'A-F' 'a-f')
+            if [ "$EXP" != "$NORM" ]; then
+              echo "::error::La clave de firma NO coincide con la huella guardada en la variable SIGN_SHA256. Esta compilación no actualizaría la app instalada. Revisa el secreto ZINE_KEYSTORE_B64."
+              exit 1
+            fi
+            echo "La huella coincide con SIGN_SHA256"
+          else
+            echo "::notice::Para blindar las actualizaciones, crea la variable SIGN_SHA256 con este valor: $SHA"
+          fi
+          echo "KS_SHA_NORM=$NORM" >> "$GITHUB_ENV"
+          echo "ZINE_KS_PASS=$KS_PASS" >> "$GITHUB_ENV"
+          echo "ZINE_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "ZINE_KEY_PASS=$KEY_PASS" >> "$GITHUB_ENV"
 
-      - name: Número de versión (sube solo en cada compilación)
+      - name: Firma explícita + número de versión que siempre sube
         run: |
-          sed -i "s/versionCode [0-9]*/versionCode ${{ github.run_number }}/" android/app/build.gradle
-          sed -i "s/versionName \"[^\"]*\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
-          grep -n "versionCode\|versionName" android/app/build.gradle
+          python3 - <<'PY'
+          import re, time
+          p = 'android/app/build.gradle'
+          s = open(p, encoding='utf-8').read()
+          # 1) versionCode = segundos desde 1970: siempre mayor que cualquier compilación anterior
+          vc = str(int(time.time()))
+          vn = '1.0.${{ github.run_number }}'
+          s, n1 = re.subn(r'versionCode\s*=?\s*\d+', 'versionCode ' + vc, s, count=1)
+          s, n2 = re.subn(r'versionName\s*=?\s*"[^"]*"', 'versionName "' + vn + '"', s, count=1)
+          assert n1 and n2, 'No se encontró versionCode/versionName en build.gradle'
+          # 2) la compilación usa SIEMPRE nuestra clave
+          if 'signingConfigs.zine' not in s:
+              block = ("signingConfigs {\n        zine {\n            storeFile file('zine.keystore')\n"
+                       "            storePassword System.getenv('ZINE_KS_PASS')\n"
+                       "            keyAlias System.getenv('ZINE_KEY_ALIAS')\n"
+                       "            keyPassword System.getenv('ZINE_KEY_PASS')\n        }\n    }\n    ")
+              assert 'buildTypes {' in s, 'No se encontró buildTypes en build.gradle'
+              s = s.replace('buildTypes {', block + 'buildTypes {\n        debug {\n            signingConfig signingConfigs.zine\n        }', 1)
+          open(p, 'w', encoding='utf-8').write(s)
+          print('versionCode', vc, '| versionName', vn)
+          PY
+          grep -n "versionCode\|versionName\|signingConfig" android/app/build.gradle
 
       - name: Ocultar barra de desplazamiento nativa
         continue-on-error: true
@@ -500,13 +551,27 @@ jobs:
           rm -f "$PKG_DIR/ZinePlayerPlugin.java" "$PKG_DIR/ZinePlayerActivity.java"
           ./gradlew assembleDebug
 
-      - name: Huella de la firma (debe ser igual en todas las versiones)
-        continue-on-error: true
+      - name: Verificar que el APK está firmado con la clave fija
         run: |
-          keytool -printcert -jarfile android/app/build/outputs/apk/debug/app-debug.apk | grep -i "SHA256" || true
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs "$APK" | tee /tmp/cert.txt
+          APK_SHA=$(grep -m1 "SHA-256 digest" /tmp/cert.txt | sed 's/.*: *//' | tr -d ': ' | tr 'A-F' 'a-f')
+          VC=$(grep -m1 "versionCode" android/app/build.gradle | tr -dc '0-9')
+          if [ "$APK_SHA" != "$KS_SHA_NORM" ]; then
+            echo "::error::El APK quedó firmado con OTRA clave ($APK_SHA). No se publicará."
+            exit 1
+          fi
+          cp "$APK" "Zynora-v1.0.${{ github.run_number }}.apk"
+          {
+            echo "### Zynora v1.0.${{ github.run_number }}"
+            echo "- versionCode: \`$VC\`"
+            echo "- Firma SHA-256: \`$APK_SHA\`"
+            echo "- Si esta huella es igual a la de la compilación anterior, esta versión se instala encima de la anterior."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Guardar APK
         uses: actions/upload-artifact@v6
         with:
           name: Zynora-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: Zynora-v1.0.${{ github.run_number }}.apk
