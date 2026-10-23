@@ -526,6 +526,12 @@
     setInterval(function () { if (document.visibilityState === "visible" && scope !== "guest") syncNow(); }, 90000);
     setInterval(function () { if ($("profilePage") && !$("profilePage").classList.contains("hidden")) renderCard(); }, 15000);
     var mb = $("modalBody"); if (mb && window.MutationObserver) new MutationObserver(injectStars).observe(mb, { childList: true });
+    /* La pestaña activa se centra sola en la barra de navegación horizontal. */
+    var nv = document.querySelector("header nav");
+    if (nv && window.MutationObserver) new MutationObserver(function () {
+      var a = nv.querySelector("button.active");
+      if (a && a.scrollIntoView) try { a.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" }); } catch (e) {}
+    }).observe(nv, { attributes: true, subtree: true, attributeFilter: ["class"] });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
 
