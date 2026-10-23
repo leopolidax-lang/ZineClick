@@ -278,7 +278,9 @@ const genreMap={28:"Acción",12:"Aventura",16:"Animación",35:"Comedia",80:"Crim
 function getList(k){try{const v=JSON.parse(localStorage.getItem(keys[k])||"[]");return Array.isArray(v)?v:[]}catch(e){return []}}
 function setList(k,arr){localStorage.setItem(keys[k],JSON.stringify(arr));zsAffMemo=null}
 function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2200)}
-function getCredential(){try{return localStorage.getItem(tmdbCredentialKey)||""}catch(e){return ""}}
+const TMDB_PROXY="https://zineclick.leopolidax.workers.dev/api/tmdb";
+function getOwnCredential(){try{return localStorage.getItem(tmdbCredentialKey)||""}catch(e){return ""}}
+function getCredential(){return getOwnCredential()||"__proxy__"}
 function isBearer(cred){return cred.trim().startsWith("eyJ")||cred.trim().split(".").length===3}
 /* ===== Errores claros: sin conexión, credencial, límite, servidor ===== */
 function appErr(kind,msg,status){const e=new Error(msg);e.kind=kind;e.status=status;return e}
@@ -300,10 +302,10 @@ window.addEventListener("offline",()=>toast("Sin conexión a internet."));
 window.addEventListener("online",()=>toast("Conexión recuperada."));
 async function tmdb(path,params={},opts={}){
  const cred=getCredential();if(!cred)throw appErr("nocred","Añade tu credencial de TMDB en P → API.");
- const url=new URL("https://api.themoviedb.org/3"+path);
+ const proxied=cred==="__proxy__";const url=new URL(proxied?TMDB_PROXY+"/3"+path:"https://api.themoviedb.org/3"+path);
  Object.entries({language:"es-ES",...params}).forEach(([k,v])=>{if(v!==undefined&&v!==null&&v!=="")url.searchParams.set(k,v)});
  const headers={accept:"application/json"};
- if(isBearer(cred))headers.Authorization="Bearer "+cred.trim();else url.searchParams.set("api_key",cred.trim());
+ if(!proxied){if(isBearer(cred))headers.Authorization="Bearer "+cred.trim();else url.searchParams.set("api_key",cred.trim())}
  let res;try{res=await fetch(url,{headers,signal:opts.signal})}catch(e){if(e&&e.name==="AbortError")throw e;throw netErr("TMDB")}
  if(!res.ok)throw httpErr("TMDB",res.status);
  try{return await res.json()}catch(e){throw appErr("http","TMDB envió una respuesta que no se pudo leer. Inténtalo de nuevo.")}}
@@ -674,14 +676,14 @@ function openApiModal(sec){
  document.querySelectorAll("#apiModal .api-sec").forEach(x=>{x.hidden=x.dataset.sec!==sec});
  document.getElementById("apiModalTitle").innerHTML=T[sec][0];
  document.getElementById("apiModal").setAttribute("aria-label",T[sec][1]);
- if(sec==="tmdb"){document.getElementById("tmdbCredential").value=getCredential();document.getElementById("apiStatus").textContent=getCredential()?"Ya hay una credencial guardada en este navegador. Puedes probarla de nuevo.":"La credencial se guardará únicamente en el almacenamiento local de este navegador para este prototipo. No la compartas ni uses este método en una web pública."}
+ if(sec==="tmdb"){document.getElementById("tmdbCredential").value=getOwnCredential();document.getElementById("apiStatus").textContent=getOwnCredential()?"Ya hay una credencial guardada en este navegador. Puedes probarla de nuevo.":"La credencial se guardará únicamente en el almacenamiento local de este navegador para este prototipo. No la compartas ni uses este método en una web pública."}
  if(sec==="ms"){const c=msLoad();document.getElementById("msUrl").value=c?c.baseUrl:"";document.getElementById("msKey").value=c?c.apiKey:"";if(c)document.getElementById("msStatus").textContent="Hay un servidor guardado. Puedes probarlo de nuevo o cambiarlo."}
  if(typeof closeRail==="function")closeRail();
  document.getElementById("apiModal").classList.add("open")}
 function closeApiModal(){document.getElementById("apiModal").classList.remove("open")}
 document.getElementById("apiModal").addEventListener("click",e=>{if(e.target.id==="apiModal")closeApiModal()});
 async function saveTmdbCredential(){const cred=document.getElementById("tmdbCredential").value.trim();if(!cred){document.getElementById("apiStatus").textContent="Pega primero tu API Key o Read Access Token.";return}localStorage.setItem(tmdbCredentialKey,cred);document.getElementById("apiStatus").textContent="Probando conexión con TMDB…";try{const data=await tmdb("/configuration");sourceMode="live";document.getElementById("apiStatus").textContent="¡Conexión correcta! TMDB responde. Cargando tendencias…";await loadTrending();loadProviders();loadUpcoming(true);renderExplore();closeApiModal();toast("TMDB conectado correctamente")}catch(e){document.getElementById("apiStatus").textContent=errMsg(e,"No se pudo probar la conexión.");}}
-function clearTmdbCredential(){localStorage.removeItem(tmdbCredentialKey);sourceMode="sample";titles=[...sampleTitles];document.getElementById("apiStatus").textContent="Credencial eliminada de este navegador.";renderHome();renderExplore();toast("Credencial eliminada")}
+function clearTmdbCredential(){localStorage.removeItem(tmdbCredentialKey);loadTrending();document.getElementById("apiStatus").textContent="Credencial eliminada de este navegador.";renderHome();renderExplore();toast("Credencial eliminada")}
 
 // ===== Región, plataformas, estrenos, respaldo (v7) =====
 let currentProvider=null, providerList=[], upcomingCache=null, upcomingKind="Todo";
