@@ -95,7 +95,7 @@
   <input id="timeRange" type="range" min="30" max="180" step="10" value="120" style="width:100%;margin:10px 0 4px;accent-color:#64f4ff">
   <div style="display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px"><span>30 min</span><button class="text-btn" id="timeClear" style="display:none">Quitar filtro</button><span>3 h</span></div>
  </div>
- <div class="section-head"><div><h2 id="exploreHeading">Catálogo</h2><p id="exploreSub">Conecta TMDB desde P → API para activar el catálogo real.</p></div><select id="sortSelect" class="chip" style="background:#111625;color:white"><option value="rating">Mejor puntuados</option><option value="year">Más recientes</option><option value="az">A–Z</option></select></div>
+ <div class="section-head"><div><h2 id="exploreHeading">Catálogo</h2><p id="exploreSub">Conecta TMDB desde P → API para activar el catálogo real.</p></div><select id="sortSelect" class="chip" style="background:#111625;color:white"><option value="year">Más recientes</option><option value="rating">Mejor puntuados</option><option value="az">A–Z</option></select></div>
  <div class="grid" id="exploreGrid"></div>
  <div class="actions ex-more" id="exMoreWrap" hidden><button class="btn" id="exMore" type="button">Cargar más</button></div>
  <div class="ex-bar" id="exFilterBar" role="group" aria-label="Filtros activos" hidden><button type="button" id="exFilterGo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="20" height="20"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Filtros <span class="ex-n" id="exFilterN">0</span></button><button type="button" id="exFilterClear">Limpiar</button></div>
@@ -1020,7 +1020,7 @@ function toggleRouSound(){rouSound=!rouSound;try{localStorage.setItem("cc_rou_so
    Usa su propia clave "zy_settings_v1". No lee ni modifica ninguna clave existente
    (listas, caché, gustos, credenciales, región...). Restablecer solo borra esa clave. */
 var ZY_VERSION="1.0",zyKey="zy_settings_v1",zySettings=null,zyGenreList=[],zyResetTimer=null,zyPrev="home";
-var zyDefaults={amoled:false,accent:"cyan",reduceMotion:false,cards:"normal",kind:"both",genres:[],sort:"rating",prioritize:true};
+var zyDefaults={amoled:false,accent:"cyan",reduceMotion:false,cards:"normal",kind:"both",genres:[],sort:"year",prioritize:true};
 function zySystemReduce(){try{return window.matchMedia("(prefers-reduced-motion: reduce)").matches}catch(e){return false}}
 function zyReduceMotion(){return document.documentElement.classList.contains("reduce-motion")}
 function zySanitize(r){
@@ -1031,7 +1031,7 @@ function zySanitize(r){
   d.cards=["compact","normal","large"].includes(r.cards)?r.cards:"normal";
   d.kind=["movies","series","both"].includes(r.kind)?r.kind:"both";
   d.genres=Array.isArray(r.genres)?[...new Set(r.genres.map(x=>String(x).slice(0,40)))].slice(0,30):[];
-  d.sort=["rating","year","az"].includes(r.sort)?r.sort:"rating";
+  d.sort=["rating","year","az"].includes(r.sort)?r.sort:"year";
   d.prioritize=r.prioritize!==false;
   return d}
 function zyLoad(){try{return zySanitize(JSON.parse(localStorage.getItem(zyKey)||"null"))}catch(e){return zySanitize(null)}}
