@@ -17,22 +17,39 @@ function ttlFor(path) {
   return 3600; // 1 h
 }
 
+// Limpia el secreto: quita espacios, comillas y el prefijo "Bearer " por si se pegó mal.
+function cleanToken(raw) {
+  return String(raw || "").trim().replace(/^bearer\s+/i, "").replace(/^["']+|["']+$/g, "").trim();
+}
+// v4 = token largo (empieza con eyJ) -> Authorization. v3 = clave corta de 32 caracteres -> api_key.
+function isV4(t) { return t.startsWith("eyJ") || t.split(".").length === 3; }
+
 async function tmdbProxy(request, env, ctx) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   if (request.method !== "GET") return new Response("Método no permitido", { status: 405, headers: CORS });
-  if (!env.TMDB_TOKEN) return new Response(JSON.stringify({ status_message: "Falta el secreto TMDB_TOKEN" }), { status: 500, headers: { ...CORS, "content-type": "application/json" } });
+  if (!cleanToken(env.TMDB_TOKEN)) return new Response(JSON.stringify({ status_message: "Falta el secreto TMDB_TOKEN" }), { status: 500, headers: { ...CORS, "content-type": "application/json" } });
 
   const url = new URL(request.url);
   const path = url.pathname.replace(/^\/api\/tmdb/, "");
+  const token = cleanToken(env.TMDB_TOKEN);
+
+  // Diagnóstico: /api/tmdb/_check dice qué tipo de clave hay guardada (sin mostrarla).
+  if (path === "/_check") {
+    const tipo = isV4(token) ? "v4 (token largo, correcto)" : token.length === 32 ? "v3 (clave corta de 32 caracteres)" : "formato desconocido";
+    return new Response(JSON.stringify({ longitud: token.length, tipo }), { headers: { ...CORS, "content-type": "application/json", "Cache-Control": "no-store" } });
+  }
   if (!ALLOWED.test(path)) return new Response("Ruta no permitida", { status: 403, headers: CORS });
 
   // Nunca reenviamos credenciales del cliente.
   url.searchParams.delete("api_key");
+  const v4 = isV4(token);
+  if (!v4) url.searchParams.set("api_key", token);
   const target = "https://api.themoviedb.org" + path + "?" + url.searchParams.toString();
+  const cacheTarget = target.replace(/([?&])api_key=[^&]*&?/, "$1").replace(/[?&]$/, "");
 
   // Caché en el borde de Cloudflare (la clave no incluye el token).
   const cache = caches.default;
-  const cacheKey = new Request(target, { method: "GET" });
+  const cacheKey = new Request(cacheTarget, { method: "GET" });
   let hit = await cache.match(cacheKey);
   if (hit) {
     const r = new Response(hit.body, hit);
@@ -42,7 +59,7 @@ async function tmdbProxy(request, env, ctx) {
   }
 
   const upstream = await fetch(target, {
-    headers: { accept: "application/json", Authorization: "Bearer " + env.TMDB_TOKEN },
+    headers: v4 ? { accept: "application/json", Authorization: "Bearer " + token } : { accept: "application/json" },
   });
 
   const out = new Response(upstream.body, upstream);
