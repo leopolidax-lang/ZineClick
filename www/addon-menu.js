@@ -158,10 +158,19 @@
     '.zep-tx b{color:#fff;font-size:clamp(15px,4.2vw,18px);line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
     '.zep-tx em{font-style:normal;color:#8f9ab5;font-size:13.5px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
     '.zep-msg{padding:26px 6px;text-align:center;color:#9aa6c1;margin:0}' +
-    '.zep-hint{margin:16px 0 0;text-align:center;color:#7f8aa6;font-size:12px}';
+    '.zep-hint{margin:16px 0 0;text-align:center;color:#7f8aa6;font-size:12px}' +
+    '#zacWrap .zac-sec{margin:0 0 6px}#zacWrap .zac-sec[hidden]{display:none}' +
+    '#zacWrap .zac-sub{display:block;color:#8f9ab5;font-size:12px;margin-top:3px}' +
+    '#zacWrap .zac-row{display:flex;gap:14px;overflow-x:auto;padding:2px 2px 12px;scrollbar-width:none}#zacWrap .zac-row::-webkit-scrollbar{display:none}' +
+    '#zacWrap .zac-card{flex:0 0 clamp(112px,31vw,150px);padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;display:flex;flex-direction:column;gap:8px}' +
+    '#zacWrap .zac-card:active{opacity:.8}' +
+    '#zacWrap .zac-p{display:block;aspect-ratio:2/3;border-radius:16px;overflow:hidden;background:#151b2c;box-shadow:0 8px 22px rgba(0,0,0,.35)}' +
+    '#zacWrap .zac-p img{width:100%;height:100%;object-fit:cover;display:block}' +
+    '#zacWrap .zac-card b{font-size:13px;line-height:1.25;color:#e8edf8;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}';
 
   /* =============== Datos de fuentes (addons) =============== */
-  function addons() { return typeof W.addonLoad === "function" ? W.addonLoad() : []; }
+  function addonsAll() { return typeof W.addonLoad === "function" ? W.addonLoad() : []; }
+  function addons() { return addonsAll().filter(function (a) { return a.stream !== false; }); }
 
   function imdbOf(type, id) {
     return W.tmdb("/" + type + "/" + id + "/external_ids").then(function (x) {
@@ -457,6 +466,79 @@
     } catch (e) { say((e && e.message) || "No se pudo abrir el siguiente episodio"); }
   };
 
+  /* =============== Catálogos de addons (Nuvio / Stremio) en Inicio =============== */
+  var CAT_TTL = 15 * 60 * 1000, catCache = {}, catData = [], catTok = 0;
+  function catItems() {
+    var out = [];
+    addonsAll().forEach(function (a) { (a.catalogs || []).forEach(function (c) { out.push({ addon: a, cat: c }); }); });
+    return out.slice(0, 10);
+  }
+  function catKey(it) { return it.addon.url + "|" + it.cat.type + "|" + it.cat.id; }
+  function fetchCat(it) {
+    var k = catKey(it), c = catCache[k];
+    if (c && Date.now() - c.t < CAT_TTL) return Promise.resolve(c.v);
+    return W._addonFetch(it.addon.url + "/catalog/" + it.cat.type + "/" + encodeURIComponent(it.cat.id) + ".json", 15000).then(function (d) {
+      var v = ((d && d.metas) || []).filter(function (m) { return m && (m.name || m.title) && m.poster; }).slice(0, 24);
+      catCache[k] = { t: Date.now(), v: v };
+      return v;
+    });
+  }
+  function catRowHtml(it, v, i) {
+    return '<div class="section-head"><div><h2>' + E(it.cat.name || it.cat.id) + '</h2><small class="zac-sub">' + E(it.addon.name || W._addonHost(it.addon.url)) + '</small></div></div>' +
+      '<div class="zac-row">' + v.map(function (m, j) {
+        return '<button type="button" class="zac-card" data-i="' + i + '" data-j="' + j + '"><span class="zac-p"><img loading="lazy" alt="" src="' + E(m.poster) + '"></span><b>' + E(m.name || m.title) + "</b></button>";
+      }).join("") + "</div>";
+  }
+  function renderCats() {
+    var home = $("homePage"); if (!home) return;
+    var items = catItems(), wrap = $("zacWrap");
+    if (!items.length) { if (wrap) wrap.remove(); catData = []; return; }
+    var sig = items.map(catKey).join(",");
+    if (!wrap) {
+      wrap = D.createElement("div"); wrap.id = "zacWrap";
+      wrap.addEventListener("click", function (ev) {
+        var c = ev.target.closest && ev.target.closest(".zac-card"); if (!c) return;
+        var arr = catData[Number(c.getAttribute("data-i"))], m = arr && arr.v[Number(c.getAttribute("data-j"))];
+        if (m) openMeta(m, arr.type);
+      });
+    }
+    /* colocar: después de "Seguir viendo", antes del resto del Inicio */
+    var anchor = home.querySelector("section.section:not(#zcwSection)"), z = $("zcwSection");
+    if (wrap.parentNode !== home) { if (anchor) home.insertBefore(wrap, anchor); else home.appendChild(wrap); }
+    if (z && z.nextSibling !== wrap && z.parentNode === home) home.insertBefore(wrap, z.nextSibling);
+    if (wrap.getAttribute("data-sig") === sig && Date.now() - Number(wrap.getAttribute("data-t") || 0) < CAT_TTL) return;
+    wrap.setAttribute("data-sig", sig); wrap.setAttribute("data-t", String(Date.now()));
+    var tok = ++catTok;
+    catData = items.map(function (it) { return { v: [], type: it.cat.type }; });
+    wrap.innerHTML = items.map(function (it, i) { return '<div class="zac-sec" data-i="' + i + '" hidden></div>'; }).join("");
+    items.forEach(function (it, i) {
+      fetchCat(it).then(function (v) {
+        if (tok !== catTok || !v.length) return;
+        var el = wrap.querySelector('.zac-sec[data-i="' + i + '"]'); if (!el) return;
+        catData[i].v = v; el.innerHTML = catRowHtml(it, v, i); el.hidden = false;
+      }).catch(function () {});
+    });
+  }
+  async function openMeta(m, ctype) {
+    var mt = (m.type || ctype) === "series" || ctype === "series" ? "tv" : "movie";
+    try {
+      var id = String(m.id || ""), tm = 0, x = /^tmdb:(\d+)$/.exec(id);
+      if (x) tm = Number(x[1]);
+      else if (/^tt\d{6,10}$/.test(id)) {
+        var f = await W.tmdb("/find/" + id, { external_source: "imdb_id" });
+        var pri = mt === "tv" ? (f.tv_results || []) : (f.movie_results || []), alt = mt === "tv" ? (f.movie_results || []) : (f.tv_results || []);
+        if (pri.length) tm = pri[0].id; else if (alt.length) { tm = alt[0].id; mt = mt === "tv" ? "movie" : "tv"; }
+      }
+      if (!tm) {
+        var q = await W.tmdb("/search/" + mt, { query: m.name || m.title });
+        var hit = (q.results || [])[0]; if (hit) tm = hit.id;
+      }
+      if (!tm) throw new Error("No se encontró ese título en TMDB.");
+      W.openCredit(mt, tm);
+    } catch (e) { say((e && e.message) || "No se pudo abrir ese título."); }
+  }
+  W.addEventListener("zy-addons-changed", function () { catCache = {}; var w = $("zacWrap"); if (w) w.removeAttribute("data-sig"); try { renderCats(); } catch (e) {} });
+
   /* =============== Pestaña "Episodios" de la ficha =============== */
   function isSeen(id, s, e) { return EW.has(id, s, e); }
   function openEpisode(t, s, e) {
@@ -662,11 +744,12 @@
   function start() {
     var st = D.createElement("style"); st.textContent = CSS; D.head.appendChild(st);
     var ro = W.renderHome;
-    if (typeof ro === "function") W.renderHome = function () { var r = ro.apply(this, arguments); try { refreshRow(); } catch (e) {} return r; };
+    if (typeof ro === "function") W.renderHome = function () { var r = ro.apply(this, arguments); try { refreshRow(); } catch (e) {} try { renderCats(); } catch (e) {} return r; };
     var mb = $("modalBody");
     if (mb && W.MutationObserver) new MutationObserver(function () { decorateDetail(); }).observe(mb, { childList: true });
     D.addEventListener("znp:closed", function () { refreshRow(); decorateDetail(); });
     refreshRow();
+    try { renderCats(); } catch (e) {}
   }
   if (D.readyState === "loading") D.addEventListener("DOMContentLoaded", start); else start();
   /* ---- fuentes alternativas desde el reproductor ---- */

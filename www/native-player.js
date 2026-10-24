@@ -14,7 +14,7 @@
     play: '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
     pause: '<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>',
     back: '<svg viewBox="0 0 24 24"><path d="M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12z"/></svg>',
-    skip: '<svg viewBox="0 0 24 24"><path d="M12 5V2L7 6.5 12 11V8a6 6 0 1 1-6 6H4a8 8 0 1 0 8-9z"/></svg><b>10</b>',
+    skip: '<svg viewBox="0 0 24 24"><path d="M12 4.6A7.9 7.9 0 1 1 5.95 7.42"/><path d="M14.7 2.2 12 4.6l2.7 2.4"/></svg><b>10</b>',
     /* iconos de línea fina (sin cuadro ni círculo) */
     audio: '<svg viewBox="0 0 24 24"><path d="M4 9.5v5h3.6l4.4 4V5.5l-4.4 4z"/><path d="M15.6 9.2a4 4 0 0 1 0 5.6M18.3 6.6a8 8 0 0 1 0 10.8"/></svg>',
     subs: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3.5"/><path d="M7 10.5h4M13.5 10.5H17M7 14.5h2.6M12.2 14.5H17"/></svg>',
@@ -47,9 +47,19 @@
     '.znp-ttl small{color:#c8d0e6;font-weight:600}' +
     '.znp-mid{position:absolute;z-index:1;left:0;right:0;top:50%;transform:translateY(-50%);display:flex;justify-content:center;align-items:center;gap:clamp(28px,12vw,110px);pointer-events:none}' +
     '.znp-mid button{pointer-events:auto}' +
-    '.znp-skip{position:relative;width:56px;height:56px;display:grid;place-items:center}' +
-    '.znp-skip svg{width:46px;height:46px}.znp-skip.f svg{transform:scaleX(-1)}' +
-    '.znp-skip b{position:absolute;left:0;right:0;top:50%;transform:translateY(-34%);font-size:11px;text-align:center}' +
+    '#znpRoot .znp-skip{position:relative;width:60px;height:60px;display:grid;place-items:center;color:rgba(255,255,255,.95);transition:transform .15s,opacity .15s}' +
+    '#znpRoot .znp-skip:active{transform:scale(.88);opacity:.75}' +
+    '#znpRoot .znp-skip svg{width:54px;height:54px;fill:none;stroke:currentColor;stroke-width:1.35;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 2px 8px rgba(0,0,0,.55))}' +
+    '#znpRoot .znp-skip.f svg{transform:scaleX(-1)}' +
+    '#znpRoot .znp-skip b{position:absolute;left:0;right:0;top:53%;transform:translateY(-50%);font-size:12px;font-weight:600;letter-spacing:.3px;text-align:center;text-shadow:0 1px 6px rgba(0,0,0,.6)}' +
+    '#znpRoot .znp-skip.spin svg{animation:znpSpinB .6s cubic-bezier(.25,.8,.25,1)}' +
+    '#znpRoot .znp-skip.f.spin svg{animation:znpSpinF .6s cubic-bezier(.25,.8,.25,1)}' +
+    '#znpRoot .znp-skip.spin b{animation:znpPop .6s ease-out}' +
+    '@keyframes znpSpinB{from{transform:rotate(0)}to{transform:rotate(-360deg)}}' +
+    '@keyframes znpSpinF{from{transform:scaleX(-1) rotate(0)}to{transform:scaleX(-1) rotate(-360deg)}}' +
+    '@keyframes znpPop{0%{transform:translateY(-50%) scale(1)}35%{transform:translateY(-50%) scale(1.28);color:var(--cyan,#64f4ff)}100%{transform:translateY(-50%) scale(1)}}' +
+    /* ventana flotante (imagen en imagen): sin controles */
+    '#znpRoot.znp-pip .znp-top,#znpRoot.znp-pip .znp-mid,#znpRoot.znp-pip .znp-bot,#znpRoot.znp-pip .znp-sheet,#znpRoot.znp-pip .znp-msg,#znpRoot.znp-pip .znp-flash{display:none!important}' +
     '.znp-big{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--cyan,#64f4ff),var(--purple,#a78bfa));color:#06101a;box-shadow:0 8px 30px rgba(0,0,0,.45)}' +
     '.znp-big svg{width:40px;height:40px}' +
     '#znpRoot.znp-busy .znp-big{opacity:0;pointer-events:none}' +
@@ -186,8 +196,8 @@
       .forEach(function (k) { ui[k.charAt(0).toLowerCase() + k.slice(1)] = $("znp" + k); });
 
     ui.back.onclick = function () { close(true); };
-    ui.rew.onclick = function () { seekBy(-10000); };
-    ui.fwd.onclick = function () { seekBy(10000); };
+    ui.rew.onclick = function () { seekBy(-10000); pulseSkip(-1); };
+    ui.fwd.onclick = function () { seekBy(10000); pulseSkip(1); };
     ui.play.onclick = function () { toggle(); };
     ui.next.onclick = function () { close(true); if (typeof W.addonStep === "function") W.addonStep(1); };
     ui.src.onclick = function () { openSheet("src"); };
@@ -199,7 +209,7 @@
       var w = ui.tap.clientWidth, side = e.clientX < w * 0.33 ? -1 : (e.clientX > w * 0.67 ? 1 : 0), now = Date.now();
       if (now - lastTap < 320 && side === lastSide) {
         clearTimeout(tapT); lastTap = 0;
-        if (side === 0) toggle(); else { seekBy(side * 10000); flash(side); }
+        if (side === 0) toggle(); else { seekBy(side * 10000); flash(side); pulseSkip(side); }
         return;
       }
       lastTap = now; lastSide = side; clearTimeout(tapT);
@@ -244,6 +254,11 @@
   function msg(t) {
     ui.msg.textContent = t; ui.msg.classList.add("on");
     clearTimeout(msgT); msgT = setTimeout(function () { ui.msg.classList.remove("on"); }, 1800);
+  }
+  function pulseSkip(side) {
+    var b = side < 0 ? ui.rew : ui.fwd; if (!b) return;
+    b.classList.remove("spin"); void b.offsetWidth; b.classList.add("spin");
+    setTimeout(function () { b.classList.remove("spin"); }, 700);
   }
   function flash(side) {
     var el = side < 0 ? ui.fl : ui.fr;
@@ -423,6 +438,12 @@
       if (!isOpen) return;
       var tv = isTv(); st.time = st.length; try { if (meta && W.ZCW) W.ZCW.progress(meta, st.length, st.length, true); } catch (e) {} meta = null; close(true);
       if (tv && typeof W.addonStep === "function") W.addonStep(1);
+    });
+    p.addListener("znpPip", function (e) {
+      if (!isOpen) return;
+      var on = !!(e && e.on);
+      root.classList.toggle("znp-pip", on);
+      if (on) { closeSheet(); } else { showUi(); }
     });
     p.addListener("znpError", function () {
       if (!isOpen) return;

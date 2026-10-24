@@ -566,7 +566,80 @@ function addonLoad() {
   } catch (e) { return []; }
 }
 function addonSave(list) { try { localStorage.setItem(ADDON_KEY, JSON.stringify(list)); } catch (e) {} }
-function addonCount() { return addonLoad().length; }
+function addonCount() { return addonLoad().filter(function (a) { return a.stream !== false; }).length; }
+function addonChanged() { try { window.dispatchEvent(new Event('zy-addons-changed')); } catch (e) {} }
+
+
+/* ---------- Avisos y diálogos con el estilo de la app (reemplazan alert/confirm del sistema) ---------- */
+function _zyStyle() {
+  if (document.getElementById('zyDlgStyle')) return;
+  var st = document.createElement('style'); st.id = 'zyDlgStyle';
+  st.textContent =
+    '.zy-dlg{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;padding:24px;background:rgba(4,7,14,.55);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);opacity:0;transition:opacity .2s}' +
+    '.zy-dlg.on{opacity:1}' +
+    '.zy-dlg-card{width:min(360px,100%);padding:24px 22px 18px;border-radius:22px;background:linear-gradient(160deg,rgba(28,36,58,.97),rgba(15,20,36,.97));border:1px solid rgba(255,255,255,.1);box-shadow:0 24px 70px rgba(0,0,0,.6);text-align:center;transform:translateY(10px) scale(.96);transition:transform .22s cubic-bezier(.2,.9,.3,1.2)}' +
+    '.zy-dlg.on .zy-dlg-card{transform:none}' +
+    '.zy-dlg-ic{width:48px;height:48px;margin:0 auto 12px;border-radius:50%;display:grid;place-items:center;background:rgba(100,244,255,.12);color:var(--cyan,#64f4ff)}' +
+    '.zy-dlg-ic svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}' +
+    '.zy-dlg-card.warn .zy-dlg-ic{background:rgba(255,184,77,.14);color:#ffb84d}' +
+    '.zy-dlg-card.ok .zy-dlg-ic{background:rgba(110,231,160,.14);color:#6ee7a0}' +
+    '.zy-dlg-card h3{margin:0 0 6px;font-size:18px;color:#fff}' +
+    '.zy-dlg-card p{margin:0 0 18px;color:#aab4cc;font-size:14px;line-height:1.5;white-space:pre-line;word-break:break-word}' +
+    '.zy-dlg-act{display:flex;gap:10px}' +
+    '.zy-dlg-act button{flex:1;padding:12px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#dbe3f5;font-weight:700;font-size:14.5px}' +
+    '.zy-dlg-act button.pri{background:linear-gradient(135deg,var(--cyan,#64f4ff),#7aa8ff);border-color:transparent;color:#04121a}' +
+    '.zy-dlg-act button.danger{background:linear-gradient(135deg,#ff7a8a,#ff5470);color:#fff}' +
+    '.zy-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}' +
+    '.zy-badge{padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(100,244,255,.12);color:var(--cyan,#64f4ff)}' +
+    '.zy-badge.cat{background:rgba(167,139,250,.16);color:#c4b5fd}' +
+    '@keyframes zyFlash{0%{box-shadow:0 0 0 0 rgba(100,244,255,0)}30%{box-shadow:0 0 0 3px rgba(100,244,255,.65),0 0 30px rgba(100,244,255,.35)}100%{box-shadow:0 0 0 0 rgba(100,244,255,0)}}' +
+    '.zy-flash{animation:zyFlash 1.6s ease}';
+  document.head.appendChild(st);
+}
+var _ZY_ICONS = {
+  info: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.2M12 7.8h.01"/></svg>',
+  warn: '<svg viewBox="0 0 24 24"><path d="M12 3.6 21.2 19.5H2.8z"/><path d="M12 10v4.4M12 17.2h.01"/></svg>',
+  ok: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12.3 2.8 2.8L16.2 9.6"/></svg>'
+};
+function zyAsk(o) {
+  return new Promise(function (resolve) {
+    _zyStyle();
+    var kind = _ZY_ICONS[o.kind] ? o.kind : 'info';
+    var w = document.createElement('div'); w.className = 'zy-dlg';
+    w.innerHTML = '<div class="zy-dlg-card ' + kind + '" role="alertdialog" aria-modal="true"><div class="zy-dlg-ic">' + _ZY_ICONS[kind] + '</div>' +
+      '<h3>' + _addonEsc(o.title || 'Aviso') + '</h3><p>' + _addonEsc(o.text || '') + '</p><div class="zy-dlg-act">' +
+      (o.cancel ? '<button type="button" data-r="0">' + _addonEsc(o.cancel) + '</button>' : '') +
+      '<button type="button" class="pri' + (o.danger ? ' danger' : '') + '" data-r="1">' + _addonEsc(o.ok || 'Entendido') + '</button></div></div>';
+    function done(v) { document.removeEventListener('keydown', key); w.classList.remove('on'); setTimeout(function () { if (w.parentNode) w.parentNode.removeChild(w); }, 220); resolve(v); }
+    function key(e) { if (e.key === 'Escape') done(false); }
+    w.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('[data-r]');
+      if (b) done(b.getAttribute('data-r') === '1'); else if (e.target === w) done(false);
+    });
+    document.addEventListener('keydown', key);
+    document.body.appendChild(w);
+    requestAnimationFrame(function () { w.classList.add('on'); });
+  });
+}
+function zyAlert(title, text, kind) { return zyAsk({ title: title, text: text, kind: kind || 'info' }); }
+/* los alert() de toda la app ahora usan el mismo diálogo */
+window.alert = function (msg) { zyAlert('Aviso', String(msg == null ? '' : msg), 'info'); };
+
+/* ¿Qué ofrece este addon? streams (enlaces de video) y/o catálogos (carátulas) */
+function _addonInspect(m) {
+  var res = (m && m.resources) || [];
+  var has = function (n) { return res.some(function (r) { return r === n || (r && r.name === n); }); };
+  var stream = !res.length || has('stream');
+  var cats = [];
+  if (!res.length || has('catalog')) {
+    cats = ((m && m.catalogs) || []).filter(function (c) {
+      if (!c || !c.id || (c.type !== 'movie' && c.type !== 'series')) return false;
+      if ((c.extraRequired || []).length) return false;
+      return !(c.extra || []).some(function (x) { return x && x.isRequired; });
+    }).map(function (c) { return { type: c.type, id: String(c.id), name: String(c.name || c.id) }; }).slice(0, 12);
+  }
+  return { stream: stream && !(m && m.catalogs && m.catalogs.length && res.length && !has('stream')), catalogs: cats };
+}
 
 function _addonFetch(url, ms) {
   var ctrl = new AbortController();
@@ -588,12 +661,15 @@ function addonRenderList() {
   box.innerHTML = list.map(function (a, i) {
     return '<div style="display:flex;align-items:center;gap:10px;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);">' +
       '<div style="min-width:0;"><b style="display:block;font-size:14px;">' + _addonEsc(a.name || _addonHost(a.url)) + '</b>' +
-      '<small class="muted" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _addonEsc(a.url) + '</small></div>' +
+      '<small class="muted" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _addonEsc(a.url) + '</small>' +
+      '<div class="zy-badges">' + (a.stream !== false ? '<span class="zy-badge">Enlaces de video</span>' : '') +
+      ((a.catalogs && a.catalogs.length) ? '<span class="zy-badge cat">Catálogo · ' + a.catalogs.length + (a.catalogs.length === 1 ? ' lista' : ' listas') + '</span>' : '') + '</div></div>' +
       '<button class="btn small" data-addon-del="' + i + '" style="background:rgba(255,0,0,0.1);border-color:rgba(255,0,0,0.2);color:#ff6b6b;flex:none;">Eliminar</button></div>';
   }).join('');
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+  try { _zyStyle(); } catch (e) {}
   var input = document.getElementById('nuvioAddonInput');
   var addBtn = document.getElementById('saveAddonBtn');
   var listBox = document.getElementById('addonList');
@@ -602,37 +678,52 @@ document.addEventListener('DOMContentLoaded', function () {
 
   addBtn.addEventListener('click', async function () {
     var base = _addonBase(input.value);
-    if (!/^https?:\/\//i.test(base)) { alert('Pega el enlace completo del addon (empieza con https://).'); return; }
+    if (!/^https?:\/\//i.test(base)) { zyAlert('Falta el enlace', 'Pega el enlace completo del addon (empieza con https:// o stremio://).', 'warn'); return; }
     var list = addonLoad();
-    if (list.some(function (a) { return a.url === base; })) { alert('Ese addon ya está instalado.'); return; }
-    var name = _addonHost(base);
+    if (list.some(function (a) { return a.url === base; })) { zyAlert('Ya lo tienes', 'Ese addon ya está instalado.', 'info'); return; }
+    var rec = { url: base, name: _addonHost(base) }, info = null;
     addBtn.disabled = true; var label = addBtn.textContent; addBtn.textContent = 'Verificando…';
     try {
       var m = await _addonFetch(base + '/manifest.json', 8000);
-      if (m && m.name) name = m.name;
-      var res = (m && m.resources) || [];
-      var hasStream = !res.length || res.some(function (r) { return r === 'stream' || (r && r.name === 'stream'); });
-      if (!hasStream) { alert('Este addon no ofrece enlaces de video (stream).'); return; }
+      if (m && m.name) rec.name = m.name;
+      info = _addonInspect(m);
+      if (!info.stream && !info.catalogs.length) {
+        zyAlert('Addon sin contenido', 'Este addon no ofrece enlaces de video ni catálogos que la app pueda mostrar.', 'warn');
+        return;
+      }
+      rec.stream = info.stream;
+      if (info.catalogs.length) rec.catalogs = info.catalogs;
     } catch (e) {
-      if (!confirm('No se pudo verificar el addon (puede ser un bloqueo del navegador o un enlace incorrecto). ¿Agregarlo de todos modos?')) return;
+      addBtn.disabled = false; addBtn.textContent = label;
+      var go = await zyAsk({ title: 'No se pudo verificar', text: 'Puede ser un enlace incorrecto o que el addon esté caído. ¿Quieres agregarlo de todos modos?', kind: 'warn', ok: 'Agregar', cancel: 'Cancelar' });
+      if (!go) return;
     } finally {
       addBtn.disabled = false; addBtn.textContent = label;
     }
-    list.push({ url: base, name: name });
+    list.push(rec);
     addonSave(list);
     input.value = '';
     addonRenderList();
+    addonChanged();
+    if (info && !info.stream) zyAlert('Catálogo agregado', '«' + rec.name + '» trae ' + info.catalogs.length + (info.catalogs.length === 1 ? ' lista' : ' listas') + ' de carátulas. Las verás en Inicio. Para reproducir necesitas además un addon con enlaces de video.', 'ok');
+    else if (typeof toast === 'function') toast('Addon agregado: ' + rec.name);
   });
 
-  listBox.addEventListener('click', function (ev) {
+  listBox.addEventListener('click', async function (ev) {
     var b = ev.target.closest && ev.target.closest('[data-addon-del]');
     if (!b) return;
+    var idx = Number(b.getAttribute('data-addon-del'));
     var list = addonLoad();
-    var a = list[Number(b.getAttribute('data-addon-del'))];
-    if (!a || !confirm('¿Eliminar «' + (a.name || a.url) + '»?')) return;
-    list.splice(Number(b.getAttribute('data-addon-del')), 1);
+    var a = list[idx];
+    if (!a) return;
+    var ok = await zyAsk({ title: 'Eliminar addon', text: '¿Quitar «' + (a.name || a.url) + '»? Podrás volver a agregarlo cuando quieras.', kind: 'warn', ok: 'Eliminar', cancel: 'Cancelar', danger: true });
+    if (!ok) return;
+    list = addonLoad();
+    if (!list[idx] || list[idx].url !== a.url) return;
+    list.splice(idx, 1);
     addonSave(list);
     addonRenderList();
+    addonChanged();
   });
 });
 
