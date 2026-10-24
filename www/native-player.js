@@ -22,6 +22,7 @@
     aspect: '<svg viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/></svg>',
     next: '<svg viewBox="0 0 24 24"><path d="M6.5 5.5v13l9.5-6.5z"/><path d="M19 5.5v13"/></svg>',
     src: '<svg viewBox="0 0 24 24"><path d="M12 3.5 21 8.5 12 13.5 3 8.5z"/><path d="M3 12.5l9 5 9-5"/><path d="M3 16.5l9 5 9-5"/></svg>',
+    cast: '<svg viewBox="0 0 24 24"><path d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/><path d="M2 20h.01"/></svg>',
     check: '<svg class="znp-ck" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
   };
 
@@ -60,14 +61,15 @@
     '@keyframes znpPop{0%{transform:translateY(-50%) scale(1)}35%{transform:translateY(-50%) scale(1.28);color:var(--cyan,#64f4ff)}100%{transform:translateY(-50%) scale(1)}}' +
     /* ventana flotante (imagen en imagen): sin controles */
     '#znpRoot.znp-pip .znp-top,#znpRoot.znp-pip .znp-mid,#znpRoot.znp-pip .znp-bot,#znpRoot.znp-pip .znp-sheet,#znpRoot.znp-pip .znp-msg,#znpRoot.znp-pip .znp-flash{display:none!important}' +
-    '.znp-big{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--cyan,#64f4ff),var(--purple,#a78bfa));color:#06101a;box-shadow:0 8px 30px rgba(0,0,0,.45)}' +
+    '.znp-big{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--cyan,#64f4ff),var(--znp-end,var(--purple,#a78bfa)));color:#06101a;box-shadow:0 8px 30px rgba(0,0,0,.45)}' +
     '.znp-big svg{width:40px;height:40px}' +
     '#znpRoot.znp-busy .znp-big{opacity:0;pointer-events:none}' +
     '.znp-bot{position:absolute;z-index:1;left:0;right:0;bottom:0;pointer-events:auto;padding:0 max(env(safe-area-inset-right),24px) max(env(safe-area-inset-bottom),14px) max(env(safe-area-inset-left),24px)}' +
     '.znp-bar{position:relative;height:34px;display:flex;align-items:center;touch-action:none;cursor:pointer}' +
     '.znp-trk{position:absolute;left:0;right:0;height:4px;border-radius:4px;background:rgba(255,255,255,.25)}' +
-    '.znp-fill{position:absolute;left:0;height:4px;border-radius:4px;width:0;background:linear-gradient(90deg,var(--cyan,#64f4ff),var(--purple,#a78bfa))}' +
-    '.znp-knob{position:absolute;left:0;width:16px;height:16px;margin-left:-8px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(100,244,255,.25)}' +
+    '.znp-fill{position:absolute;left:0;height:4px;border-radius:4px;width:0;background:linear-gradient(90deg,var(--cyan,#64f4ff),var(--znp-end,var(--purple,#a78bfa)));box-shadow:0 0 12px rgba(var(--acc-rgb,100,244,255),.35)}' +
+    'html[data-accent="violet"] #znpRoot{--znp-end:#ff67c8}html[data-accent="neutral"] #znpRoot{--znp-end:#9fb4ff}' +
+    '.znp-knob{position:absolute;left:0;width:16px;height:16px;margin-left:-8px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(var(--acc-rgb,100,244,255),.28),0 0 14px rgba(var(--acc-rgb,100,244,255),.45)}' +
     '.znp-pv{position:absolute;bottom:38px;left:0;width:184px;transform:translateX(-50%);display:none;flex-direction:column;align-items:center;gap:5px;pointer-events:none}' +
     '.znp-pv.on{display:flex}' +
     '.znp-pv img{display:none;width:184px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;border:2px solid #fff;background:#0b0e18}' +
@@ -82,7 +84,10 @@
     '#znpRoot .znp-ic:active{transform:scale(.86);opacity:.7}' +
     '#znpRoot .znp-ic[hidden]{display:none}' +
     '#znpRoot .znp-ic small{position:absolute;right:-1px;top:3px;font-size:10px;font-weight:800;line-height:1;color:var(--cyan,#64f4ff);text-shadow:0 1px 4px rgba(0,0,0,.7)}' +
-    '.znp-top .znp-src{margin-left:auto}' +
+    '.znp-top .znp-cast{margin-left:auto}' +
+    '#znpRoot .znp-ic.on{color:var(--cyan,#64f4ff)}' +
+    '.znp-cb{position:absolute;left:0;right:0;top:44%;text-align:center;pointer-events:none;display:none;color:#cfd8ee;font-size:15px;font-weight:600;text-shadow:0 2px 10px rgba(0,0,0,.7)}' +
+    '#znpRoot.znp-casting .znp-cb{display:block}' +
     /* tarjeta lateral: pegada a la pared, sin borde de ese lado */
     '.znp-sheet{position:absolute;z-index:3;top:max(env(safe-area-inset-top),12px);bottom:max(env(safe-area-inset-bottom),12px);right:env(safe-area-inset-right,0px);width:min(350px,54vw);display:flex;flex-direction:column;padding:10px 8px 8px;background:rgba(14,18,32,.66);-webkit-backdrop-filter:blur(22px) saturate(1.3);backdrop-filter:blur(22px) saturate(1.3);border:1px solid rgba(255,255,255,.13);border-right:0;border-radius:22px 0 0 22px;box-shadow:-14px 0 44px rgba(0,0,0,.45),inset 1px 0 0 rgba(255,255,255,.06);animation:znpIn .24s cubic-bezier(.2,.8,.2,1)}' +
     '@keyframes znpIn{from{transform:translateX(36px);opacity:0}to{transform:none;opacity:1}}' +
@@ -110,7 +115,7 @@
   var hideT = 0, msgT = 0, flashT = 0, tapT = 0, lastTap = 0, lastSide = 0;
   var curTitle = "", fallback = null, backH = null, listening = false, resumed = false, lastSave = 0;
   var origPlay = typeof W.rdPlay === "function" ? W.rdPlay : null;
-  var rate = 1, aspect = "fit", meta = null, sheetKind = "", startAt = 0, applied = false, applyTry = 0, applyT = 0;
+  var castName = "", castPoll = 0, castSig = "", rate = 1, aspect = "fit", meta = null, sheetKind = "", startAt = 0, applied = false, applyTry = 0, applyT = 0;
   var thumbC = {}, thumbBusy = false, thumbOk = true, thumbFail = 0, thumbWant = -1;
 
   function fmt(ms) {
@@ -151,7 +156,7 @@
       if (r && r.data) { thumbC[b] = r.data; thumbFail = 0; } else thumbFail++;
     }).catch(function () { thumbFail++; }).then(function () {
       thumbBusy = false;
-      if (thumbFail >= 3) thumbOk = false;
+      if (thumbFail >= 6) thumbOk = false;
       showThumb();
       if (dragging && !thumbC[bucket(dragT)]) { thumbWant = bucket(dragT); runThumb(); }
     });
@@ -177,7 +182,9 @@
       '<div class="znp-ui" id="znpUi">' +
         '<div class="znp-top"><button class="znp-round" id="znpBack" aria-label="Volver">' + ICON.back + '</button>' +
           '<div class="znp-ttl"><b id="znpTitle"></b><small id="znpSub"></small></div>' +
+          '<button class="znp-ic znp-cast" id="znpCast" aria-label="Transmitir a otro dispositivo" title="Transmitir (Chromecast)">' + ICON.cast + '</button>' +
           '<button class="znp-ic znp-src" id="znpSrc" aria-label="Cambiar de fuente" title="Cambiar de fuente" hidden>' + ICON.src + '</button></div>' +
+          '<div class="znp-cb" id="znpCb"></div>' +
         '<div class="znp-mid"><button class="znp-skip" id="znpRew" aria-label="Retroceder 10 segundos">' + ICON.skip + '</button>' +
           '<button class="znp-big" id="znpPlay" aria-label="Reproducir o pausar"></button>' +
           '<button class="znp-skip f" id="znpFwd" aria-label="Adelantar 10 segundos">' + ICON.skip + '</button></div>' +
@@ -192,7 +199,7 @@
       '</div>' +
       '<div class="znp-sheet" id="znpSheet" hidden><div class="znp-sh-t" id="znpShT"></div><div class="znp-sh-l" id="znpShL"></div></div>';
     D.body.appendChild(root);
-    ["Tap", "Ui", "Back", "Title", "Sub", "Rew", "Play", "Fwd", "Bar", "Fill", "Knob", "Cur", "Dur", "Pv", "PvI", "PvT", "Speed", "SpeedB", "Src", "Next", "Sheet", "ShT", "ShL", "Fl", "Fr", "Msg"]
+    ["Tap", "Ui", "Back", "Title", "Sub", "Rew", "Play", "Fwd", "Bar", "Fill", "Knob", "Cur", "Dur", "Pv", "PvI", "PvT", "Speed", "SpeedB", "Src", "Cast", "Cb", "Next", "Sheet", "ShT", "ShL", "Fl", "Fr", "Msg"]
       .forEach(function (k) { ui[k.charAt(0).toLowerCase() + k.slice(1)] = $("znp" + k); });
 
     ui.back.onclick = function () { close(true); };
@@ -201,6 +208,7 @@
     ui.play.onclick = function () { toggle(); };
     ui.next.onclick = function () { close(true); if (typeof W.addonStep === "function") W.addonStep(1); };
     ui.src.onclick = function () { openSheet("src"); };
+    ui.cast.onclick = function () { openSheet("cast"); };
     root.querySelectorAll(".znp-acts [data-p]").forEach(function (b) { b.onclick = function () { openSheet(b.getAttribute("data-p")); }; });
 
     /* toque en el video: un toque muestra/oculta controles; doble toque a los lados salta 10 s, al centro pausa */
@@ -274,7 +282,7 @@
   }
 
   /* ---------- panel lateral: audio, subtítulos, velocidad, pantalla ---------- */
-  function closeSheet() { sheetOpen = false; if (ui.sheet) ui.sheet.hidden = true; showUi(); }
+  function closeSheet() { clearInterval(castPoll); sheetOpen = false; if (ui.sheet) ui.sheet.hidden = true; showUi(); }
   function fillSheet(title, items, empty) {
     ui.shT.textContent = title; ui.shL.innerHTML = "";
     if (!items.length) { var e = D.createElement("div"); e.className = "znp-sh-e"; e.textContent = empty || "Nada disponible"; ui.shL.appendChild(e); return; }
@@ -291,7 +299,12 @@
   }
   function openSheet(kind) {
     sheetOpen = true; sheetKind = kind; ui.sheet.hidden = false; clearTimeout(hideT);
-    if (kind === "src") {
+    if (kind === "cast") {
+      castSig = ""; fillSheet("Transmitir a", [], "Buscando dispositivos…");
+      castRefresh();
+      clearInterval(castPoll);
+      castPoll = setInterval(function () { if (!sheetOpen || sheetKind !== "cast") { clearInterval(castPoll); return; } castRefresh(); }, 1800);
+    } else if (kind === "src") {
       fillSheet("Fuentes", [], "Buscando fuentes…");
       var Z = W.ZAM;
       if (!meta || !Z || !Z.sources) { fillSheet("Fuentes", [], "No hay fuentes disponibles"); return; }
@@ -325,6 +338,34 @@
     }
   }
 
+
+
+  /* ---------- Chromecast (descubrimiento y envío los hace VLC en el APK) ---------- */
+  function castRefresh() {
+    call("castList").then(function (r) {
+      if (!sheetOpen || sheetKind !== "cast") return;
+      castName = (r && r.current) || "";
+      var devs = (r && r.devices) || [], sig = JSON.stringify(devs) + "|" + castName;
+      if (sig === castSig) return;
+      castSig = sig;
+      var items = [{ label: "Este teléfono", sub: "Reproducir aquí", on: !castName, fn: function () { castPick(-1, ""); } }];
+      devs.forEach(function (d) { items.push({ label: d.name, sub: "Chromecast", on: !!castName && d.name === castName, fn: function () { castPick(d.id, d.name); } }); });
+      if (!devs.length) items.push({ label: "Buscando dispositivos…", sub: "Usa la misma red Wi-Fi que tu Chromecast", fn: function () {} });
+      fillSheet("Transmitir a", items, "");
+    }).catch(function () {
+      if (sheetOpen && sheetKind === "cast") fillSheet("Transmitir a", [], "La transmisión no está disponible en esta versión de la app.");
+    });
+  }
+  function castPick(id, name) {
+    msg(id < 0 ? "Volviendo al teléfono…" : "Conectando con " + name + "…");
+    call("castTo", { id: id }).then(function (r) {
+      castName = (r && r.current) || "";
+      ui.cast.classList.toggle("on", !!castName);
+      root.classList.toggle("znp-casting", !!castName);
+      ui.cb.textContent = castName ? "Transmitiendo a " + castName : "";
+      msg(castName ? "Transmitiendo a " + castName : "Reproduciendo en el teléfono");
+    }).catch(function () { msg("No se pudo transmitir a ese dispositivo"); });
+  }
 
   function speedBadge() { if (ui.speedB) ui.speedB.textContent = rate === 1 ? "" : rate + "x"; }
 
@@ -458,6 +499,7 @@
     build(); listen(p);
     meta = mt || null; thumbC = {}; thumbBusy = false; thumbOk = true; thumbFail = 0; thumbWant = -1;
     curTitle = title || ""; fallback = fb || (origPlay ? function () { origPlay({ download: url }, title); } : null); resumed = false; rate = 1; aspect = "fit"; lastSave = 0;
+    castName = ""; castSig = ""; clearInterval(castPoll); if (ui.cast) { ui.cast.classList.remove("on"); } root.classList.remove("znp-casting");
     startAt = Number(startMs) || 0; applied = false; applyTry = 0; clearTimeout(applyT); applyT = 0;
     st = { time: 0, length: 0, playing: false, buffering: true };
     ui.title.textContent = curTitle || "Reproduciendo";
