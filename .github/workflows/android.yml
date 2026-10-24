@@ -71,22 +71,22 @@ jobs:
           PY
           fi
 
-      - name: Controles del reproductor nativo (native-player.js)
+      - name: Controles de la app (native-player.js y addon-menu.js)
         run: |
-          if [ ! -f www/native-player.js ]; then
-            echo "::warning::Falta www/native-player.js (súbelo a la carpeta www del repositorio). Se compila sin los controles nuevos."
-            exit 0
-          fi
           python3 - <<'PY'
+          import os
           p = 'www/index.html'
           t = open(p, encoding='utf-8').read()
-          tag = '<script src="native-player.js"></script>'
-          if tag not in t and '</body>' in t:
-              i = t.rfind('</body>')
-              t = t[:i] + tag + '\n' + t[i:]
-              open(p, 'w', encoding='utf-8').write(t)
+          for f in ('addon-menu.js', 'native-player.js'):
+              tag = '<script src="%s"></script>' % f
+              if not os.path.exists('www/' + f):
+                  print('::warning::Falta www/' + f + ' (súbelo a la carpeta www del repositorio)')
+              elif tag not in t and '</body>' in t:
+                  i = t.rfind('</body>')
+                  t = t[:i] + tag + '\n' + t[i:]
+          open(p, 'w', encoding='utf-8').write(t)
           PY
-          grep -c "native-player.js" www/index.html
+          grep -c "addon-menu.js\|native-player.js" www/index.html
 
       - name: Sincronizar con Android
         run: npx cap sync android
@@ -246,11 +246,14 @@ jobs:
 
           import android.app.Activity;
           import android.content.pm.ActivityInfo;
+          import android.graphics.Bitmap;
           import android.graphics.Color;
+          import android.media.MediaMetadataRetriever;
           import android.net.Uri;
           import android.os.Build;
           import android.os.Handler;
           import android.os.Looper;
+          import android.util.Base64;
           import android.view.ViewGroup;
           import android.view.WindowManager;
           import android.webkit.WebView;
@@ -271,7 +274,11 @@ jobs:
           import org.videolan.libvlc.MediaPlayer;
           import org.videolan.libvlc.util.VLCVideoLayout;
 
+          import java.io.ByteArrayOutputStream;
           import java.util.ArrayList;
+          import java.util.HashMap;
+          import java.util.concurrent.ExecutorService;
+          import java.util.concurrent.Executors;
 
           /**
            * Reproductor VLC sin pantalla propia: el video se dibuja DETRÁS del WebView
@@ -291,6 +298,10 @@ jobs:
               private boolean buffering = true;
               private boolean resumePlaying = true;
               private long resumeAt = 0;
+              private final ExecutorService thumbEx = Executors.newSingleThreadExecutor();
+              private MediaMetadataRetriever mmr;
+              private String mmrUrl = "";
+              private boolean mmrFailed = false;
 
               private final Runnable ticker = new Runnable() {
                   @Override
@@ -457,6 +468,12 @@ jobs:
                   }
                   player = null;
                   libVLC = null;
+                  thumbEx.execute(new Runnable() {
+                      @Override
+                      public void run() {
+                          closeRetriever();
+                      }
+                  });
                   try {
                       if (videoLayout != null && videoParent != null) videoParent.removeView(videoLayout);
                   } catch (Throwable t) {
@@ -640,6 +657,72 @@ jobs:
                           res.put("audio", audio);
                           res.put("subs", subs);
                           call.resolve(res);
+                      }
+                  });
+              }
+
+              /* ---------------- vista previa de escenas (al deslizar la barra) ---------------- */
+
+              private synchronized MediaMetadataRetriever retriever(String u) {
+                  if (!u.equals(mmrUrl)) {
+                      closeRetriever();
+                      mmrUrl = u;
+                      mmrFailed = false;
+                  }
+                  if (mmrFailed || u.isEmpty()) return null;
+                  if (mmr == null) {
+                      try {
+                          MediaMetadataRetriever r = new MediaMetadataRetriever();
+                          r.setDataSource(u, new HashMap<String, String>());
+                          mmr = r;
+                      } catch (Throwable t) {
+                          mmrFailed = true;
+                          mmr = null;
+                      }
+                  }
+                  return mmr;
+              }
+
+              private synchronized void closeRetriever() {
+                  try {
+                      if (mmr != null) mmr.release();
+                  } catch (Throwable t) {
+                      // idem
+                  }
+                  mmr = null;
+                  mmrUrl = "";
+              }
+
+              @PluginMethod
+              public void getThumb(final PluginCall call) {
+                  final double ms = call.getDouble("ms", 0.0);
+                  final String u = url;
+                  thumbEx.execute(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              MediaMetadataRetriever r = retriever(u);
+                              if (r == null) {
+                                  call.resolve(new JSObject());
+                                  return;
+                              }
+                              Bitmap bmp = r.getFrameAtTime((long) (Math.max(ms, 0) * 1000), MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+                              if (bmp == null) {
+                                  call.resolve(new JSObject());
+                                  return;
+                              }
+                              int w = 320;
+                              int h = Math.max(1, bmp.getHeight() * w / Math.max(1, bmp.getWidth()));
+                              Bitmap sm = Bitmap.createScaledBitmap(bmp, w, h, true);
+                              ByteArrayOutputStream bo = new ByteArrayOutputStream();
+                              sm.compress(Bitmap.CompressFormat.JPEG, 60, bo);
+                              if (sm != bmp) bmp.recycle();
+                              JSObject o = new JSObject();
+                              o.put("data", "data:image/jpeg;base64," + Base64.encodeToString(bo.toByteArray(), Base64.NO_WRAP));
+                              call.resolve(o);
+                          } catch (Throwable t) {
+                              call.resolve(new JSObject());
+                          }
                       }
                   });
               }
