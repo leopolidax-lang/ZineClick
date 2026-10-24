@@ -14,15 +14,7 @@
     play: '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
     pause: '<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>',
     back: '<svg viewBox="0 0 24 24"><path d="M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12z"/></svg>',
-    skip: '<svg viewBox="0 0 24 24"><path d="M12 5V2L7 6.5 12 11V8a6 6 0 1 1-6 6H4a8 8 0 1 0 8-9z"/></svg><b>10</b>',
-    /* iconos de línea fina (sin cuadro ni círculo) */
-    audio: '<svg viewBox="0 0 24 24"><path d="M4 9.5v5h3.6l4.4 4V5.5l-4.4 4z"/><path d="M15.6 9.2a4 4 0 0 1 0 5.6M18.3 6.6a8 8 0 0 1 0 10.8"/></svg>',
-    subs: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3.5"/><path d="M7 10.5h4M13.5 10.5H17M7 14.5h2.6M12.2 14.5H17"/></svg>',
-    speed: '<svg viewBox="0 0 24 24"><path d="M4.6 17.5a8.5 8.5 0 1 1 14.8 0"/><path d="M12 14l3.8-4.6"/><circle cx="12" cy="14.2" r="1.1"/></svg>',
-    aspect: '<svg viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/></svg>',
-    next: '<svg viewBox="0 0 24 24"><path d="M6.5 5.5v13l9.5-6.5z"/><path d="M19 5.5v13"/></svg>',
-    src: '<svg viewBox="0 0 24 24"><path d="M12 3.5 21 8.5 12 13.5 3 8.5z"/><path d="M3 12.5l9 5 9-5"/><path d="M3 16.5l9 5 9-5"/></svg>',
-    check: '<svg class="znp-ck" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
+    skip: '<i><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M24 12.5A14.5 14.5 0 1 1 9.5 27"/><path d="M29.5 6.5 23.5 12.5l6 6"/></svg></i><b>10</b>'
   };
 
   var CSS = '' +
@@ -47,9 +39,21 @@
     '.znp-ttl small{color:#c8d0e6;font-weight:600}' +
     '.znp-mid{position:absolute;z-index:1;left:0;right:0;top:50%;transform:translateY(-50%);display:flex;justify-content:center;align-items:center;gap:clamp(28px,12vw,110px);pointer-events:none}' +
     '.znp-mid button{pointer-events:auto}' +
-    '.znp-skip{position:relative;width:56px;height:56px;display:grid;place-items:center}' +
-    '.znp-skip svg{width:46px;height:46px}.znp-skip.f svg{transform:scaleX(-1)}' +
-    '.znp-skip b{position:absolute;left:0;right:0;top:50%;transform:translateY(-34%);font-size:11px;text-align:center}' +
+    '.znp-skip{position:relative;width:64px;height:64px;display:grid;place-items:center;border-radius:50%;color:#fff;transition:transform .15s,background .2s}' +
+    '.znp-skip:active{transform:scale(.9);background:rgba(255,255,255,.12)}' +
+    '.znp-skip i{display:block;width:54px;height:54px}' +
+    '.znp-skip svg{width:54px;height:54px;fill:none!important;display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5))}' +
+    '.znp-skip.f svg{transform:scaleX(-1)}' +
+    '.znp-skip b{position:absolute;left:0;right:0;top:50%;margin-top:-1px;transform:translateY(-38%);font-size:13px;font-weight:800;text-align:center;letter-spacing:.2px;text-shadow:0 1px 6px rgba(0,0,0,.6)}' +
+    '.znp-skip::after{content:"";position:absolute;inset:2px;border-radius:50%;border:2px solid var(--cyan,#64f4ff);opacity:0;pointer-events:none}' +
+    '.znp-skip.go i{animation:znpRw .55s cubic-bezier(.2,.8,.2,1)}' +
+    '.znp-skip.f.go i{animation-name:znpFw}' +
+    '.znp-skip.go b{animation:znpPop .45s ease-out}' +
+    '.znp-skip.go::after{animation:znpRing .55s ease-out}' +
+    '@keyframes znpRw{from{transform:rotate(0)}to{transform:rotate(-360deg)}}' +
+    '@keyframes znpFw{from{transform:rotate(0)}to{transform:rotate(360deg)}}' +
+    '@keyframes znpPop{40%{transform:translateY(-38%) scale(1.3);color:var(--cyan,#64f4ff)}}' +
+    '@keyframes znpRing{from{opacity:.9;transform:scale(.7)}to{opacity:0;transform:scale(1.35)}}' +
     '.znp-big{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--cyan,#64f4ff),var(--purple,#a78bfa));color:#06101a;box-shadow:0 8px 30px rgba(0,0,0,.45)}' +
     '.znp-big svg{width:40px;height:40px}' +
     '#znpRoot.znp-busy .znp-big{opacity:0;pointer-events:none}' +
@@ -64,30 +68,22 @@
     '.znp-pv img.ok{display:block}' +
     '.znp-pv span{padding:3px 10px;border-radius:8px;background:rgba(0,0,0,.72);font-size:13px}' +
     '.znp-row{display:flex;justify-content:space-between;color:#d6dcef;font-size:13px;margin-top:-2px}' +
-    /* iconos de la barra inferior y de arriba */
-    '.znp-acts{display:flex;align-items:center;gap:clamp(10px,3.4vw,26px);margin-top:2px}' +
-    '.znp-acts .znp-nx{margin-left:auto}' +
-    '#znpRoot .znp-ic{position:relative;flex:none;display:grid;place-items:center;min-width:46px;height:46px;padding:0;color:rgba(255,255,255,.92);transition:transform .15s,opacity .15s}' +
-    '#znpRoot .znp-ic svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 6px rgba(0,0,0,.55))}' +
-    '#znpRoot .znp-ic:active{transform:scale(.86);opacity:.7}' +
-    '#znpRoot .znp-ic[hidden]{display:none}' +
-    '#znpRoot .znp-ic small{position:absolute;right:-1px;top:3px;font-size:10px;font-weight:800;line-height:1;color:var(--cyan,#64f4ff);text-shadow:0 1px 4px rgba(0,0,0,.7)}' +
-    '.znp-top .znp-src{margin-left:auto}' +
-    /* tarjeta lateral: pegada a la pared, sin borde de ese lado */
-    '.znp-sheet{position:absolute;z-index:3;top:max(env(safe-area-inset-top),12px);bottom:max(env(safe-area-inset-bottom),12px);right:env(safe-area-inset-right,0px);width:min(350px,54vw);display:flex;flex-direction:column;padding:10px 8px 8px;background:rgba(14,18,32,.66);-webkit-backdrop-filter:blur(22px) saturate(1.3);backdrop-filter:blur(22px) saturate(1.3);border:1px solid rgba(255,255,255,.13);border-right:0;border-radius:22px 0 0 22px;box-shadow:-14px 0 44px rgba(0,0,0,.45),inset 1px 0 0 rgba(255,255,255,.06);animation:znpIn .24s cubic-bezier(.2,.8,.2,1)}' +
-    '@keyframes znpIn{from{transform:translateX(36px);opacity:0}to{transform:none;opacity:1}}' +
-    '.znp-sheet[hidden]{display:none}' +
-    '.znp-sh-t{font-size:15px;font-weight:800;letter-spacing:.2px;padding:8px 14px 10px;color:#fff}' +
-    '.znp-sh-l{overflow-y:auto;flex:1;scrollbar-width:none;padding:2px 2px 4px}.znp-sh-l::-webkit-scrollbar{display:none}' +
-    '#znpRoot .znp-sh-l button{display:flex;width:100%;text-align:left;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;color:#d6dcef;font-weight:600}' +
-    '#znpRoot .znp-sh-l button:active{background:rgba(255,255,255,.08)}' +
-    '#znpRoot .znp-sh-l button.on{background:rgba(var(--acc-rgb,100,244,255),.14);color:var(--cyan,#64f4ff)}' +
-    '.znp-sh-l .znp-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}' +
-    '.znp-sh-l .znp-tx small{color:#8f9ab5;font-weight:500;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
-    '#znpRoot svg.znp-ck{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:none;margin-left:auto}' +
+    '.znp-acts{display:flex;gap:8px;margin-top:8px;overflow-x:auto;scrollbar-width:none}' +
+    '.znp-acts::-webkit-scrollbar{display:none}' +
+    '.znp-acts button{flex:none;padding:9px 16px;border-radius:999px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.16)}' +
+    '.znp-acts button[hidden]{display:none}' +
+    '.znp-acts .znp-nx{margin-left:auto;background:linear-gradient(135deg,var(--cyan,#64f4ff),var(--purple,#a78bfa));color:#06101a;border:0}' +
+    '#znpRoot.znp-pip .znp-ui,#znpRoot.znp-pip .znp-sheet,#znpRoot.znp-pip .znp-msg,#znpRoot.znp-pip .znp-flash,#znpRoot.znp-pip .znp-tap{display:none!important}' +
     '.znp-spin{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;border:3px solid rgba(255,255,255,.22);border-top-color:var(--cyan,#64f4ff);animation:znpS .8s linear infinite;pointer-events:none;display:none}' +
     '#znpRoot.znp-busy .znp-spin{display:block}' +
     '@keyframes znpS{to{transform:rotate(360deg)}}' +
+    '.znp-sheet{position:absolute;z-index:3;top:0;right:0;bottom:0;width:min(360px,52vw);background:rgba(9,12,22,.96);border-left:1px solid rgba(255,255,255,.12);display:flex;flex-direction:column;padding:max(env(safe-area-inset-top),14px) max(env(safe-area-inset-right),14px) 14px 14px}' +
+    '.znp-sheet[hidden]{display:none}' +
+    '.znp-sh-t{font-size:16px;font-weight:800;padding:6px 8px 10px}' +
+    '.znp-sh-l{overflow-y:auto;flex:1}' +
+    '.znp-sh-l button{display:flex;width:100%;text-align:left;align-items:center;gap:10px;padding:13px 12px;border-radius:12px;color:#d6dcef}' +
+    '.znp-sh-l button.on{background:rgba(100,244,255,.12);color:var(--cyan,#64f4ff)}' +
+    '.znp-sh-l button.on::after{content:"✓";margin-left:auto}' +
     '.znp-sh-e{padding:14px 12px;color:#9aa6c1;font-weight:500}' +
     '.znp-flash{position:absolute;z-index:2;top:50%;margin-top:-22px;padding:10px 18px;border-radius:999px;background:rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:opacity .2s}' +
     '.znp-flash.on{opacity:1}.znp-flash.l{left:14%}.znp-flash.r{right:14%}' +
@@ -100,7 +96,7 @@
   var hideT = 0, msgT = 0, flashT = 0, tapT = 0, lastTap = 0, lastSide = 0;
   var curTitle = "", fallback = null, backH = null, listening = false, resumed = false, lastSave = 0;
   var origPlay = typeof W.rdPlay === "function" ? W.rdPlay : null;
-  var rate = 1, aspect = "fit", meta = null, sheetKind = "", startAt = 0, applied = false, applyTry = 0, applyT = 0;
+  var rate = 1, aspect = "fit", meta = null;
   var thumbC = {}, thumbBusy = false, thumbOk = true, thumbFail = 0, thumbWant = -1;
 
   function fmt(ms) {
@@ -166,23 +162,18 @@
       '<div class="znp-msg" id="znpMsg"></div>' +
       '<div class="znp-ui" id="znpUi">' +
         '<div class="znp-top"><button class="znp-round" id="znpBack" aria-label="Volver">' + ICON.back + '</button>' +
-          '<div class="znp-ttl"><b id="znpTitle"></b><small id="znpSub"></small></div>' +
-          '<button class="znp-ic znp-src" id="znpSrc" aria-label="Cambiar de fuente" title="Cambiar de fuente" hidden>' + ICON.src + '</button></div>' +
+          '<div class="znp-ttl"><b id="znpTitle"></b><small id="znpSub"></small></div></div>' +
         '<div class="znp-mid"><button class="znp-skip" id="znpRew" aria-label="Retroceder 10 segundos">' + ICON.skip + '</button>' +
           '<button class="znp-big" id="znpPlay" aria-label="Reproducir o pausar"></button>' +
           '<button class="znp-skip f" id="znpFwd" aria-label="Adelantar 10 segundos">' + ICON.skip + '</button></div>' +
         '<div class="znp-bot"><div class="znp-bar" id="znpBar"><div class="znp-pv" id="znpPv"><img id="znpPvI" alt=""><span id="znpPvT"></span></div><div class="znp-trk"></div><div class="znp-fill" id="znpFill"></div><div class="znp-knob" id="znpKnob"></div></div>' +
           '<div class="znp-row"><span id="znpCur">0:00</span><span id="znpDur"></span></div>' +
-          '<div class="znp-acts">' +
-            '<button class="znp-ic" data-p="audio" aria-label="Audio" title="Audio">' + ICON.audio + '</button>' +
-            '<button class="znp-ic" data-p="subs" aria-label="Subtítulos" title="Subtítulos">' + ICON.subs + '</button>' +
-            '<button class="znp-ic" data-p="speed" id="znpSpeed" aria-label="Velocidad" title="Velocidad">' + ICON.speed + '<small id="znpSpeedB"></small></button>' +
-            '<button class="znp-ic" data-p="aspect" aria-label="Pantalla" title="Pantalla">' + ICON.aspect + '</button>' +
-            '<button class="znp-ic znp-nx" id="znpNext" aria-label="Siguiente episodio" title="Siguiente episodio" hidden>' + ICON.next + '</button></div></div>' +
+          '<div class="znp-acts"><button data-p="audio">Audio</button><button data-p="subs">Subtítulos</button><button data-p="speed" id="znpSpeed">Velocidad 1x</button><button data-p="aspect">Pantalla</button>' +
+          '<button class="znp-nx" id="znpNext" hidden>Siguiente ▶</button></div></div>' +
       '</div>' +
       '<div class="znp-sheet" id="znpSheet" hidden><div class="znp-sh-t" id="znpShT"></div><div class="znp-sh-l" id="znpShL"></div></div>';
     D.body.appendChild(root);
-    ["Tap", "Ui", "Back", "Title", "Sub", "Rew", "Play", "Fwd", "Bar", "Fill", "Knob", "Cur", "Dur", "Pv", "PvI", "PvT", "Speed", "SpeedB", "Src", "Next", "Sheet", "ShT", "ShL", "Fl", "Fr", "Msg"]
+    ["Tap", "Ui", "Back", "Title", "Sub", "Rew", "Play", "Fwd", "Bar", "Fill", "Knob", "Cur", "Dur", "Pv", "PvI", "PvT", "Speed", "Next", "Sheet", "ShT", "ShL", "Fl", "Fr", "Msg"]
       .forEach(function (k) { ui[k.charAt(0).toLowerCase() + k.slice(1)] = $("znp" + k); });
 
     ui.back.onclick = function () { close(true); };
@@ -190,7 +181,6 @@
     ui.fwd.onclick = function () { seekBy(10000); };
     ui.play.onclick = function () { toggle(); };
     ui.next.onclick = function () { close(true); if (typeof W.addonStep === "function") W.addonStep(1); };
-    ui.src.onclick = function () { openSheet("src"); };
     root.querySelectorAll(".znp-acts [data-p]").forEach(function (b) { b.onclick = function () { openSheet(b.getAttribute("data-p")); }; });
 
     /* toque en el video: un toque muestra/oculta controles; doble toque a los lados salta 10 s, al centro pausa */
@@ -253,7 +243,12 @@
 
   /* ---------- acciones ---------- */
   function toggle() { call("togglePlay").catch(noop); st.playing = !st.playing; paint(); showUi(); }
+  function animSkip(ms) {
+    var el = ms < 0 ? ui.rew : ui.fwd; if (!el) return;
+    el.classList.remove("go"); void el.offsetWidth; el.classList.add("go");
+  }
   function seekBy(ms) {
+    animSkip(ms);
     call("seekBy", { ms: ms }).catch(noop);
     st.time = Math.max(0, Math.min(st.length || 1e12, st.time + ms)); paint(); showUi();
   }
@@ -264,29 +259,17 @@
     ui.shT.textContent = title; ui.shL.innerHTML = "";
     if (!items.length) { var e = D.createElement("div"); e.className = "znp-sh-e"; e.textContent = empty || "Nada disponible"; ui.shL.appendChild(e); return; }
     items.forEach(function (it) {
-      var b = D.createElement("button"); b.type = "button";
-      var tx = D.createElement("span"); tx.className = "znp-tx";
-      var l = D.createElement("span"); l.textContent = it.label; tx.appendChild(l);
-      if (it.sub) { var sm = D.createElement("small"); sm.textContent = it.sub; tx.appendChild(sm); }
-      b.appendChild(tx);
-      if (it.on) { b.className = "on"; b.insertAdjacentHTML("beforeend", ICON.check); }
+      var b = D.createElement("button"); b.type = "button"; b.textContent = it.label;
+      if (it.on) b.className = "on";
       b.onclick = function () { it.fn(); closeSheet(); };
       ui.shL.appendChild(b);
     });
   }
   function openSheet(kind) {
-    sheetOpen = true; sheetKind = kind; ui.sheet.hidden = false; clearTimeout(hideT);
-    if (kind === "src") {
-      fillSheet("Fuentes", [], "Buscando fuentes…");
-      var Z = W.ZAM;
-      if (!meta || !Z || !Z.sources) { fillSheet("Fuentes", [], "No hay fuentes disponibles"); return; }
-      Z.sources(meta).then(function (list) {
-        if (!sheetOpen || sheetKind !== "src") return;
-        fillSheet("Fuentes", list.map(function (x) { return { label: x.label, sub: x.sub, on: x.on, fn: function () { switchSource(x); } }; }), "Ningún addon encontró fuentes");
-      }).catch(function () { if (sheetOpen && sheetKind === "src") fillSheet("Fuentes", [], "No se pudieron consultar las fuentes"); });
-    } else if (kind === "speed") {
+    sheetOpen = true; ui.sheet.hidden = false; clearTimeout(hideT);
+    if (kind === "speed") {
       fillSheet("Velocidad", [0.5, 0.75, 1, 1.25, 1.5, 2].map(function (r) {
-        return { label: r === 1 ? "Normal" : r + "x", on: r === rate, fn: function () { rate = r; speedBadge(); call("setRate", { rate: r }).catch(noop); } };
+        return { label: r === 1 ? "Normal" : r + "x", on: r === rate, fn: function () { rate = r; ui.speed.textContent = "Velocidad " + r + "x"; call("setRate", { rate: r }).catch(noop); } };
       }));
     } else if (kind === "aspect") {
       fillSheet("Pantalla", [["fit", "Ajustar"], ["zoom", "Zoom (recorta los bordes)"], ["fill", "Estirar"], ["16:9", "16:9"], ["4:3", "4:3"]].map(function (a) {
@@ -295,99 +278,19 @@
     } else {
       fillSheet(kind === "audio" ? "Audio" : "Subtítulos", [], "Cargando…");
       call("getTracks").then(function (t) {
-        if (!sheetOpen || sheetKind !== kind) return;
+        if (!sheetOpen) return;
         var list = (kind === "audio" ? t.audio : t.subs) || [], cur = kind === "audio" ? t.audioCurrent : t.subCurrent;
         var items = list.map(function (x) {
           var off = Number(x.id) === -1;
           return {
             label: off ? (kind === "audio" ? "Sin audio" : "Desactivados") : (x.name || "Pista " + x.id),
             on: Number(x.id) === Number(cur),
-            fn: function () { call(kind === "audio" ? "setAudio" : "setSubtitle", { id: Number(x.id) }).catch(noop); remember(kind === "audio" ? "a" : "s", x, list); }
+            fn: function () { call(kind === "audio" ? "setAudio" : "setSubtitle", { id: Number(x.id) }).catch(noop); }
           };
         });
         fillSheet(kind === "audio" ? "Audio" : "Subtítulos", items, kind === "audio" ? "Este video no trae otras pistas de audio" : "Este video no trae subtítulos");
       }).catch(function () { fillSheet(kind === "audio" ? "Audio" : "Subtítulos", [], "No se pudieron leer las pistas"); });
     }
-  }
-
-
-  function speedBadge() { if (ui.speedB) ui.speedB.textContent = rate === 1 ? "" : rate + "x"; }
-
-  /* ---------- cambiar de fuente sin perder el minuto ---------- */
-  function switchSource(x) {
-    var Z = W.ZAM, m = meta;
-    if (!Z || !Z.resolve || !m) return;
-    msg("Cambiando de fuente…");
-    Z.resolve(m, x.snap).then(function (r) {
-      if (!isOpen) return;
-      var t = st.time, title = curTitle;
-      close(true);
-      setTimeout(function () { open(r.url, title, null, r.meta, t); }, 250);
-    }).catch(function (e) { msg((e && e.message) || "No se pudo abrir esa fuente"); });
-  }
-
-  /* ---------- recordar idioma de audio y subtítulos entre episodios ---------- */
-  function trkMap() { try { return JSON.parse(localStorage.getItem("znp_trk") || "{}") || {}; } catch (e) { return {}; } }
-  function trkKey() { return meta && meta.type === "tv" && meta.key ? meta.key : ""; }
-  function norm(x) { return String(x == null ? "" : x).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim(); }
-  function langOf(name) {
-    var n = norm(name), br = n.match(/\[([^\]]+)\]/g) || [], c = "";
-    br.forEach(function (b) { b = b.slice(1, -1).trim(); if (!/^(original|forced|default|sdh|cc)$/.test(b)) c = b; });
-    if (!c) c = n;
-    if (/spanish|espanol|castellano|latino|\bspa\b/.test(c)) return "es";
-    if (/english|ingles|\beng\b/.test(c)) return "en";
-    if (/portug/.test(c)) return "pt";
-    if (/french|frances|francais/.test(c)) return "fr";
-    if (/german|aleman|deutsch/.test(c)) return "de";
-    if (/italian/.test(c)) return "it";
-    if (/japanese|japones/.test(c)) return "ja";
-    if (/korean|coreano/.test(c)) return "ko";
-    return c.replace(/[^a-z]/g, "").slice(0, 12);
-  }
-  function describe(x, list) {
-    var n = norm(x.name), ord = 0;
-    for (var i = 0; i < list.length; i++) { if (list[i] === x) break; if (list[i].name === x.name) ord++; }
-    return { name: x.name || "", lang: langOf(x.name), vr: /latino/.test(n) ? "lat" : (/castellano/.test(n) ? "cas" : ""), ord: ord };
-  }
-  function pickTrack(list, p) {
-    var best = null, bs = 0;
-    list.forEach(function (x) {
-      if (Number(x.id) === -1) return;
-      var d = describe(x, list), sc = 0;
-      if (x.name === p.name) sc = d.ord === p.ord ? 100 : 95;
-      else if (d.lang && d.lang === p.lang) sc = 40 + (d.vr && d.vr === p.vr ? 10 : 0) + (norm(x.name).replace(/\d+/g, "") === norm(p.name).replace(/\d+/g, "") ? 5 : 0);
-      if (sc > bs) { bs = sc; best = x; }
-    });
-    return best;
-  }
-  function remember(kind, x, list) {
-    var k = trkKey(); if (!k) return;
-    if (kind === "a" && Number(x.id) === -1) return;
-    var m = trkMap(), p = m[k] || {};
-    if (kind === "a") p.a = describe(x, list); else p.s = Number(x.id) === -1 ? { off: true } : describe(x, list);
-    m[k] = p;
-    var keys = Object.keys(m); if (keys.length > 60) delete m[keys[0]];
-    try { localStorage.setItem("znp_trk", JSON.stringify(m)); } catch (e) {}
-  }
-  function applyPrefs() {
-    var k = trkKey(); if (!k || applied || !isOpen) return;
-    var retry = function () { if (++applyTry < 8 && isOpen) applyT = setTimeout(applyPrefs, 1500); };
-    call("getTracks").then(function (t) {
-      if (!isOpen || applied) return;
-      var A = (t && t.audio) || [], S = (t && t.subs) || [];
-      if (!A.length && !S.length) { retry(); return; }
-      applied = true;
-      var m = trkMap(), p = m[k] || {}, had = !!(p.a || p.s), ac = Number(t.audioCurrent), sc = Number(t.subCurrent);
-      if (p.a) { var x = pickTrack(A, p.a); if (x && Number(x.id) !== ac) { call("setAudio", { id: Number(x.id) }).catch(noop); ac = Number(x.id); } }
-      if (p.s) {
-        if (p.s.off) { if (sc !== -1) call("setSubtitle", { id: -1 }).catch(noop); sc = -1; }
-        else { var y = pickTrack(S, p.s); if (y && Number(y.id) !== sc) { call("setSubtitle", { id: Number(y.id) }).catch(noop); sc = Number(y.id); } }
-      }
-      /* si aún no había preferencia, guardo lo que se está usando para el siguiente episodio */
-      if (!p.a) { var ca = A.filter(function (z) { return Number(z.id) === ac && ac !== -1; })[0]; if (ca) p.a = describe(ca, A); }
-      if (!p.s && S.length) { var cs = S.filter(function (z) { return Number(z.id) === sc; })[0]; p.s = sc === -1 || !cs ? { off: true } : describe(cs, S); }
-      if (!had || p.a || p.s) { m[k] = p; try { localStorage.setItem("znp_trk", JSON.stringify(m)); } catch (e) {} }
-    }).catch(retry);
   }
 
   /* ---------- botón Atrás del celular ---------- */
@@ -411,13 +314,16 @@
       st.time = Number(s.time) || 0; st.length = Number(s.length) || 0; st.playing = !!s.playing; st.buffering = !!s.buffering;
       if (!resumed && st.length > 0) {
         resumed = true;
-        var want = startAt, saved = want || Number(posMap()[curTitle]) || 0;
-        startAt = 0;
-        if (saved > (want ? 3000 : 30000) && saved < st.length - (want ? 5000 : 60000)) { call("seekTo", { ms: saved }).catch(noop); if (!want) msg("Continuando desde " + fmt(saved)); }
+        var saved = Number(posMap()[curTitle]) || 0;
+        if (saved > 30000 && saved < st.length - 60000) { call("seekTo", { ms: saved }).catch(noop); msg("Continuando desde " + fmt(saved)); }
       }
-      if (!applied && !applyT && st.length > 0) applyT = setTimeout(applyPrefs, 1200);
       savePos(false);
       if (!dragging) paint();
+    });
+    p.addListener("znpPip", function (s) {
+      if (!root) return;
+      root.classList.toggle("znp-pip", !!(s && s.on));
+      if (s && s.on) { sheetOpen = false; if (ui.sheet) ui.sheet.hidden = true; }
     });
     p.addListener("znpEnded", function () {
       if (!isOpen) return;
@@ -432,19 +338,18 @@
   }
 
   /* ---------- abrir y cerrar ---------- */
-  function open(url, title, fb, mt, startMs) {
+  function open(url, title, fb, mt) {
     var p = plug(); if (!p) return false;
     build(); listen(p);
     meta = mt || null; thumbC = {}; thumbBusy = false; thumbOk = true; thumbFail = 0; thumbWant = -1;
     curTitle = title || ""; fallback = fb || (origPlay ? function () { origPlay({ download: url }, title); } : null); resumed = false; rate = 1; aspect = "fit"; lastSave = 0;
-    startAt = Number(startMs) || 0; applied = false; applyTry = 0; clearTimeout(applyT); applyT = 0;
     st = { time: 0, length: 0, playing: false, buffering: true };
     ui.title.textContent = curTitle || "Reproduciendo";
     var c = W._addonCtx;
     ui.sub.textContent = c && c.type === "tv" ? "Temporada " + c.season + " · Episodio " + c.episode : "";
     ui.next.hidden = !isTv();
-    speedBadge(); ui.src.hidden = !(meta && W.ZAM && W.ZAM.sources);
-    sheetOpen = false; ui.sheet.hidden = true; dragging = false;
+    ui.speed.textContent = "Velocidad 1x";
+    sheetOpen = false; ui.sheet.hidden = true; dragging = false; root.classList.remove("znp-pip");
     isOpen = true; root.hidden = false; D.documentElement.classList.add("znp-on");
     paint(); showUi(); attachBack();
     p.play({ url: url, title: curTitle }).catch(function (e) {
@@ -458,7 +363,7 @@
     if (!isOpen) return;
     savePos(true);
     isOpen = false; sheetOpen = false;
-    clearTimeout(hideT); clearTimeout(tapT); clearTimeout(applyT); applyT = 0;
+    clearTimeout(hideT); clearTimeout(tapT);
     detachBack();
     root.hidden = true;
     D.documentElement.classList.remove("znp-on");

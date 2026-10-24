@@ -19,50 +19,6 @@
   function cwSave(m) { try { localStorage.setItem(CW_KEY, JSON.stringify(m)); } catch (e) {} }
   function keyOf(type, id) { return (type === "tv" ? "tv" : "movie") + ":" + id; }
 
-  /* Episodios vistos (uno por uno): { "tmdbId": { "temporada:episodio": 1 } } */
-  var EW_KEY = "zynora_eps_v1";
-  function ewAll() { return J(localStorage.getItem(EW_KEY), {}) || {}; }
-  var EW = {
-    has: function (id, s, e) { var m = ewAll()[String(id)]; return !!(m && m[s + ":" + e]); },
-    set: function (id, s, e, on) {
-      var a = ewAll(), k = String(id), m = a[k] || (a[k] = {});
-      if (on) m[s + ":" + e] = 1; else delete m[s + ":" + e];
-      try { localStorage.setItem(EW_KEY, JSON.stringify(a)); } catch (x) {}
-    },
-    setMany: function (id, pairs) {
-      var a = ewAll(), k = String(id), m = a[k] || (a[k] = {});
-      pairs.forEach(function (p) { m[p[0] + ":" + p[1]] = 1; });
-      try { localStorage.setItem(EW_KEY, JSON.stringify(a)); } catch (x) {}
-    }
-  };
-  W.ZEW = EW;
-
-  /* Al ver el episodio N, todos los anteriores (de esa y de temporadas previas) cuentan como vistos */
-  var prevDone = {};
-  function markBefore(id, s, e) {
-    s = Number(s); e = Number(e);
-    if (!(s >= 1) || !(e >= 1)) return Promise.resolve();
-    return Promise.resolve().then(function () { return seasonsOf(id); }).then(function (seasons) {
-      var list = [];
-      seasons.forEach(function (x) {
-        if (x.n < 1 || x.n > s) return;
-        var last = x.n < s ? x.count : e - 1;
-        for (var i = 1; i <= last; i++) list.push([x.n, i]);
-      });
-      if (list.length) EW.setMany(id, list);
-    });
-  }
-  function watchedHook(meta) {
-    var k = meta.tmdbId + ":" + meta.s + ":" + meta.e;
-    if (prevDone[k]) return;
-    prevDone[k] = 1;
-    markBefore(meta.tmdbId, meta.s, meta.e).then(function () { try { repaintSeen(); } catch (x) {} }).catch(function () { delete prevDone[k]; });
-  }
-  function repaintSeen() {
-    var b = $("modalBody"), p = b && b.querySelector('.tab-panel[data-panel="eps"]');
-    if (p) refreshSeen(p);
-  }
-
   var ZCW = {
     get: function (k) { return cwAll()[k] || null; },
     remove: function (k) { var m = cwAll(); delete m[k]; cwSave(m); refreshRow(); },
@@ -75,8 +31,6 @@
       if (!meta || !meta.key) return;
       var m = cwAll(), old = m[meta.key];
       var finished = !!ended || (len > 0 && time > len - 45000);
-      if (meta.type === "tv" && (finished || (len > 0 && time / len >= 0.9))) EW.set(meta.tmdbId, meta.s, meta.e, true);
-      if (meta.type === "tv" && (finished || time >= 60000)) watchedHook(meta);
       if (!old && time < 20000) return;
       var base = Object.assign({}, old || {}, {
         key: meta.key, tmdbId: meta.tmdbId, type: meta.type, title: meta.title, poster: meta.poster, backdrop: meta.backdrop,
@@ -113,6 +67,13 @@
     '.zcw-pop{position:fixed;z-index:2000000001;min-width:210px;padding:6px;border-radius:14px;background:#101421;border:1px solid rgba(255,255,255,.14);box-shadow:0 12px 40px rgba(0,0,0,.6)}' +
     '.zcw-pop button{display:block;width:100%;text-align:left;padding:12px 14px;border:0;border-radius:10px;background:none;color:#f4f7ff;font:600 14px Inter,system-ui,sans-serif;cursor:pointer}' +
     '.zcw-pop button:hover{background:rgba(255,255,255,.08)}' +
+    '.zac-row{display:flex;gap:14px;overflow-x:auto;padding:2px 2px 12px;scrollbar-width:none}' +
+    '.zac-row::-webkit-scrollbar{display:none}' +
+    '.zac-card{flex:none;width:136px;cursor:pointer;display:flex;flex-direction:column;gap:8px;-webkit-user-select:none;user-select:none}' +
+    '.zac-card .zac-p{width:100%;aspect-ratio:2/3;border-radius:16px;overflow:hidden;background:#141a2a;border:1px solid rgba(255,255,255,.08)}' +
+    '.zac-card img{width:100%;height:100%;object-fit:cover;display:block}' +
+    '.zac-card b{font-size:13px;font-weight:650;line-height:1.25;color:#e6ecff;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
+    '.zac-sub{color:#8f9bb8;font-weight:600;font-size:12px;margin-left:8px}' +
     /* menú de addons */
     '#zamRoot{position:fixed;inset:0;z-index:2000000000;display:flex;flex-direction:column;color:#f4f7ff;background:radial-gradient(ellipse at 85% 18%,rgba(120,30,40,.28),transparent 45%),radial-gradient(ellipse at 10% 0,rgba(40,70,140,.22),transparent 40%),#07090f;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}' +
     '#zamRoot[hidden]{display:none}' +
@@ -121,6 +82,10 @@
     '.zam-top svg{width:26px;height:26px;fill:currentColor}' +
     '.zam-ttl{min-width:0;flex:1}.zam-ttl b{display:block;font-size:22px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
     '.zam-ttl small{display:block;color:#9aa6c1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '.zam-ep{flex:none;padding:9px 14px;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14)!important;font-weight:700;font-size:13px}' +
+    '.zam-chips{display:flex;gap:10px;overflow-x:auto;padding:10px 18px 12px;scrollbar-width:none}.zam-chips::-webkit-scrollbar{display:none}' +
+    '.zam-chip{flex:none;padding:12px 20px;border-radius:999px;border:1.5px solid rgba(255,255,255,.14)!important;background:rgba(255,255,255,.04);color:#c8d0e6;font-weight:600;font-size:15px}' +
+    '.zam-chip.on{border-color:#64f4ff!important;color:#64f4ff;background:rgba(100,244,255,.06)}.zam-chip i{font-style:normal;opacity:.6;margin-left:8px}' +
     '.zam-list{flex:1;overflow-y:auto;padding:4px 16px calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}' +
     '.zam-msg{padding:40px 10px;text-align:center;color:#9aa6c1;font-weight:500}' +
     '.zam-card{display:grid;grid-template-columns:78px 1fr 62px;gap:14px;align-items:center;padding:16px;border-radius:26px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.07);cursor:pointer}' +
@@ -136,32 +101,17 @@
     '.zam-pl svg{width:30px;height:30px;fill:currentColor}' +
     '.zam-pl.ld{background:rgba(255,255,255,.12)}.zam-pl.ld::before{content:"";width:26px;height:26px;border-radius:50%;border:3px solid rgba(255,255,255,.25);border-top-color:#64f4ff;animation:zamS .8s linear infinite}.zam-pl.ld svg{display:none}' +
     '@keyframes zamS{to{transform:rotate(360deg)}}' +
-    /* chips (Todo / addons) */
-    '.zam-chips{display:flex;flex:none;gap:10px;overflow-x:auto;padding:8px 18px 16px;scrollbar-width:none}.zam-chips::-webkit-scrollbar{display:none}' +
-    '#zamRoot .zam-chip{flex:none;display:inline-flex;align-items:center;gap:10px;padding:11px 14px 11px 20px;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#c3cce3;font-weight:650;font-size:15px;line-height:1;white-space:nowrap;transition:background .2s,border-color .2s,box-shadow .2s,color .2s}' +
-    '#zamRoot .zam-chip:active{transform:scale(.97)}' +
-    '#zamRoot .zam-chip i{font-style:normal;min-width:26px;padding:5px 8px;border-radius:999px;background:rgba(255,255,255,.1);color:#aeb8d1;font-size:12.5px;font-weight:700;text-align:center;line-height:1}' +
-    '#zamRoot .zam-chip.on{color:#effdff;border-color:rgba(var(--acc-rgb,100,244,255),.75);background:linear-gradient(135deg,rgba(var(--acc-rgb,100,244,255),.24),rgba(167,139,250,.2));box-shadow:0 0 0 1px rgba(var(--acc-rgb,100,244,255),.18),0 6px 24px rgba(var(--acc-rgb,100,244,255),.2)}' +
-    '#zamRoot .zam-chip.on i{background:rgba(var(--acc-rgb,100,244,255),.28);color:#e6fcff}' +
-    /* pestaña Episodios en la ficha */
-    '.zep-sea{position:relative;display:flex;gap:10px;overflow-x:auto;margin:0 -24px 16px;padding:4px 24px;scrollbar-width:none}.zep-sea::-webkit-scrollbar{display:none}' +
-    '.zep-sea button{flex:none;padding:11px 20px;border-radius:999px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.07);color:#b9c3dc;font-weight:650;font-size:14.5px;line-height:1;white-space:nowrap}' +
-    '.zep-sea button.on{background:var(--cyan);border-color:transparent;color:#041014;box-shadow:0 0 18px rgba(var(--acc-rgb,100,244,255),.35)}' +
-    '.zep-list{display:flex;flex-direction:column;gap:16px;padding:4px 2px}' +
-    '.zep-row{display:flex;gap:14px;align-items:center;width:100%;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}' +
-    '.zep-row:active{opacity:.8}' +
-    '.zep-th{position:relative;flex:0 0 40%;max-width:250px;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#151b2c;display:grid;place-items:center;color:#5d6a8a;font-weight:800;font-size:22px;transition:box-shadow .25s}' +
-    '.zep-th img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;-webkit-user-drag:none}' +
-    '.zep-th.seen{box-shadow:0 0 0 2px #b46bff,0 0 12px 2px rgba(180,107,255,.75),0 0 30px 6px rgba(150,80,255,.4)}' +
-    '.zep-tx{min-width:0;flex:1;display:flex;flex-direction:column;gap:4px}' +
-    '.zep-tx small{color:#9aa6c1;font-weight:600;font-size:13.5px}' +
-    '.zep-tx b{color:#fff;font-size:clamp(15px,4.2vw,18px);line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
-    '.zep-tx em{font-style:normal;color:#8f9ab5;font-size:13.5px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
-    '.zep-msg{padding:26px 6px;text-align:center;color:#9aa6c1;margin:0}' +
-    '.zep-hint{margin:16px 0 0;text-align:center;color:#7f8aa6;font-size:12px}';
+    '.zam-sheet{position:absolute;left:0;right:0;bottom:0;max-height:78%;display:flex;flex-direction:column;background:#0d111c;border-top:1px solid rgba(255,255,255,.12);border-radius:24px 24px 0 0;padding:14px 0 calc(10px + env(safe-area-inset-bottom,0px));z-index:3}' +
+    '.zam-sheet[hidden]{display:none}' +
+    '.zam-eps{overflow-y:auto;padding:0 12px}' +
+    '.zam-epi{display:flex;gap:12px;width:100%;text-align:left;padding:10px;border-radius:14px;align-items:center}' +
+    '.zam-epi.on{background:rgba(100,244,255,.1)}' +
+    '.zam-epi img{width:110px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;background:#151b2c;flex:none}' +
+    '.zam-epi small{display:block;color:#9aa6c1;font-weight:600}.zam-epi b{font-size:15px}';
 
   /* =============== Datos de fuentes (addons) =============== */
-  function addons() { return typeof W.addonLoad === "function" ? W.addonLoad() : []; }
+  function allAddons() { return typeof W.addonLoad === "function" ? W.addonLoad() : []; }
+  function addons() { return allAddons().filter(function (a) { return a.stream !== false; }); }
 
   function imdbOf(type, id) {
     return W.tmdb("/" + type + "/" + id + "/external_ids").then(function (x) {
@@ -242,9 +192,9 @@
     var k = id + ":" + n;
     if (EPC[k]) return Promise.resolve(EPC[k]);
     return W.tmdb("/tv/" + id + "/season/" + n).then(function (d) {
-      return (d.episodes || []).map(function (e) { return { n: e.episode_number, name: e.name || "", still: e.still_path || "", runtime: e.runtime || 0, overview: e.overview || "" }; });
+      return (d.episodes || []).map(function (e) { return { n: e.episode_number, name: e.name || "", still: e.still_path || "", runtime: e.runtime || 0 }; });
     }).catch(function () { return []; }).then(function (l) {
-      if (!l.length) { l = [{ n: 1, name: "", still: "", runtime: 0, overview: "" }]; }
+      if (!l.length) { l = [{ n: 1, name: "", still: "", runtime: 0 }]; }
       return (EPC[k] = l);
     });
   }
@@ -313,10 +263,12 @@
     root = D.createElement("div"); root.id = "zamRoot"; root.hidden = true;
     root.innerHTML =
       '<div class="zam-top"><button id="zamBack" aria-label="Volver"><svg viewBox="0 0 24 24"><path d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20z"/></svg></button>' +
-      '<div class="zam-ttl"><b id="zamT"></b><small id="zamS"></small></div></div>' +
-      '<div class="zam-chips" id="zamChips"></div><div class="zam-list" id="zamList"></div>';
+      '<div class="zam-ttl"><b id="zamT"></b><small id="zamS"></small></div><button class="zam-ep" id="zamEp" hidden></button></div>' +
+      '<div class="zam-chips" id="zamChips"></div><div class="zam-list" id="zamList"></div>' +
+      '<div class="zam-sheet" id="zamSheet" hidden><div class="zam-chips" id="zamSea"></div><div class="zam-eps" id="zamEps"></div></div>';
     D.body.appendChild(root);
-    $("zamBack").onclick = closeMenu;
+    $("zamBack").onclick = function () { if (!$("zamSheet").hidden) $("zamSheet").hidden = true; else closeMenu(); };
+    $("zamEp").onclick = openEpisodes;
     $("zamChips").onclick = function (ev) {
       var b = ev.target.closest && ev.target.closest("[data-f]"); if (!b) return;
       M.filter = b.getAttribute("data-f"); paintChips(); paintList();
@@ -324,6 +276,14 @@
     $("zamList").onclick = function (ev) {
       var b = ev.target.closest && ev.target.closest("[data-i]"); if (!b) return;
       playFrom(Number(b.getAttribute("data-i")), b);
+    };
+    $("zamSea").onclick = async function (ev) {
+      var b = ev.target.closest && ev.target.closest("[data-s]"); if (!b) return;
+      M.view = Number(b.getAttribute("data-s")); paintSeasons(); await paintEpisodes();
+    };
+    $("zamEps").onclick = function (ev) {
+      var b = ev.target.closest && ev.target.closest("[data-e]"); if (!b) return;
+      $("zamSheet").hidden = true; M.s = M.view; M.e = Number(b.getAttribute("data-e")); loadStreams();
     };
   }
   var backH = null;
@@ -333,7 +293,7 @@
     try {
       backH = A.addListener("backButton", function () {
         if (D.documentElement.classList.contains("znp-on")) return;
-        closeMenu();
+        if (!$("zamSheet").hidden) $("zamSheet").hidden = true; else closeMenu();
       });
     } catch (e) { backH = null; }
   }
@@ -344,22 +304,21 @@
   }
   function closeMenu() { if (root) root.hidden = true; req++; detachBack(); refreshRow(); decorateDetail(); }
 
-  async function openMenu(t, s0, e0) {
+  async function openMenu(t) {
     build();
     var type = t.mediaType === "tv" ? "tv" : "movie";
     var old = ZCW.get(keyOf(type, t.tmdbId));
-    M = { t: t, type: type, s: 1, e: 1, imdb: "", res: [], filter: "all", seasons: [] };
+    M = { t: t, type: type, s: 1, e: 1, view: 1, imdb: "", res: [], filter: "all", seasons: [] };
     root.hidden = false; attachBack();
-    $("zamT").textContent = t.title; $("zamS").textContent = "";
-    $("zamChips").innerHTML = "";
+    $("zamT").textContent = t.title; $("zamS").textContent = ""; $("zamEp").hidden = true;
+    $("zamChips").innerHTML = ""; $("zamSheet").hidden = true;
     $("zamList").innerHTML = '<div class="zam-msg">Buscando fuentes…</div>';
     try {
       M.imdb = await imdbOf(type, t.tmdbId);
       if (type === "tv") {
         M.seasons = await seasonsOf(t.tmdbId);
         var first = (M.seasons.filter(function (x) { return x.n >= 1; })[0] || M.seasons[0]).n;
-        if (s0 != null && e0 != null) { M.s = Number(s0); M.e = Number(e0); }
-        else { M.s = old && old.s ? old.s : first; M.e = old && old.e ? old.e : 1; }
+        M.s = old && old.s ? old.s : first; M.e = old && old.e ? old.e : 1; M.view = M.s;
       }
       loadStreams();
     } catch (e) { $("zamList").innerHTML = '<div class="zam-msg">' + E(e.message || "No se pudo consultar los addons.") + "</div>"; }
@@ -372,6 +331,7 @@
     if (m.type === "tv") {
       var nm = await epName(m.t.tmdbId, m.s, m.e);
       $("zamS").textContent = "T" + m.s + " · E" + m.e + (nm ? " — " + nm : "");
+      var b = $("zamEp"); b.hidden = false; b.textContent = "T" + m.s + " · E" + m.e + " ▾";
     }
     var res = await fetchStreams(m.imdb, m.type, m.s, m.e);
     if (my !== req) return;
@@ -416,6 +376,24 @@
     busy = false; if (pl) pl.classList.remove("ld");
   }
 
+  /* selector de episodio */
+  function paintSeasons() {
+    $("zamSea").innerHTML = M.seasons.map(function (s) {
+      return '<button class="zam-chip' + (s.n === M.view ? " on" : "") + '" data-s="' + s.n + '">' + (s.n === 0 ? "Especiales" : "Temporada " + s.n) + "</button>";
+    }).join("");
+  }
+  async function paintEpisodes() {
+    var l = await epList(M.t.tmdbId, M.view);
+    $("zamEps").innerHTML = l.map(function (e) {
+      var on = M.view === M.s && e.n === M.e;
+      return '<button class="zam-epi' + (on ? " on" : "") + '" data-e="' + e.n + '">' + (e.still ? '<img loading="lazy" alt="" src="' + TM + "w300" + E(e.still) + '">' : "") +
+        "<span><small>E" + e.n + (e.runtime ? " · " + e.runtime + " min" : "") + "</small><b>" + E(e.name || "Episodio " + e.n) + "</b></span></button>";
+    }).join("");
+  }
+  async function openEpisodes() {
+    M.view = M.s; paintSeasons(); $("zamSheet").hidden = false; await paintEpisodes();
+  }
+
   /* =============== Continuar / siguiente =============== */
   function asTitle(en) { return { tmdbId: en.tmdbId, mediaType: en.type, title: en.title, posterPath: en.poster, backdropPath: en.backdrop }; }
 
@@ -453,106 +431,9 @@
       var en = ZCW.get(keyOf("tv", c.tmdbId)), t = { tmdbId: c.tmdbId, mediaType: "tv", title: c.title, posterPath: en && en.poster, backdropPath: en && en.backdrop };
       say("Siguiente: T" + n.s + " · E" + n.e);
       if (en && en.src && (await playEpisode(t, n.s, n.e, en.src, false))) return;
-      openMenu(t, n.s, n.e);
+      openMenu(t).then(function () { if (M) { M.s = n.s; M.e = n.e; M.view = n.s; loadStreams(); } });
     } catch (e) { say((e && e.message) || "No se pudo abrir el siguiente episodio"); }
   };
-
-  /* =============== Pestaña "Episodios" de la ficha =============== */
-  function isSeen(id, s, e) { return EW.has(id, s, e); }
-  function openEpisode(t, s, e) {
-    if (!addons().length) { playFlow(t, true); return; }
-    openMenu(t, s, e);
-  }
-  function paintSeasons(panel) {
-    var z = panel._zep, box = panel.querySelector(".zep-sea");
-    box.innerHTML = z.seasons.map(function (x) {
-      return '<button type="button" data-s="' + x.n + '" class="' + (x.n === z.view ? "on" : "") + '">' + (x.n === 0 ? "Especiales" : "Temporada " + x.n) + "</button>";
-    }).join("");
-    var on = box.querySelector(".on");
-    if (on) box.scrollLeft = on.offsetLeft - (box.clientWidth - on.offsetWidth) / 2;
-  }
-  async function paintEpisodes(panel) {
-    var z = panel._zep, view = z.view, list = panel.querySelector(".zep-list");
-    list.innerHTML = '<p class="zep-msg">Cargando episodios…</p>';
-    var l = await epList(z.t.tmdbId, view);
-    if (z.view !== view) return;
-    list.innerHTML = l.map(function (e) {
-      var lab = (view === 0 ? "Especial" : "T" + view) + " · E" + e.n;
-      return '<button type="button" class="zep-row" data-e="' + e.n + '">' +
-        '<span class="zep-th' + (isSeen(z.t.tmdbId, view, e.n) ? " seen" : "") + '">' +
-        (e.still ? '<img loading="lazy" alt="" draggable="false" src="' + TM + "w300" + E(e.still) + '">' : E(String(e.n))) + "</span>" +
-        '<span class="zep-tx"><small>' + lab + (e.runtime ? " · " + e.runtime + " min" : "") + "</small><b>" + E(e.name || "Episodio " + e.n) + "</b>" +
-        (e.overview ? "<em>" + E(e.overview) + "</em>" : "") + "</span></button>";
-    }).join("");
-  }
-  function refreshSeen(panel) {
-    var z = panel._zep; if (!z) return;
-    panel.querySelectorAll(".zep-row").forEach(function (r) {
-      var th = r.querySelector(".zep-th");
-      if (th) th.classList.toggle("seen", isSeen(z.t.tmdbId, z.view, Number(r.getAttribute("data-e"))));
-    });
-  }
-  async function buildEpisodes(panel, t) {
-    if (panel.dataset.ready) return;
-    panel.dataset.ready = "1";
-    panel.innerHTML = '<p class="zep-msg">Cargando episodios…</p>';
-    var seasons;
-    try { seasons = await seasonsOf(t.tmdbId); }
-    catch (e) { delete panel.dataset.ready; panel.innerHTML = '<p class="zep-msg">No se pudieron cargar los episodios. Revisa tu conexión.</p>'; return; }
-    var en = ZCW.get(keyOf("tv", t.tmdbId)), want = en ? Number(en.s) : -1;
-    var first = (seasons.filter(function (x) { return x.n >= 1; })[0] || seasons[0]).n;
-    panel._zep = { t: t, seasons: seasons, view: seasons.some(function (x) { return x.n === want; }) ? want : first };
-    panel.innerHTML = '<div class="zep-sea"></div><div class="zep-list"></div><p class="zep-hint">Mantén pulsado un episodio para marcarlo como visto (y los anteriores) o quitarlo.</p>';
-    var z = panel._zep, tm = 0, fired = false;
-    panel.querySelector(".zep-sea").addEventListener("click", async function (ev) {
-      var b = ev.target.closest && ev.target.closest("[data-s]"); if (!b) return;
-      z.view = Number(b.getAttribute("data-s")); paintSeasons(panel); await paintEpisodes(panel);
-    });
-    var list = panel.querySelector(".zep-list");
-    list.addEventListener("pointerdown", function (ev) {
-      var b = ev.target.closest && ev.target.closest("[data-e]"); if (!b) return;
-      fired = false; clearTimeout(tm);
-      tm = setTimeout(function () {
-        fired = true;
-        var n = Number(b.getAttribute("data-e")), on = !isSeen(t.tmdbId, z.view, n);
-        EW.set(t.tmdbId, z.view, n, on);
-        var th = b.querySelector(".zep-th"); if (th) th.classList.toggle("seen", on);
-        if (on) markBefore(t.tmdbId, z.view, n).then(function () { refreshSeen(panel); }).catch(noop);
-        say(on ? "Marcado como visto (y los anteriores)" : "Quitado de vistos");
-      }, 550);
-    });
-    ["pointerup", "pointerleave", "pointercancel", "pointermove"].forEach(function (n) { list.addEventListener(n, function () { clearTimeout(tm); }); });
-    list.addEventListener("contextmenu", function (ev) { ev.preventDefault(); });
-    list.addEventListener("click", function (ev) {
-      var b = ev.target.closest && ev.target.closest("[data-e]"); if (!b) return;
-      if (fired) { fired = false; return; }
-      openEpisode(t, z.view, Number(b.getAttribute("data-e")));
-    });
-    paintSeasons(panel); await paintEpisodes(panel);
-  }
-  function decorateEpisodesTab() {
-    var body = $("modalBody"); if (!body) return;
-    var t = currentTitle();
-    if (!t || t.mediaType !== "tv" || !t.tmdbId) return;
-    var old = body.querySelector('.tab-panel[data-panel="eps"]');
-    if (old) { refreshSeen(old); return; }
-    var tabs = body.querySelector(".tabs"); if (!tabs) return;
-    var panel = D.createElement("div");
-    panel.className = "tab-panel"; panel.setAttribute("data-panel", "eps"); panel.hidden = true;
-    var btn = D.createElement("button");
-    btn.className = "tab"; btn.type = "button"; btn.setAttribute("role", "tab"); btn.setAttribute("aria-selected", "false");
-    btn.setAttribute("data-tab", "eps"); btn.textContent = "Episodios";
-    btn.addEventListener("click", function () {
-      if (typeof W.detailTab === "function") W.detailTab("eps");
-      buildEpisodes(panel, t);
-    });
-    var detTab = tabs.querySelector('[data-tab="det"]');
-    if (detTab) tabs.insertBefore(btn, detTab); else tabs.appendChild(btn);
-    var detPanel = body.querySelector('.tab-panel[data-panel="det"]');
-    var cast = body.querySelector('.tab-panel[data-panel="cast"]');
-    var ref = detPanel || (cast && cast.nextSibling);
-    if (ref && ref.parentNode) ref.parentNode.insertBefore(panel, ref); else body.appendChild(panel);
-  }
 
   /* =============== Botón Reproducir de la ficha =============== */
   var origAddonOpen = typeof W.addonOpen === "function" ? W.addonOpen : null;
@@ -579,7 +460,6 @@
 
   function decorateDetail() {
     var body = $("modalBody"); if (!body) return;
-    try { decorateEpisodesTab(); } catch (x) {}
     var b = body.querySelector('button[onclick^="rdPlayFlow("]'); if (!b) return;
     var t = currentTitle(), en = t && t.tmdbId ? ZCW.get(keyOf(t.mediaType === "tv" ? "tv" : "movie", t.tmdbId)) : null;
     var label = "▶ Reproducir";
@@ -658,39 +538,95 @@
     }).join("") + "</div>";
   }
 
+  /* =============== Catálogos de addons (p. ej. tendencias de Netflix) =============== */
+  var CATC = {};
+  function catFetch(a, c) {
+    var k = a.url + "|" + c.type + "|" + c.id, hit = CATC[k];
+    if (hit && Date.now() - hit.t < 600000) return Promise.resolve(hit.v);
+    return W._addonFetch(a.url + "/catalog/" + c.type + "/" + encodeURIComponent(c.id) + ".json", 15000).then(function (d) {
+      var v = ((d && d.metas) || []).filter(function (m) { return m && m.name; }).slice(0, 24);
+      CATC[k] = { t: Date.now(), v: v };
+      return v;
+    });
+  }
+  async function openMeta(m, ctype) {
+    var id = String(m.id || ""), pref = ctype === "series" ? "tv" : "movie", other = pref === "tv" ? "movie" : "tv", x;
+    try {
+      if ((x = id.match(/^tmdb:(\d+)/))) { W.openCredit(pref, Number(x[1])); return; }
+      if ((x = id.match(/^tt\d{6,10}/))) {
+        var r = await W.tmdb("/find/" + x[0], { external_source: "imdb_id" });
+        var a = (pref === "tv" ? r.tv_results : r.movie_results) || [], b = (pref === "tv" ? r.movie_results : r.tv_results) || [];
+        if (a[0]) { W.openCredit(pref, a[0].id); return; }
+        if (b[0]) { W.openCredit(other, b[0].id); return; }
+      }
+      var s = await W.tmdb("/search/" + pref, { query: m.name || "" });
+      if (s && s.results && s.results[0]) { W.openCredit(pref, s.results[0].id); return; }
+    } catch (e) {}
+    say("No se encontró la ficha de «" + (m.name || "este título") + "»");
+  }
+  var catTok = 0;
+  function renderCatalogs() {
+    var home = $("homePage"); if (!home) return;
+    var host = $("zacHost"), list = allAddons().filter(function (a) { return a.catalog && (a.catalogs || []).length; });
+    if (!host) {
+      host = D.createElement("div"); host.id = "zacHost";
+      var secs = home.querySelectorAll("section.section"), anchor = null;
+      for (var i = 0; i < secs.length; i++) if (secs[i].id !== "zcwSection" && secs[i].parentNode === home) { anchor = secs[i]; break; }
+      if (anchor && anchor.nextSibling) home.insertBefore(host, anchor.nextSibling); else home.appendChild(host);
+      host.addEventListener("click", function (ev) {
+        var c = ev.target.closest && ev.target.closest("[data-m]"); if (!c) return;
+        var row = c.closest("[data-t]"), item = row && row._items && row._items[Number(c.getAttribute("data-m"))];
+        if (item) openMeta(item, row.getAttribute("data-t"));
+      });
+    }
+    var my = ++catTok; host.innerHTML = "";
+    list.forEach(function (a) {
+      a.catalogs.forEach(function (c) {
+        var sec = D.createElement("section"); sec.className = "section"; sec.style.display = "none";
+        sec.innerHTML = '<div class="section-head"><div><h2>' + E(c.name) + '<span class="zac-sub">' + E(a.name || "") + '</span></h2></div></div><div class="zac-row" data-t="' + E(c.type) + '"></div>';
+        host.appendChild(sec);
+        catFetch(a, c).then(function (metas) {
+          if (my !== catTok || !metas.length) return;
+          var row = sec.querySelector(".zac-row"); row._items = metas;
+          row.innerHTML = metas.map(function (m, i) {
+            return '<div class="zac-card" data-m="' + i + '"><div class="zac-p">' + (m.poster ? '<img loading="lazy" alt="" src="' + E(m.poster) + '">' : "") + "</div><b>" + E(m.name) + "</b></div>";
+          }).join("");
+          sec.style.display = "";
+        }).catch(noop);
+      });
+    });
+  }
+
+  /* botón AD (addons) debajo del de RD en el panel de perfil */
+  function openAddonSettings() {
+    if (typeof W.closeRail === "function") W.closeRail();
+    if (typeof W.openSettings === "function") W.openSettings();
+    setTimeout(function () {
+      var c = $("addonCard"); if (c && c.scrollIntoView) c.scrollIntoView({ behavior: "smooth", block: "center" });
+      var i = $("nuvioAddonInput"); if (i) i.focus();
+    }, 200);
+  }
+  function addAdButton() {
+    var rd = $("pfRd"); if (!rd || $("pfAd")) return;
+    var b = D.createElement("button"); b.className = "pf-btn"; b.id = "pfAd"; b.type = "button";
+    b.title = "Addons"; b.setAttribute("aria-label", "Addons"); b.textContent = "AD";
+    b.onclick = openAddonSettings;
+    rd.insertAdjacentElement("afterend", b);
+    var lb = D.querySelector("#addonCard .st-lab b"); if (lb) lb.textContent = "Agregar addon (fuentes de video o catálogo)";
+  }
+
   /* =============== Arranque =============== */
   function start() {
     var st = D.createElement("style"); st.textContent = CSS; D.head.appendChild(st);
     var ro = W.renderHome;
-    if (typeof ro === "function") W.renderHome = function () { var r = ro.apply(this, arguments); try { refreshRow(); } catch (e) {} return r; };
+    if (typeof ro === "function") W.renderHome = function () { var r = ro.apply(this, arguments); try { refreshRow(); renderCatalogs(); } catch (e) {} return r; };
     var mb = $("modalBody");
     if (mb && W.MutationObserver) new MutationObserver(function () { decorateDetail(); }).observe(mb, { childList: true });
     D.addEventListener("znp:closed", function () { refreshRow(); decorateDetail(); });
-    refreshRow();
+    addAdButton();
+    refreshRow(); renderCatalogs();
+    D.addEventListener("zynora:addons", function () { renderCatalogs(); });
   }
   if (D.readyState === "loading") D.addEventListener("DOMContentLoaded", start); else start();
-  /* ---- fuentes alternativas desde el reproductor ---- */
-  function sameSnap(a, b) {
-    return !!(a && b && a.addon === b.addon && a.name === b.name && a.title === b.title && (a.infoHash || "") === (b.infoHash || ""));
-  }
-  async function srcList(m) {
-    var type = m.type === "tv" ? "tv" : "movie", imdb = await imdbOf(type, m.tmdbId), res = await fetchStreams(imdb, type, m.s, m.e), out = [];
-    res.forEach(function (r) {
-      r.streams.forEach(function (st) {
-        var i = info(st), sn = snapOf(r.addon, st);
-        out.push({
-          label: (i.res || "?") + (i.size ? " · " + i.size : ""),
-          sub: [r.addon.name || W._addonHost(r.addon.url)].concat(i.tags.slice(0, 3), i.lang).join(" · "),
-          on: sameSnap(sn, m.src), snap: sn
-        });
-      });
-    });
-    return out;
-  }
-  async function srcResolve(m, snap) {
-    var type = m.type === "tv" ? "tv" : "movie", url = await resolveUrl(snap), nm = type === "tv" ? await epName(m.tmdbId, m.s, m.e) : "";
-    var t = { tmdbId: m.tmdbId, mediaType: type, title: m.title, posterPath: m.poster, backdropPath: m.backdrop };
-    return { url: url, meta: metaFor(t, m.s, m.e, nm, snap) };
-  }
-  W.ZAM = { open: openMenu, playFlow: playFlow, sources: srcList, resolve: srcResolve };
+  W.ZAM = { open: openMenu, playFlow: playFlow };
 })();

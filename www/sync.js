@@ -588,9 +588,27 @@ function addonRenderList() {
   box.innerHTML = list.map(function (a, i) {
     return '<div style="display:flex;align-items:center;gap:10px;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);">' +
       '<div style="min-width:0;"><b style="display:block;font-size:14px;">' + _addonEsc(a.name || _addonHost(a.url)) + '</b>' +
+      '<span style="display:inline-flex;gap:6px;margin:3px 0;">' + (a.stream !== false ? '<small style="padding:2px 8px;border-radius:8px;background:rgba(100,244,255,.12);color:#64f4ff;font-weight:700;">Fuentes</small>' : '') + (a.catalog ? '<small style="padding:2px 8px;border-radius:8px;background:rgba(167,139,250,.14);color:#c4b5fd;font-weight:700;">Catálogo</small>' : '') + '</span>' +
       '<small class="muted" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _addonEsc(a.url) + '</small></div>' +
       '<button class="btn small" data-addon-del="' + i + '" style="background:rgba(255,0,0,0.1);border-color:rgba(255,0,0,0.2);color:#ff6b6b;flex:none;">Eliminar</button></div>';
   }).join('');
+}
+
+/* Aviso con estilo (reemplaza los alert feos del navegador) */
+function _addonNote(msg, kind) {
+  var btn = document.getElementById('saveAddonBtn');
+  if (!btn) { try { if (typeof toast === 'function') toast(msg); } catch (e) {} return; }
+  var n = document.getElementById('addonNote');
+  if (!n) {
+    n = document.createElement('div'); n.id = 'addonNote';
+    btn.parentNode.insertAdjacentElement('afterend', n);
+  }
+  var c = { ok: ['#4fd69b', 'rgba(60,180,120,.12)', 'rgba(60,180,120,.4)', '✓'],
+            warn: ['#ffd36b', 'rgba(255,200,60,.10)', 'rgba(255,200,60,.4)', '!'],
+            err: ['#ff7b7b', 'rgba(255,90,90,.10)', 'rgba(255,90,90,.4)', '✕'] }[kind || 'warn'];
+  n.style.cssText = 'margin-top:12px;padding:12px 14px;border-radius:14px;font-size:13.5px;font-weight:600;line-height:1.4;display:flex;gap:10px;align-items:flex-start;color:#eaf0ff;background:' + c[1] + ';border:1px solid ' + c[2];
+  n.innerHTML = '<span style="flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:900;color:#07101a;background:' + c[0] + '">' + c[3] + '</span><span>' + _addonEsc(msg) + '</span>';
+  clearTimeout(n._t); n._t = setTimeout(function () { if (n.parentNode) n.parentNode.removeChild(n); }, 8000);
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -602,26 +620,37 @@ document.addEventListener('DOMContentLoaded', function () {
 
   addBtn.addEventListener('click', async function () {
     var base = _addonBase(input.value);
-    if (!/^https?:\/\//i.test(base)) { alert('Pega el enlace completo del addon (empieza con https://).'); return; }
+    if (!/^https?:\/\//i.test(base)) { _addonNote('Pega el enlace completo del addon (empieza con https://).', 'warn'); return; }
     var list = addonLoad();
-    if (list.some(function (a) { return a.url === base; })) { alert('Ese addon ya está instalado.'); return; }
-    var name = _addonHost(base);
+    if (list.some(function (a) { return a.url === base; })) { _addonNote('Ese addon ya está instalado.', 'warn'); return; }
+    var name = _addonHost(base), hasStream = true, cats = [];
     addBtn.disabled = true; var label = addBtn.textContent; addBtn.textContent = 'Verificando…';
     try {
       var m = await _addonFetch(base + '/manifest.json', 8000);
       if (m && m.name) name = m.name;
       var res = (m && m.resources) || [];
-      var hasStream = !res.length || res.some(function (r) { return r === 'stream' || (r && r.name === 'stream'); });
-      if (!hasStream) { alert('Este addon no ofrece enlaces de video (stream).'); return; }
+      var names = res.map(function (r) { return typeof r === 'string' ? r : (r && r.name); });
+      hasStream = !res.length || names.indexOf('stream') >= 0;
+      cats = ((m && m.catalogs) || []).filter(function (c) {
+        if (!c || !c.id || (c.type !== 'movie' && c.type !== 'series')) return false;
+        if ((c.extra || []).some(function (x) { return x && x.isRequired; })) return false;
+        if ((c.extraRequired || []).length) return false;
+        return true;
+      }).slice(0, 12).map(function (c) { return { type: c.type, id: c.id, name: c.name || c.id }; });
+      if (!hasStream && !cats.length) { _addonNote('Este addon no ofrece fuentes de video ni catálogos que Zynora pueda mostrar.', 'err'); return; }
     } catch (e) {
       if (!confirm('No se pudo verificar el addon (puede ser un bloqueo del navegador o un enlace incorrecto). ¿Agregarlo de todos modos?')) return;
     } finally {
       addBtn.disabled = false; addBtn.textContent = label;
     }
-    list.push({ url: base, name: name });
+    list.push({ url: base, name: name, stream: hasStream, catalog: cats.length > 0, catalogs: cats });
     addonSave(list);
     input.value = '';
     addonRenderList();
+    try { document.dispatchEvent(new Event('zynora:addons')); } catch (e) {}
+    _addonNote(hasStream && cats.length ? '«' + name + '» agregado: trae fuentes de video y catálogos (los catálogos salen en el inicio).'
+      : hasStream ? '«' + name + '» agregado: ya puedes elegir sus fuentes al reproducir.'
+      : '«' + name + '» agregado como catálogo: sus listas aparecen en el inicio.', 'ok');
   });
 
   listBox.addEventListener('click', function (ev) {
@@ -633,6 +662,7 @@ document.addEventListener('DOMContentLoaded', function () {
     list.splice(Number(b.getAttribute('data-addon-del')), 1);
     addonSave(list);
     addonRenderList();
+    try { document.dispatchEvent(new Event('zynora:addons')); } catch (e) {}
   });
 });
 
