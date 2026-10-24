@@ -791,13 +791,16 @@ var _addonCtx = null;
 
 function _addonEl(id) { return document.getElementById(id); }
 
+/* Línea "Reproduciendo": serie, temporada, episodio y botón de siguiente */
 function addonSetNow() {
   var el = _addonEl('rdNow'), c = _addonCtx;
   if (!el) return;
   if (!c || c.type !== 'tv') { el.hidden = true; return; }
   var ep = (c.eps[c.season] || []).filter(function (e) { return e.n === c.episode; })[0];
   el.hidden = false;
-  el.innerHTML = '<b>' + _addonEsc(c.title) + '</b><span>T' + c.season + ' · E' + c.episode + (ep && ep.name ? ' — ' + _addonEsc(ep.name) : '') + '</span>';
+  el.innerHTML = '<div class="rd-now-tx"><b>' + _addonEsc(c.title) + '</b><span>T' + c.season + ' · E' + c.episode +
+    (ep && ep.name ? ' — ' + _addonEsc(ep.name) : '') + '</span></div>' +
+    '<button type="button" class="btn small rd-next" data-next>Siguiente ▶</button>';
 }
 
 async function addonLoadSeason(n) {
@@ -806,39 +809,72 @@ async function addonLoadSeason(n) {
   var list = [];
   try {
     var d = await tmdb('/tv/' + c.tmdbId + '/season/' + n);
-    list = (d.episodes || []).map(function (e) { return { n: e.episode_number, name: e.name || '' }; });
+    list = (d.episodes || []).map(function (e) {
+      return { n: e.episode_number, name: e.name || '', still: e.still_path || '', overview: e.overview || '', runtime: e.runtime || 0 };
+    });
   } catch (e) { /* si TMDB falla, se usa el número de episodios de la temporada */ }
   if (!list.length) {
     var s = c.seasons.filter(function (x) { return x.n === n; })[0];
-    for (var i = 1; i <= (s ? s.count : 1); i++) list.push({ n: i, name: '' });
+    for (var i = 1; i <= (s ? s.count : 1); i++) list.push({ n: i, name: '', still: '', overview: '', runtime: 0 });
   }
   c.eps[n] = list;
   return list;
 }
 
-function addonFillEpisodes(season) {
-  var sel = _addonEl('rdEpisode'), c = _addonCtx;
-  if (!sel || !c) return;
-  sel.innerHTML = (c.eps[season] || []).map(function (e) {
-    return '<option value="' + e.n + '">E' + e.n + (e.name ? ' · ' + _addonEsc(e.name) : '') + '</option>';
+function addonRenderSeasonChips() {
+  var box = _addonEl('rdSeasonChips'), c = _addonCtx;
+  if (!box || !c) return;
+  box.innerHTML = c.seasons.map(function (s) {
+    return '<button type="button" class="rd-season' + (s.n === c.view ? ' on' : '') + '" data-s="' + s.n + '">' +
+      (s.n === 0 ? 'Especiales' : 'Temporada ' + s.n) + '</button>';
   }).join('');
+  var on = box.querySelector('.on');
+  if (on) box.scrollLeft = on.offsetLeft - (box.clientWidth - on.offsetWidth) / 2;
 }
 
-async function addonGoto(s, e) {
+function addonRenderEpisodes() {
+  var list = _addonEl('rdEpisodeList'), c = _addonCtx;
+  if (!list || !c) return;
+  list.innerHTML = (c.eps[c.view] || []).map(function (e) {
+    var on = c.view === c.season && e.n === c.episode;
+    var img = e.still ? '<img loading="lazy" alt="" src="https://image.tmdb.org/t/p/w300' + _addonEsc(e.still) + '" onerror="this.remove()">' : '';
+    return '<button type="button" class="rd-epi' + (on ? ' on' : '') + '" data-e="' + e.n + '">' +
+      '<span class="rd-epi-th">E' + e.n + img + '</span>' +
+      '<span class="rd-epi-tx"><small>T' + c.view + ' · E' + e.n + (e.runtime ? ' · ' + e.runtime + ' min' : '') + '</small>' +
+      '<b>' + _addonEsc(e.name || ('Episodio ' + e.n)) + '</b>' +
+      (e.overview ? '<em>' + _addonEsc(e.overview) + '</em>' : '') + '</span></button>';
+  }).join('');
+  var on = list.querySelector('.on');
+  if (on) list.scrollTop = Math.max(0, on.offsetTop - 8);
+}
+
+/* Cambiar de temporada solo muestra sus episodios; las fuentes se buscan al elegir un episodio */
+async function addonShowSeason(n) {
+  var c = _addonCtx;
+  if (!c) return;
+  await addonLoadSeason(n);
+  if (_addonCtx !== c) return;
+  c.view = n;
+  addonRenderSeasonChips();
+  addonRenderEpisodes();
+}
+
+async function addonGoto(s, e, scrollToSources) {
   var c = _addonCtx;
   if (!c) return;
   var eps = await addonLoadSeason(s);
   if (_addonCtx !== c) return;
   if (!eps.some(function (x) { return x.n === e; })) e = eps.length ? eps[0].n : 1;
-  c.season = s; c.episode = e;
+  c.season = s; c.episode = e; c.view = s;
   try { localStorage.setItem('zynora_last_ep:' + c.tmdbId, JSON.stringify({ s: s, e: e })); } catch (err) {}
-  var seasonSel = _addonEl('rdSeason');
-  if (seasonSel) seasonSel.value = String(s);
-  addonFillEpisodes(s);
-  var epSel = _addonEl('rdEpisode');
-  if (epSel) epSel.value = String(e);
+  addonRenderSeasonChips();
+  addonRenderEpisodes();
   addonSetNow();
   consultarFuentesAddon('tv', c.imdb + ':' + s + ':' + e, c.title + ' · T' + s + 'E' + e);
+  if (scrollToSources) {
+    var p = _addonEl('addonStreamsPanel');
+    if (p && p.scrollIntoView) setTimeout(function () { p.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+  }
 }
 
 async function addonStep(dir) {
@@ -854,15 +890,18 @@ async function addonStep(dir) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-  var ss = _addonEl('rdSeason'), es = _addonEl('rdEpisode'), pv = _addonEl('rdPrevEp'), nx = _addonEl('rdNextEp');
-  if (!ss || !es) return;
-  ss.addEventListener('change', async function () {
-    var n = Number(ss.value), eps = await addonLoadSeason(n);
-    addonGoto(n, eps.length ? eps[0].n : 1);
+  var chips = _addonEl('rdSeasonChips'), list = _addonEl('rdEpisodeList'), now = _addonEl('rdNow');
+  if (chips) chips.addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('[data-s]');
+    if (b) addonShowSeason(Number(b.getAttribute('data-s')));
   });
-  es.addEventListener('change', function () { if (_addonCtx) addonGoto(_addonCtx.season, Number(es.value)); });
-  if (pv) pv.addEventListener('click', function () { addonStep(-1); });
-  if (nx) nx.addEventListener('click', function () { addonStep(1); });
+  if (list) list.addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('[data-e]');
+    if (b && _addonCtx) addonGoto(_addonCtx.view, Number(b.getAttribute('data-e')), true);
+  });
+  if (now) now.addEventListener('click', function (ev) {
+    if (ev.target.closest && ev.target.closest('[data-next]')) addonStep(1);
+  });
 });
 
 /* Abre el panel de fuentes desde la ficha de un título.
@@ -887,10 +926,10 @@ async function addonOpen(tmdbId, mediaType, title) {
     var imdb = ext && ext.imdb_id;
     if (!/^tt\d{6,10}$/.test(imdb || '')) throw new Error('No se encontró el ID de IMDb de este título.');
 
-    var picker = _addonEl('addonEpisodePicker');
+    var epPanel = _addonEl('rdEpisodesPanel');
     if (type === 'movie') {
       _addonCtx = { type: 'movie', tmdbId: tmdbId, imdb: imdb, title: title };
-      if (picker) picker.hidden = true;
+      if (epPanel) epPanel.hidden = true;
       addonSetNow();
       _addonEl('rdPlayerTitle').textContent = title || 'Reproductor';
       _addonEl('rdPlayer').classList.add('open');
@@ -909,12 +948,8 @@ async function addonOpen(tmdbId, mediaType, title) {
       : (seasons.filter(function (s) { return s.n >= 1; })[0] || seasons[0]).n;
     var startE = last && last.s === startS ? last.e : 1;
 
-    _addonCtx = { type: 'tv', tmdbId: tmdbId, imdb: imdb, title: title, seasons: seasons, eps: {}, season: startS, episode: startE };
-    var seasonSel = _addonEl('rdSeason');
-    if (seasonSel) seasonSel.innerHTML = seasons.map(function (s) {
-      return '<option value="' + s.n + '">' + (s.n === 0 ? 'Especiales' : 'Temporada ' + s.n) + '</option>';
-    }).join('');
-    if (picker) picker.hidden = false;
+    _addonCtx = { type: 'tv', tmdbId: tmdbId, imdb: imdb, title: title, seasons: seasons, eps: {}, season: startS, episode: startE, view: startS };
+    if (epPanel) epPanel.hidden = false;
     _addonEl('rdPlayerTitle').textContent = title || 'Reproductor';
     _addonEl('rdPlayer').classList.add('open');
     addonGoto(startS, startE);

@@ -8,13 +8,27 @@
 <link rel="icon" type="image/png" href="img/favicon-192.png">
 <script>try{if(!sessionStorage.getItem("zc_intro"))document.documentElement.classList.add("intro-on")}catch(e){document.documentElement.classList.add("intro-on")}</script>
 <script>
-/* Seguro anti-pantalla-negra: si algo falla, quita la intro y muestra el error */
+/* Seguro anti-pantalla-negra: si algo falla, quita la intro y avisa del error */
 (function(){
- function rescue(msg){
-  try{document.documentElement.classList.remove("intro-on");var i=document.getElementById("intro");if(i)i.style.display="none";
-  if(msg){var d=document.createElement("div");d.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:999;background:#300;color:#fff;font:12px sans-serif;padding:10px;word-break:break-all";d.textContent="Error: "+msg;(document.body||document.documentElement).appendChild(d)}}catch(e){}}
- window.addEventListener("error",function(e){rescue((e.message||"")+" (línea "+(e.lineno||"?")+")")});
- setTimeout(function(){if(document.documentElement.classList.contains("intro-on"))rescue("")},7000);
+ var bar=null,barTimer=0;
+ function hideIntro(){
+  try{document.documentElement.classList.remove("intro-on");var i=document.getElementById("intro");if(i)i.style.display="none"}catch(e){}}
+ function showError(msg){
+  try{
+   if(!bar||!bar.isConnected){
+    bar=document.createElement("div");bar.id="zyErrBar";
+    bar.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:999;background:#300;color:#fff;font:12px sans-serif;padding:10px 14px;word-break:break-all;cursor:pointer";
+    bar.addEventListener("click",function(){bar.remove()});
+    (document.body||document.documentElement).appendChild(bar)}
+   bar.textContent="Error: "+msg+"  ✕";
+   clearTimeout(barTimer);barTimer=setTimeout(function(){if(bar)bar.remove()},6000)}catch(e){}}
+ window.addEventListener("error",function(e){
+  hideIntro();
+  /* sin mensaje (o "Script error." de otro dominio) no hay nada útil que mostrar */
+  var m=e&&e.message;
+  if(!m||/^script error\.?$/i.test(m)){try{console.warn("Error sin detalle",e)}catch(x){}return}
+  showError(m+(e.lineno?" (línea "+e.lineno+")":""))});
+ setTimeout(function(){if(document.documentElement.classList.contains("intro-on"))hideIntro()},7000);
 })();
 </script>
 <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
@@ -23,48 +37,6 @@
 <script src="config.js"></script>
 <script src="sync.js"></script>
 <link rel="stylesheet" href="css/styles.css">
-<style id="zyPlayerCss">
-/* Reproductor y panel de fuentes */
-#rdPlayer{--plyr-color-main:var(--cyan,#64f4ff);--plyr-control-radius:10px;--plyr-menu-radius:14px;--plyr-video-control-background-hover:var(--cyan,#64f4ff);--plyr-video-control-color-hover:#04121a;--plyr-font-family:inherit}
-#rdPlayer [hidden]{display:none!important}
-#rdPlayer .rd-stage{position:relative;border-radius:18px;overflow:hidden;background:#000;box-shadow:0 18px 50px -18px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.07)}
-#rdPlayer .rd-stage .plyr,#rdPlayer .rd-stage>video{display:block;width:100%;max-height:68vh}
-#rdPlayer .rd-stage video{background:#000;aspect-ratio:16/9}
-#rdPlayer .rd-stage .plyr--fullscreen-fallback,#rdPlayer .rd-stage .plyr:fullscreen{max-height:none!important}
-#rdPlayer .rd-loading{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;z-index:3;background:radial-gradient(circle,rgba(0,0,0,.35),transparent 65%)}
-#rdPlayer .rd-loading span{width:46px;height:46px;border-radius:50%;border:3px solid rgba(255,255,255,.16);border-top-color:var(--cyan,#64f4ff);animation:rdSpin .8s linear infinite}
-@keyframes rdSpin{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){#rdPlayer .rd-loading span{animation-duration:2.6s}}
-#rdPlayer .rd-now{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin:14px 2px 0;font-size:13px;color:var(--muted,#9aa6c4)}
-#rdPlayer .rd-now b{color:#fff;font-size:15px}
-#rdPlayer .rd-alert{margin-top:12px;padding:12px 14px;border-radius:14px;font-size:13.5px;line-height:1.45;border:1px solid rgba(255,184,107,.35);background:rgba(255,184,107,.08);color:#ffd9a8}
-#rdPlayer .rd-alert[data-kind="error"]{border-color:rgba(255,107,107,.4);background:rgba(255,107,107,.09);color:#ffb3b3}
-#rdPlayer .rd-alert p{margin:0}
-#rdPlayer .rd-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-#rdPlayer .rd-panel{margin:16px 0 0;padding:14px;border-radius:18px;background:rgba(255,255,255,.03);border:1px solid var(--line,rgba(255,255,255,.1))}
-#rdPlayer .rd-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
-#rdPlayer .rd-panel-head h4{margin:0;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--cyan,#64f4ff)}
-#rdPlayer .rd-count{font-size:12px;color:var(--muted,#9aa6c4)}
-#rdPlayer .rd-ep{display:grid;grid-template-columns:150px 1fr auto;gap:10px;align-items:end;margin-bottom:14px}
-#rdPlayer .rd-ep label{display:grid;gap:5px;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted,#9aa6c4)}
-#rdPlayer .rd-ep select{width:100%;height:42px;padding:0 12px;border-radius:12px;border:1px solid var(--line,rgba(255,255,255,.12));background:#0a0e18;color:#fff;font:inherit;font-size:14px;text-transform:none;letter-spacing:0}
-#rdPlayer .rd-ep select:focus-visible{outline:2px solid var(--cyan,#64f4ff);outline-offset:1px}
-#rdPlayer .rd-ep-nav{display:flex;gap:8px}
-#rdPlayer .rd-ep-nav .btn{height:42px;padding:0 16px}
-#rdPlayer #opcionesStreamContainer{max-height:min(46vh,430px);overflow:auto;overscroll-behavior:contain;padding-right:2px}
-#rdPlayer #opcionesStreamContainer .verse-relation{text-align:left;width:100%}
-#rdPlayer #opcionesStreamContainer .verse-relation.on{outline:1.5px solid var(--cyan,#64f4ff);background:rgba(100,244,255,.07)}
-#rdPlayer .rd-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
-#rdPlayer .rd-chip{font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;background:rgba(100,244,255,.12);color:var(--cyan,#64f4ff);border:1px solid rgba(100,244,255,.25)}
-#rdPlayer .rd-chip.size{background:rgba(255,255,255,.06);color:#c9d3ee;border-color:rgba(255,255,255,.12)}
-#rdPlayer .rd-chip.warn{background:rgba(255,184,107,.12);color:#ffb86b;border-color:rgba(255,184,107,.3)}
-@media (max-width:600px){
-  #rdPlayer .rd-ep{grid-template-columns:1fr}
-  #rdPlayer .rd-ep-nav .btn{flex:1}
-  #rdPlayer .rd-actions .btn{flex:1 1 auto}
-  #rdPlayer .rd-stage{border-radius:14px}
-}
-</style>
 </head>
 <body>
 <div id="intro" aria-hidden="true">
@@ -300,17 +272,17 @@
  <div class="modal"><div class="det-bar"><button class="close glass-ic" onclick="closeModal()" aria-label="Cerrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button><button class="glass-ic fav" id="modalFav" onclick="detailFav()" aria-label="Favorito" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21.2l7.8-7.7 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg></button></div><div class="modal-top"><h2 id="modalTitle">Título</h2></div><div class="modal-body" id="modalBody"></div></div>
 </div>
 <div class="modal-wrap" id="rdPlayer"><div class="modal"><div class="modal-top"><h2 id="rdPlayerTitle">Reproductor</h2><button class="close" onclick="rdClosePlayer()">✕ Cerrar</button></div><div class="modal-body">
-<div class="rd-stage" id="rdStage"><video id="rdVideo" controls playsinline></video><div class="rd-loading" id="rdLoading" hidden><span></span></div></div>
+<div class="rd-stage" id="rdStage"><video id="rdVideo" controls playsinline></video><div class="rd-loading" id="rdLoading" hidden><span></span></div><button class="rd-x" type="button" aria-label="Cerrar reproductor" onclick="rdClosePlayer()">✕</button></div>
 <div class="rd-now" id="rdNow" hidden></div>
 <div class="rd-alert" id="rdAlert" role="alert" hidden><p id="rdAlertMsg"></p></div>
-<div class="rd-actions"><button class="btn primary" id="rdVlc">🔊 Abrir con VLC</button><button class="btn" id="rdCopy">Copiar enlace</button></div>
+<div class="rd-actions"><button class="btn primary" id="rdVlc">▶ Abrir con VLC</button><button class="btn" id="rdCopy">Copiar enlace</button></div>
+<section class="rd-sec" id="rdEpisodesPanel" hidden>
+  <div class="rd-sec-head"><h4>Episodios</h4></div>
+  <div class="rd-seasons" id="rdSeasonChips" role="tablist" aria-label="Temporadas"></div>
+  <div class="rd-eps" id="rdEpisodeList"></div>
+</section>
 <div id="addonStreamsPanel" class="panel rd-panel" hidden>
-  <div class="rd-panel-head"><h4>Fuentes de video</h4><span class="rd-count" id="rdSrcCount"></span></div>
-  <div class="rd-ep" id="addonEpisodePicker" hidden>
-    <label>Temporada<select id="rdSeason" aria-label="Temporada"></select></label>
-    <label>Episodio<select id="rdEpisode" aria-label="Episodio"></select></label>
-    <div class="rd-ep-nav"><button class="btn" id="rdPrevEp" type="button" aria-label="Episodio anterior">‹</button><button class="btn" id="rdNextEp" type="button" aria-label="Episodio siguiente">›</button></div>
-  </div>
+  <div class="rd-sec-head"><h4>Fuentes de video</h4><span class="rd-count" id="rdSrcCount"></span></div>
   <div id="opcionesStreamContainer" class="verse-relations">
     <p class="muted" style="font-size: 13px; margin: 0;">Instala un addon en Ajustes para sincronizar flujos de video externos.</p>
   </div>
@@ -954,7 +926,7 @@ function rdPlay(r,title){
  document.getElementById("rdPlayerTitle").textContent=title||"Reproductor";
  const v=document.getElementById("rdVideo"),pl=rdMakePlyr();
  const vlcBtn=document.getElementById("rdVlc");
- vlcBtn.textContent=rdNativeVlc()?"▶ Abrir con VLC (recomendado)":"🔊 Abrir con VLC";
+ vlcBtn.textContent="▶ Abrir con VLC";
  vlcBtn.onclick=()=>rdOpenVlc(url,title);
  document.getElementById("rdCopy").onclick=()=>{if(navigator.clipboard)navigator.clipboard.writeText(url);toast("Enlace copiado. En VLC: Transmisión de red → pegar")};
  v.onerror=()=>{
@@ -975,7 +947,7 @@ function rdClosePlayer(){
  v.removeAttribute("src");v.load();
  rdUi("ready");
  const pn=document.getElementById("addonStreamsPanel");if(pn)pn.hidden=true;
- const nw=document.getElementById("rdNow");if(nw)nw.hidden=true;
+ const nw=document.getElementById("rdNow");if(nw)nw.hidden=true;const ep=document.getElementById("rdEpisodesPanel");if(ep)ep.hidden=true;
  document.getElementById("rdPlayer").classList.remove("open","rd-full")}
 async function rdPlayFlow(title){
  if(!rdToken()){toast("Primero pega tu token de Real-Debrid");openApiModal("rd");return}
