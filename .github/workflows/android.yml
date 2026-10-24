@@ -109,6 +109,16 @@ jobs:
               open(m, 'w', encoding='utf-8').write(t)
           print('Deep link auth-callback añadido')
           PY
+          python3 - <<'PY'
+          import re
+          m = 'android/app/src/main/AndroidManifest.xml'
+          t = open(m, encoding='utf-8').read()
+          if 'supportsPictureInPicture' not in t:
+              t, n = re.subn(r'<activity\b', '<activity android:supportsPictureInPicture="true"', t, count=1)
+              assert n, 'No se encontró <activity> en el manifest'
+              open(m, 'w', encoding='utf-8').write(t)
+          print('Ventana flotante (PiP) habilitada')
+          PY
           grep -n "auth-callback" android/app/src/main/AndroidManifest.xml
 
       - name: Nombre de la app (Zynora)
@@ -239,12 +249,25 @@ jobs:
                       w.setHorizontalScrollBarEnabled(false);
                   }
               }
+
+              @Override
+              protected void onUserLeaveHint() {
+                  super.onUserLeaveHint();
+                  ZinePlayerPlugin.onUserLeave(this);
+              }
+
+              @Override
+              public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, android.content.res.Configuration newConfig) {
+                  super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
+                  ZinePlayerPlugin.onPipChanged(isInPictureInPictureMode);
+              }
           }
           JAVA_MAIN
           cat > "$PKG_DIR/ZinePlayerPlugin.java" <<'JAVA_PLUGIN'
           package com.zineclick.app;
 
           import android.app.Activity;
+          import android.app.PictureInPictureParams;
           import android.content.pm.ActivityInfo;
           import android.graphics.Bitmap;
           import android.graphics.Color;
@@ -254,6 +277,7 @@ jobs:
           import android.os.Handler;
           import android.os.Looper;
           import android.util.Base64;
+          import android.util.Rational;
           import android.view.ViewGroup;
           import android.view.WindowManager;
           import android.webkit.WebView;
@@ -298,6 +322,11 @@ jobs:
               private boolean buffering = true;
               private boolean resumePlaying = true;
               private long resumeAt = 0;
+              private static ZinePlayerPlugin inst;
+              private float curRate = 1f;
+              private int wantAudio = Integer.MIN_VALUE;
+              private int wantSpu = Integer.MIN_VALUE;
+              private boolean restoreTracks = false;
               private final ExecutorService thumbEx = Executors.newSingleThreadExecutor();
               private MediaMetadataRetriever mmr;
               private String mmrUrl = "";
@@ -332,6 +361,22 @@ jobs:
                           case MediaPlayer.Event.Playing:
                               buffering = false;
                               applyAspect();
+                              if (restoreTracks) {
+                                  restoreTracks = false;
+                                  handler.postDelayed(new Runnable() {
+                                      @Override
+                                      public void run() {
+                                          if (player == null) return;
+                                          try {
+                                              if (wantAudio != Integer.MIN_VALUE) player.setAudioTrack(wantAudio);
+                                              if (wantSpu != Integer.MIN_VALUE) player.setSpuTrack(wantSpu);
+                                              if (curRate != 1f) player.setRate(curRate);
+                                          } catch (Throwable t) {
+                                              // sin efecto
+                                          }
+                                      }
+                                  }, 900);
+                              }
                               break;
                           case MediaPlayer.Event.EndReached:
                               notifyListeners("znpEnded", new JSObject());
@@ -346,6 +391,35 @@ jobs:
                       }
                   }
               };
+
+              @Override
+              public void load() {
+                  inst = this;
+              }
+
+              /** Lo llama MainActivity cuando el usuario sale de la app (botón Inicio): abre la ventana flotante. */
+              public static void onUserLeave(Activity a) {
+                  if (inst != null) inst.enterPip(a);
+              }
+
+              /** Lo llama MainActivity cuando la ventana flotante se abre o se cierra. */
+              public static void onPipChanged(boolean on) {
+                  if (inst == null) return;
+                  JSObject o = new JSObject();
+                  o.put("on", on);
+                  inst.notifyListeners("znpPip", o);
+              }
+
+              private void enterPip(Activity a) {
+                  if (Build.VERSION.SDK_INT < 26 || !active || suspended || player == null) return;
+                  try {
+                      if (!player.isPlaying()) return;
+                      PictureInPictureParams params = new PictureInPictureParams.Builder().setAspectRatio(new Rational(16, 9)).build();
+                      a.enterPictureInPictureMode(params);
+                  } catch (Throwable t) {
+                      // el celular no permite ventana flotante: se queda como antes
+                  }
+              }
 
               private void ui(Runnable r) {
                   getActivity().runOnUiThread(r);
@@ -432,6 +506,10 @@ jobs:
 
                   url = u;
                   aspect = "fit";
+                  curRate = 1f;
+                  wantAudio = Integer.MIN_VALUE;
+                  wantSpu = Integer.MIN_VALUE;
+                  restoreTracks = false;
                   active = true;
                   suspended = false;
                   buffering = true;
@@ -581,6 +659,7 @@ jobs:
                   ui(new Runnable() {
                       @Override
                       public void run() {
+                          curRate = (float) r;
                           if (player != null) player.setRate((float) r);
                           call.resolve();
                       }
@@ -606,6 +685,7 @@ jobs:
                   ui(new Runnable() {
                       @Override
                       public void run() {
+                          wantAudio = id;
                           if (player != null) player.setAudioTrack(id);
                           call.resolve();
                       }
@@ -618,6 +698,7 @@ jobs:
                   ui(new Runnable() {
                       @Override
                       public void run() {
+                          wantSpu = id;
                           if (player != null) player.setSpuTrack(id);
                           call.resolve();
                       }
@@ -735,6 +816,9 @@ jobs:
                       try {
                           resumeAt = player.getTime();
                           resumePlaying = player.isPlaying();
+                          wantAudio = player.getAudioTrack();
+                          wantSpu = player.getSpuTrack();
+                          restoreTracks = true;
                           player.stop();
                           player.detachViews();
                       } catch (Throwable t) {
