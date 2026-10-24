@@ -773,6 +773,185 @@ jobs:
           PY
           echo "Reproductor nativo instalado"
 
+      - name: Mejora - conservar idioma y subtítulos al volver a la app
+        id: tracks
+        if: steps.native.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -e
+          PKG_DIR=android/app/src/main/java/com/zineclick/app
+          F="$PKG_DIR/ZinePlayerPlugin.java"
+          test -f "$F"
+          cp "$F" "$F.base"
+          python3 - "$F" <<'PY'
+          import sys
+          p = sys.argv[1]
+          s = open(p, encoding='utf-8').read()
+          def rep(old, new):
+              global s
+              assert s.count(old) == 1, 'No se encontró: ' + old
+              s = s.replace(old, new)
+          RESTORE = """
+              private final Runnable restoreRun = new Runnable() {
+                  @Override
+                  public void run() {
+                      if (player == null || !active || suspended) return;
+                      try {
+                          if (resumeAudio != Integer.MIN_VALUE && player.getAudioTrack() != resumeAudio) player.setAudioTrack(resumeAudio);
+                          if (resumeSpu != Integer.MIN_VALUE && player.getSpuTrack() != resumeSpu) player.setSpuTrack(resumeSpu);
+                          if (resumeRate > 0f && resumeRate != 1.0f) player.setRate(resumeRate);
+                      } catch (Throwable t) {
+                          // sin efecto: se queda con las pistas por defecto
+                      }
+                  }
+              };
+
+              private void restoreTracksSoon() {
+                  handler.postDelayed(restoreRun, 1800);
+                  handler.postDelayed(restoreRun, 4000);
+              }
+          """
+          rep('    private long resumeAt = 0;\n', '    private long resumeAt = 0;\n    private int resumeAudio = Integer.MIN_VALUE;\n    private int resumeSpu = Integer.MIN_VALUE;\n    private float resumeRate = 1.0f;\n')
+          rep('                resumePlaying = player.isPlaying();\n', '                resumePlaying = player.isPlaying();\n                resumeAudio = player.getAudioTrack();\n                resumeSpu = player.getSpuTrack();\n                resumeRate = player.getRate();\n')
+          rep('                attachAndPlay(resumeAt, resumePlaying);\n', '                attachAndPlay(resumeAt, resumePlaying);\n                restoreTracksSoon();\n')
+          rep('    /* ---------------- ciclo de vida de la app ---------------- */\n', RESTORE + '\n    /* ---------------- ciclo de vida de la app ---------------- */\n')
+          open(p, 'w', encoding='utf-8').write(s)
+          print('Idioma y subtítulos se conservan al volver a la app')
+          PY
+
+
+      - name: Mejora - ventana flotante (imagen en imagen)
+        id: pip
+        if: steps.native.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -e
+          PKG_DIR=android/app/src/main/java/com/zineclick/app
+          F="$PKG_DIR/ZinePlayerPlugin.java"
+          M="$PKG_DIR/MainActivity.java"
+          MF=android/app/src/main/AndroidManifest.xml
+          test -f "$F"
+          cp "$F" "$F.tracks"
+          cp "$M" "$M.pipbase"
+          cp "$MF" "$MF.pipbase"
+          python3 - "$F" <<'PY'
+          import sys
+          p = sys.argv[1]
+          s = open(p, encoding='utf-8').read()
+          def rep(old, new):
+              global s
+              assert s.count(old) == 1, 'No se encontró: ' + old
+              s = s.replace(old, new)
+          PIP = """
+              /* ---------------- ventana flotante (imagen en imagen) ---------------- */
+
+              public boolean wantsPip() {
+                  return active && !suspended && player != null;
+              }
+
+              public Rational pipRatio() {
+                  return new Rational(16, 9);
+              }
+
+              public void pipChanged(boolean on) {
+                  JSObject o = new JSObject();
+                  o.put("on", on);
+                  notifyListeners("znpPip", o);
+              }
+          """
+          rep('import android.util.Base64;\n', 'import android.util.Base64;\nimport android.util.Rational;\n')
+          rep('    /* ---------------- ciclo de vida de la app ---------------- */\n', PIP + '\n    /* ---------------- ciclo de vida de la app ---------------- */\n')
+          open(p, 'w', encoding='utf-8').write(s)
+          PY
+          cat > "$M" <<'JAVA_MAIN2'
+          package com.zineclick.app;
+
+          import android.app.PictureInPictureParams;
+          import android.content.res.Configuration;
+          import android.os.Build;
+          import android.os.Bundle;
+          import android.webkit.WebView;
+          import com.getcapacitor.BridgeActivity;
+          import com.getcapacitor.PluginHandle;
+
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  registerPlugin(ZinePlayerPlugin.class);
+                  super.onCreate(savedInstanceState);
+              }
+
+              @Override
+              public void onStart() {
+                  super.onStart();
+                  WebView w = getBridge() != null ? getBridge().getWebView() : null;
+                  if (w != null) {
+                      w.setVerticalScrollBarEnabled(false);
+                      w.setHorizontalScrollBarEnabled(false);
+                  }
+              }
+
+              private ZinePlayerPlugin zine() {
+                  try {
+                      if (getBridge() == null) return null;
+                      PluginHandle h = getBridge().getPlugin("ZinePlayer");
+                      if (h == null) return null;
+                      return (ZinePlayerPlugin) h.getInstance();
+                  } catch (Throwable t) {
+                      return null;
+                  }
+              }
+
+              @Override
+              public void onUserLeaveHint() {
+                  super.onUserLeaveHint();
+                  if (Build.VERSION.SDK_INT < 26) return;
+                  ZinePlayerPlugin z = zine();
+                  if (z == null || !z.wantsPip()) return;
+                  try {
+                      PictureInPictureParams.Builder b = new PictureInPictureParams.Builder();
+                      b.setAspectRatio(z.pipRatio());
+                      enterPictureInPictureMode(b.build());
+                  } catch (Throwable t) {
+                      // el sistema no permite la ventana flotante: se queda como antes
+                  }
+              }
+
+              @Override
+              public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
+                  super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
+                  ZinePlayerPlugin z = zine();
+                  if (z != null) z.pipChanged(isInPictureInPictureMode);
+              }
+          }
+          JAVA_MAIN2
+          python3 - <<'PY'
+          import re
+          m = 'android/app/src/main/AndroidManifest.xml'
+          t = open(m, encoding='utf-8').read()
+          i = t.find('<activity')
+          assert i > 0, 'No se encontró <activity> en el manifest'
+          j = t.find('>', i)
+          tag = t[i:j]
+          if 'supportsPictureInPicture' not in tag:
+              tag = tag + '\n            android:supportsPictureInPicture="true"'
+          need = ['screenSize', 'smallestScreenSize', 'screenLayout', 'orientation']
+          mm = re.search(r'android:configChanges="([^"]*)"', tag)
+          if mm:
+              cur = mm.group(1).split('|')
+              for n in need:
+                  if n not in cur:
+                      cur.append(n)
+              tag = tag.replace(mm.group(0), 'android:configChanges="' + '|'.join(cur) + '"')
+          else:
+              tag = tag + '\n            android:configChanges="' + '|'.join(need) + '"'
+          t = t[:i] + tag + t[j:]
+          open(m, 'w', encoding='utf-8').write(t)
+          print('Imagen en imagen habilitada')
+          PY
+          grep -n "supportsPictureInPicture\|configChanges" "$MF"
+
+
       - name: Compilar APK
         id: build
         continue-on-error: true
@@ -781,8 +960,36 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
+      - name: Plan B1 - compilar sin imagen en imagen
+        id: build2
+        if: steps.build.outcome == 'failure' && steps.pip.outcome != 'skipped'
+        continue-on-error: true
+        working-directory: android
+        run: |
+          echo "::warning::La ventana flotante (imagen en imagen) no compiló. Se genera el APK sin ella."
+          PKG_DIR=app/src/main/java/com/zineclick/app
+          [ -f "$PKG_DIR/ZinePlayerPlugin.java.tracks" ] && cp "$PKG_DIR/ZinePlayerPlugin.java.tracks" "$PKG_DIR/ZinePlayerPlugin.java" || true
+          [ -f "$PKG_DIR/MainActivity.java.pipbase" ] && cp "$PKG_DIR/MainActivity.java.pipbase" "$PKG_DIR/MainActivity.java" || true
+          [ -f app/src/main/AndroidManifest.xml.pipbase ] && cp app/src/main/AndroidManifest.xml.pipbase app/src/main/AndroidManifest.xml || true
+          ./gradlew assembleDebug
+
+
+      - name: Plan B2 - compilar sin las mejoras del reproductor
+        id: build3
+        if: steps.build.outcome == 'failure' && steps.build2.outcome != 'success' && steps.tracks.outcome != 'skipped'
+        continue-on-error: true
+        working-directory: android
+        run: |
+          echo "::warning::La mejora de idioma/subtítulos no compiló. Se genera el APK con el reproductor nativo básico."
+          PKG_DIR=app/src/main/java/com/zineclick/app
+          [ -f "$PKG_DIR/ZinePlayerPlugin.java.base" ] && cp "$PKG_DIR/ZinePlayerPlugin.java.base" "$PKG_DIR/ZinePlayerPlugin.java" || true
+          [ -f "$PKG_DIR/MainActivity.java.pipbase" ] && cp "$PKG_DIR/MainActivity.java.pipbase" "$PKG_DIR/MainActivity.java" || true
+          [ -f app/src/main/AndroidManifest.xml.pipbase ] && cp app/src/main/AndroidManifest.xml.pipbase app/src/main/AndroidManifest.xml || true
+          ./gradlew assembleDebug
+
+
       - name: Plan B - compilar sin el reproductor nativo
-        if: steps.build.outcome == 'failure'
+        if: steps.build.outcome == 'failure' && steps.build2.outcome != 'success' && steps.build3.outcome != 'success'
         working-directory: android
         run: |
           echo "::warning::El reproductor nativo no compiló. Se genera el APK sin él (el video se verá en el reproductor interno)."
