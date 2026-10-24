@@ -636,14 +636,47 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 
-/* Avisa de códecs que los navegadores suelen no reproducir (de ahí "video sin audio"). */
-function _addonCodecWarn(stream) {
-  var txt = [stream.name, stream.title, stream.description, stream.behaviorHints && stream.behaviorHints.filename].join(' ');
-  if ((stream.behaviorHints && stream.behaviorHints.notWebReady) || /\b(DTS|E-?AC-?3|AC-?3|DD\+?|TrueHD|Atmos|HEVC|x265|H\.?265|MKV)\b/i.test(txt)) {
-    return '<small style="color:#ffb86b;display:block;">⚠ Puede no sonar o no abrir en el navegador; si pasa, usa VLC</small>';
-  }
-  return '';
+/* ---------- Compatibilidad de códecs según el dispositivo ----------
+   Se pregunta al propio navegador (canPlayType / MediaSource), así en el celular y en la laptop
+   el aviso sale solo si ESE dispositivo no puede reproducir el códec. */
+var _addonCodecs = null;
+function addonCodecSupport() {
+  if (_addonCodecs) return _addonCodecs;
+  var v = document.createElement('video');
+  function can(t) { try { return !!v.canPlayType(t); } catch (e) { return false; } }
+  function ms(t) { try { return !!(window.MediaSource && MediaSource.isTypeSupported(t)); } catch (e) { return false; } }
+  function any(list) { return list.some(function (t) { return can(t) || ms(t); }); }
+  _addonCodecs = {
+    hevc: any(['video/mp4; codecs="hvc1.1.6.L93.B0"', 'video/mp4; codecs="hev1.1.6.L93.B0"']),
+    ac3: any(['audio/mp4; codecs="ac-3"']),
+    eac3: any(['audio/mp4; codecs="ec-3"']),
+    dts: any(['audio/mp4; codecs="dtsc"', 'audio/mp4; codecs="dtse"', 'audio/mp4; codecs="dtsh"']),
+    truehd: false // ningún navegador lo reproduce
+  };
+  return _addonCodecs;
 }
+
+/* Etiquetas (resolución, tamaño, idioma) y avisos de códec de una fuente */
+function _addonChips(stream) {
+  var bh = stream.behaviorHints || {};
+  var txt = [stream.name, stream.title, stream.description, bh.filename].filter(Boolean).join(' ');
+  var chips = [], m;
+  if ((m = txt.match(/\b(2160p|4k|1440p|1080p|720p|480p)\b/i))) chips.push({ t: m[1].toUpperCase(), c: '' });
+  if ((m = txt.match(/(\d+(?:[.,]\d+)?)\s?(GB|MB)\b/i))) chips.push({ t: m[1] + ' ' + m[2].toUpperCase(), c: 'size' });
+  if ((m = txt.match(/\b(latino|castellano|espa[nñ]ol|ingl[eé]s|english|dual|multi)\b/i))) chips.push({ t: m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase(), c: 'size' });
+
+  var sup = addonCodecSupport(), bad = [];
+  var hasEac3 = /\b(E-?AC-?3|EAC3|DD\+|DDP|Atmos)\b/i.test(txt);
+  if (/\bTrueHD\b/i.test(txt)) bad.push('TrueHD');
+  if (/\bDTS\b/i.test(txt) && !sup.dts) bad.push('DTS');
+  if (hasEac3 && !sup.eac3) bad.push('E-AC-3');
+  if (!hasEac3 && /\b(AC-?3|DD ?5\.1|Dolby Digital)\b/i.test(txt) && !sup.ac3) bad.push('AC-3');
+  if (/\b(HEVC|x265|H\.?265)\b/i.test(txt) && !sup.hevc) bad.push('HEVC');
+  if (bad.length) chips.push({ t: '⚠ ' + bad.join(' · ') + ' podría fallar aquí', c: 'warn' });
+  return chips;
+}
+
+var _addonReq = 0;
 
 function _addonRenderStreams(container, addon, streams, currentTitle, showHeader) {
   var wrap = document.createElement('div');
@@ -661,15 +694,18 @@ function _addonRenderStreams(container, addon, streams, currentTitle, showHeader
   }
   streams.forEach(function (stream) {
     var itemBtn = document.createElement('button');
+    itemBtn.type = 'button';
     itemBtn.className = 'verse-relation';
-    itemBtn.style.width = '100%';
     itemBtn.style.cursor = 'pointer';
     itemBtn.style.marginBottom = '8px';
+    var chips = _addonChips(stream).map(function (c) {
+      return '<span class="rd-chip ' + c.c + '">' + _addonEsc(c.t) + '</span>';
+    }).join('');
     itemBtn.innerHTML =
       '<span class="rel-arrow">▶</span><div>' +
       '<b>' + _addonEsc(stream.title || stream.name || 'Servidor Multimedia') + '</b>' +
       '<small>' + _addonEsc(stream.description || 'Transmisión directa') + '</small>' +
-      _addonCodecWarn(stream) + '</div>';
+      (chips ? '<div class="rd-chips">' + chips + '</div>' : '') + '</div>';
 
     itemBtn.addEventListener('click', async function () {
       var playbackUrl = stream.url;
@@ -687,7 +723,11 @@ function _addonRenderStreams(container, addon, streams, currentTitle, showHeader
         }
         itemBtn.innerHTML = uiBackup;
       }
-      if (playbackUrl) ejecutarReproductorZynora(playbackUrl, currentTitle);
+      if (!playbackUrl) return;
+      var prev = container.querySelectorAll('.verse-relation.on');
+      for (var i = 0; i < prev.length; i++) prev[i].classList.remove('on');
+      itemBtn.classList.add('on');
+      ejecutarReproductorZynora(playbackUrl, currentTitle);
     });
     wrap.appendChild(itemBtn);
   });
@@ -697,11 +737,16 @@ function _addonRenderStreams(container, addon, streams, currentTitle, showHeader
 async function consultarFuentesAddon(type, id, currentTitle) {
   var container = document.getElementById('opcionesStreamContainer');
   if (!container) return;
+  var panel = document.getElementById('addonStreamsPanel');
+  if (panel) panel.hidden = false;
+  var count = document.getElementById('rdSrcCount');
+  if (count) count.textContent = '';
   var addons = addonLoad();
   if (!addons.length) {
     container.innerHTML = '<p class="muted" style="font-size: 13px; margin: 0;">Instala un addon en Ajustes para sincronizar flujos de video externos.</p>';
     return;
   }
+  var req = ++_addonReq; // si el usuario cambia de episodio rápido, se ignora la respuesta vieja
   container.innerHTML = '<p class="muted" style="font-size: 13px; margin: 0; color: var(--cyan);">Rastreando flujos de red disponibles...</p>';
   var contentType = (type === 'tv' || type === 'series') ? 'series' : 'movie';
 
@@ -710,6 +755,7 @@ async function consultarFuentesAddon(type, id, currentTitle) {
       .then(function (d) { return { addon: a, streams: (d && d.streams) || [] }; })
       .catch(function (e) { console.error(a.url, e); return { addon: a, error: true }; });
   }));
+  if (req !== _addonReq) return;
 
   container.innerHTML = '';
   var showHeader = addons.length > 1;
@@ -725,6 +771,7 @@ async function consultarFuentesAddon(type, id, currentTitle) {
     total += r.streams.length;
     if (r.streams.length || showHeader) _addonRenderStreams(container, r.addon, r.streams, currentTitle, showHeader);
   });
+  if (count) count.textContent = total ? total + (total === 1 ? ' fuente' : ' fuentes') : '';
   if (!total && !container.children.length) {
     container.innerHTML = '<p class="muted" style="font-size: 13px; margin: 0;">No se encontraron transmisiones para este identificador.</p>';
   }
@@ -732,30 +779,102 @@ async function consultarFuentesAddon(type, id, currentTitle) {
 
 function ejecutarReproductorZynora(videoUrl, title) {
   if (typeof rdPlay === 'function') {
-    rdPlay({ download: videoUrl }, title);
-    // En navegador (sin la app) el botón de VLC está oculto: se ofrece vía vlc://
-    var vlcBtn = document.getElementById('rdVlc');
-    var inApp = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.ZinePlayer && Capacitor.Plugins.ZinePlayer.play;
-    if (vlcBtn && !inApp) {
-      vlcBtn.style.display = '';
-      vlcBtn.onclick = function () { window.location.href = 'vlc://' + videoUrl; };
-    }
+    rdPlay({ download: videoUrl }, title); // reproductor de la app (Plyr, estados, VLC, copiar enlace)
   } else {
     navigator.clipboard.writeText(videoUrl);
     alert('Enlace copiado al portapapeles.');
   }
 }
 
-/* Abre el panel de enlaces del addon desde la ficha de un título.
+/* ---------- Series: temporada y episodio ---------- */
+var _addonCtx = null;
+
+function _addonEl(id) { return document.getElementById(id); }
+
+function addonSetNow() {
+  var el = _addonEl('rdNow'), c = _addonCtx;
+  if (!el) return;
+  if (!c || c.type !== 'tv') { el.hidden = true; return; }
+  var ep = (c.eps[c.season] || []).filter(function (e) { return e.n === c.episode; })[0];
+  el.hidden = false;
+  el.innerHTML = '<b>' + _addonEsc(c.title) + '</b><span>T' + c.season + ' · E' + c.episode + (ep && ep.name ? ' — ' + _addonEsc(ep.name) : '') + '</span>';
+}
+
+async function addonLoadSeason(n) {
+  var c = _addonCtx;
+  if (c.eps[n]) return c.eps[n];
+  var list = [];
+  try {
+    var d = await tmdb('/tv/' + c.tmdbId + '/season/' + n);
+    list = (d.episodes || []).map(function (e) { return { n: e.episode_number, name: e.name || '' }; });
+  } catch (e) { /* si TMDB falla, se usa el número de episodios de la temporada */ }
+  if (!list.length) {
+    var s = c.seasons.filter(function (x) { return x.n === n; })[0];
+    for (var i = 1; i <= (s ? s.count : 1); i++) list.push({ n: i, name: '' });
+  }
+  c.eps[n] = list;
+  return list;
+}
+
+function addonFillEpisodes(season) {
+  var sel = _addonEl('rdEpisode'), c = _addonCtx;
+  if (!sel || !c) return;
+  sel.innerHTML = (c.eps[season] || []).map(function (e) {
+    return '<option value="' + e.n + '">E' + e.n + (e.name ? ' · ' + _addonEsc(e.name) : '') + '</option>';
+  }).join('');
+}
+
+async function addonGoto(s, e) {
+  var c = _addonCtx;
+  if (!c) return;
+  var eps = await addonLoadSeason(s);
+  if (_addonCtx !== c) return;
+  if (!eps.some(function (x) { return x.n === e; })) e = eps.length ? eps[0].n : 1;
+  c.season = s; c.episode = e;
+  try { localStorage.setItem('zynora_last_ep:' + c.tmdbId, JSON.stringify({ s: s, e: e })); } catch (err) {}
+  var seasonSel = _addonEl('rdSeason');
+  if (seasonSel) seasonSel.value = String(s);
+  addonFillEpisodes(s);
+  var epSel = _addonEl('rdEpisode');
+  if (epSel) epSel.value = String(e);
+  addonSetNow();
+  consultarFuentesAddon('tv', c.imdb + ':' + s + ':' + e, c.title + ' · T' + s + 'E' + e);
+}
+
+async function addonStep(dir) {
+  var c = _addonCtx;
+  if (!c || c.type !== 'tv') return;
+  var eps = await addonLoadSeason(c.season);
+  var i = eps.map(function (x) { return x.n; }).indexOf(c.episode) + dir;
+  if (i >= 0 && i < eps.length) return addonGoto(c.season, eps[i].n);
+  var si = c.seasons.map(function (x) { return x.n; }).indexOf(c.season) + dir;
+  if (si < 0 || si >= c.seasons.length) { if (typeof toast === 'function') toast(dir > 0 ? 'Es el último episodio' : 'Es el primer episodio'); return; }
+  var ns = c.seasons[si].n, ne = await addonLoadSeason(ns);
+  if (ne.length) addonGoto(ns, dir > 0 ? ne[0].n : ne[ne.length - 1].n);
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  var ss = _addonEl('rdSeason'), es = _addonEl('rdEpisode'), pv = _addonEl('rdPrevEp'), nx = _addonEl('rdNextEp');
+  if (!ss || !es) return;
+  ss.addEventListener('change', async function () {
+    var n = Number(ss.value), eps = await addonLoadSeason(n);
+    addonGoto(n, eps.length ? eps[0].n : 1);
+  });
+  es.addEventListener('change', function () { if (_addonCtx) addonGoto(_addonCtx.season, Number(es.value)); });
+  if (pv) pv.addEventListener('click', function () { addonStep(-1); });
+  if (nx) nx.addEventListener('click', function () { addonStep(1); });
+});
+
+/* Abre el panel de fuentes desde la ficha de un título.
    Los addons Stremio/Nuvio piden ID de IMDb (tt...), no el de TMDB, así que se convierte primero. */
 async function addonOpen(tmdbId, mediaType, title) {
   if (!addonCount()) { // sin addons: lleva a Ajustes para instalar uno
     if (typeof closeModal === 'function') closeModal();
     if (typeof openSettings === 'function') openSettings();
     setTimeout(function () {
-      var c = document.getElementById('addonCard');
+      var c = _addonEl('addonCard');
       if (c && c.scrollIntoView) c.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      var i = document.getElementById('nuvioAddonInput');
+      var i = _addonEl('nuvioAddonInput');
       if (i) i.focus();
     }, 150);
     return;
@@ -767,11 +886,38 @@ async function addonOpen(tmdbId, mediaType, title) {
     var ext = await tmdb('/' + type + '/' + tmdbId + '/external_ids');
     var imdb = ext && ext.imdb_id;
     if (!/^tt\d{6,10}$/.test(imdb || '')) throw new Error('No se encontró el ID de IMDb de este título.');
-    // Series: de momento temporada 1, episodio 1 (formato Stremio tt1234567:1:1)
-    var streamId = type === 'tv' ? imdb + ':1:1' : imdb;
-    document.getElementById('rdPlayerTitle').textContent = title || 'Reproductor';
-    document.getElementById('rdPlayer').classList.add('open');
-    consultarFuentesAddon(type, streamId, title);
+
+    var picker = _addonEl('addonEpisodePicker');
+    if (type === 'movie') {
+      _addonCtx = { type: 'movie', tmdbId: tmdbId, imdb: imdb, title: title };
+      if (picker) picker.hidden = true;
+      addonSetNow();
+      _addonEl('rdPlayerTitle').textContent = title || 'Reproductor';
+      _addonEl('rdPlayer').classList.add('open');
+      consultarFuentesAddon('movie', imdb, title);
+      return;
+    }
+
+    var tv = await tmdb('/tv/' + tmdbId);
+    var seasons = (tv.seasons || []).filter(function (s) { return s.episode_count > 0; })
+      .map(function (s) { return { n: s.season_number, count: s.episode_count }; })
+      .sort(function (a, b) { return a.n - b.n; });
+    if (!seasons.length) seasons = [{ n: 1, count: 1 }];
+    var last = null;
+    try { last = JSON.parse(localStorage.getItem('zynora_last_ep:' + tmdbId)); } catch (e) {}
+    var startS = last && seasons.some(function (s) { return s.n === last.s; }) ? last.s
+      : (seasons.filter(function (s) { return s.n >= 1; })[0] || seasons[0]).n;
+    var startE = last && last.s === startS ? last.e : 1;
+
+    _addonCtx = { type: 'tv', tmdbId: tmdbId, imdb: imdb, title: title, seasons: seasons, eps: {}, season: startS, episode: startE };
+    var seasonSel = _addonEl('rdSeason');
+    if (seasonSel) seasonSel.innerHTML = seasons.map(function (s) {
+      return '<option value="' + s.n + '">' + (s.n === 0 ? 'Especiales' : 'Temporada ' + s.n) + '</option>';
+    }).join('');
+    if (picker) picker.hidden = false;
+    _addonEl('rdPlayerTitle').textContent = title || 'Reproductor';
+    _addonEl('rdPlayer').classList.add('open');
+    addonGoto(startS, startE);
   } catch (e) {
     alert(e.message || 'No se pudo consultar el addon.');
   }

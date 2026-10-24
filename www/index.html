@@ -23,6 +23,48 @@
 <script src="config.js"></script>
 <script src="sync.js"></script>
 <link rel="stylesheet" href="css/styles.css">
+<style id="zyPlayerCss">
+/* Reproductor y panel de fuentes */
+#rdPlayer{--plyr-color-main:var(--cyan,#64f4ff);--plyr-control-radius:10px;--plyr-menu-radius:14px;--plyr-video-control-background-hover:var(--cyan,#64f4ff);--plyr-video-control-color-hover:#04121a;--plyr-font-family:inherit}
+#rdPlayer [hidden]{display:none!important}
+#rdPlayer .rd-stage{position:relative;border-radius:18px;overflow:hidden;background:#000;box-shadow:0 18px 50px -18px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.07)}
+#rdPlayer .rd-stage .plyr,#rdPlayer .rd-stage>video{display:block;width:100%;max-height:68vh}
+#rdPlayer .rd-stage video{background:#000;aspect-ratio:16/9}
+#rdPlayer .rd-stage .plyr--fullscreen-fallback,#rdPlayer .rd-stage .plyr:fullscreen{max-height:none!important}
+#rdPlayer .rd-loading{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;z-index:3;background:radial-gradient(circle,rgba(0,0,0,.35),transparent 65%)}
+#rdPlayer .rd-loading span{width:46px;height:46px;border-radius:50%;border:3px solid rgba(255,255,255,.16);border-top-color:var(--cyan,#64f4ff);animation:rdSpin .8s linear infinite}
+@keyframes rdSpin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){#rdPlayer .rd-loading span{animation-duration:2.6s}}
+#rdPlayer .rd-now{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin:14px 2px 0;font-size:13px;color:var(--muted,#9aa6c4)}
+#rdPlayer .rd-now b{color:#fff;font-size:15px}
+#rdPlayer .rd-alert{margin-top:12px;padding:12px 14px;border-radius:14px;font-size:13.5px;line-height:1.45;border:1px solid rgba(255,184,107,.35);background:rgba(255,184,107,.08);color:#ffd9a8}
+#rdPlayer .rd-alert[data-kind="error"]{border-color:rgba(255,107,107,.4);background:rgba(255,107,107,.09);color:#ffb3b3}
+#rdPlayer .rd-alert p{margin:0}
+#rdPlayer .rd-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+#rdPlayer .rd-panel{margin:16px 0 0;padding:14px;border-radius:18px;background:rgba(255,255,255,.03);border:1px solid var(--line,rgba(255,255,255,.1))}
+#rdPlayer .rd-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+#rdPlayer .rd-panel-head h4{margin:0;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--cyan,#64f4ff)}
+#rdPlayer .rd-count{font-size:12px;color:var(--muted,#9aa6c4)}
+#rdPlayer .rd-ep{display:grid;grid-template-columns:150px 1fr auto;gap:10px;align-items:end;margin-bottom:14px}
+#rdPlayer .rd-ep label{display:grid;gap:5px;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted,#9aa6c4)}
+#rdPlayer .rd-ep select{width:100%;height:42px;padding:0 12px;border-radius:12px;border:1px solid var(--line,rgba(255,255,255,.12));background:#0a0e18;color:#fff;font:inherit;font-size:14px;text-transform:none;letter-spacing:0}
+#rdPlayer .rd-ep select:focus-visible{outline:2px solid var(--cyan,#64f4ff);outline-offset:1px}
+#rdPlayer .rd-ep-nav{display:flex;gap:8px}
+#rdPlayer .rd-ep-nav .btn{height:42px;padding:0 16px}
+#rdPlayer #opcionesStreamContainer{max-height:min(46vh,430px);overflow:auto;overscroll-behavior:contain;padding-right:2px}
+#rdPlayer #opcionesStreamContainer .verse-relation{text-align:left;width:100%}
+#rdPlayer #opcionesStreamContainer .verse-relation.on{outline:1.5px solid var(--cyan,#64f4ff);background:rgba(100,244,255,.07)}
+#rdPlayer .rd-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+#rdPlayer .rd-chip{font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;background:rgba(100,244,255,.12);color:var(--cyan,#64f4ff);border:1px solid rgba(100,244,255,.25)}
+#rdPlayer .rd-chip.size{background:rgba(255,255,255,.06);color:#c9d3ee;border-color:rgba(255,255,255,.12)}
+#rdPlayer .rd-chip.warn{background:rgba(255,184,107,.12);color:#ffb86b;border-color:rgba(255,184,107,.3)}
+@media (max-width:600px){
+  #rdPlayer .rd-ep{grid-template-columns:1fr}
+  #rdPlayer .rd-ep-nav .btn{flex:1}
+  #rdPlayer .rd-actions .btn{flex:1 1 auto}
+  #rdPlayer .rd-stage{border-radius:14px}
+}
+</style>
 </head>
 <body>
 <div id="intro" aria-hidden="true">
@@ -257,12 +299,23 @@
 <div class="modal-wrap" id="detailModal" role="dialog" aria-modal="true" aria-label="Detalle del título">
  <div class="modal"><div class="det-bar"><button class="close glass-ic" onclick="closeModal()" aria-label="Cerrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button><button class="glass-ic fav" id="modalFav" onclick="detailFav()" aria-label="Favorito" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21.2l7.8-7.7 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg></button></div><div class="modal-top"><h2 id="modalTitle">Título</h2></div><div class="modal-body" id="modalBody"></div></div>
 </div>
-<div class="modal-wrap" id="rdPlayer"><div class="modal"><div class="modal-top"><h2 id="rdPlayerTitle">Reproductor</h2><button class="close" onclick="rdClosePlayer()">✕ Cerrar</button></div><div class="modal-body"><div style="border-radius:12px;overflow:hidden;background:#000"><video id="rdVideo" controls playsinline></video></div><div id="addonStreamsPanel" class="panel" style="margin: 14px 0; background: rgba(255,255,255,0.03); border-color: var(--line);">
-  <h4 style="margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--cyan);">Enlaces del Servidor / Addon</h4>
+<div class="modal-wrap" id="rdPlayer"><div class="modal"><div class="modal-top"><h2 id="rdPlayerTitle">Reproductor</h2><button class="close" onclick="rdClosePlayer()">✕ Cerrar</button></div><div class="modal-body">
+<div class="rd-stage" id="rdStage"><video id="rdVideo" controls playsinline></video><div class="rd-loading" id="rdLoading" hidden><span></span></div></div>
+<div class="rd-now" id="rdNow" hidden></div>
+<div class="rd-alert" id="rdAlert" role="alert" hidden><p id="rdAlertMsg"></p></div>
+<div class="rd-actions"><button class="btn primary" id="rdVlc">🔊 Abrir con VLC</button><button class="btn" id="rdCopy">Copiar enlace</button></div>
+<div id="addonStreamsPanel" class="panel rd-panel" hidden>
+  <div class="rd-panel-head"><h4>Fuentes de video</h4><span class="rd-count" id="rdSrcCount"></span></div>
+  <div class="rd-ep" id="addonEpisodePicker" hidden>
+    <label>Temporada<select id="rdSeason" aria-label="Temporada"></select></label>
+    <label>Episodio<select id="rdEpisode" aria-label="Episodio"></select></label>
+    <div class="rd-ep-nav"><button class="btn" id="rdPrevEp" type="button" aria-label="Episodio anterior">‹</button><button class="btn" id="rdNextEp" type="button" aria-label="Episodio siguiente">›</button></div>
+  </div>
   <div id="opcionesStreamContainer" class="verse-relations">
     <p class="muted" style="font-size: 13px; margin: 0;">Instala un addon en Ajustes para sincronizar flujos de video externos.</p>
   </div>
-</div><div class="actions" style="margin-top:12px"><button class="btn primary" id="rdVlc">🔊 ¿Sin sonido? Abrir con VLC</button><button class="btn" id="rdCopy">Copiar enlace (para VLC)</button></div><div class="notice">Algunos formatos de audio no suenan en el reproductor interno: en ese caso usa "Abrir con VLC". También puedes copiar el enlace y pegarlo en VLC → Más → Transmisión de red.</div></div></div></div>
+</div>
+<div class="notice">Si el video no abre o no tiene sonido, prueba otra fuente o usa VLC. También puedes copiar el enlace y pegarlo en VLC → Más → Transmisión de red.</div></div></div></div>
 <div class="modal-wrap" id="rdModal"><div class="modal"><div class="modal-top"><h2>Real<br>Debrid</h2><button class="close" onclick="document.getElementById('rdModal').classList.remove('open')">✕ Cerrar</button></div><div class="modal-body" id="rdBody"></div></div></div>
 <div class="modal-wrap" id="trailerModal"><div class="modal"><div class="modal-top"><h2>Tráiler</h2><button class="close" onclick="closeTrailer()">✕ Cerrar</button></div><div class="modal-body"><div style="position:relative;padding-top:56.25%;background:#000;border-radius:16px;overflow:hidden"><iframe id="trailerFrame" style="position:absolute;inset:0;width:100%;height:100%;border:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;transform:translate3d(0,0,0);-webkit-transform:translate3d(0,0,0)" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div><div class="actions" style="margin-top:14px"><button class="btn" id="trailerExt">Abrir en YouTube</button></div></div></div></div>
 <div class="modal-wrap" id="rouletteModal"><div class="modal" style="width:min(420px,100%)"><div class="modal-top"><h2 id="rouTitle">Ruleta</h2><button class="close" onclick="closeRoulette()">✕ Cerrar</button></div><div class="modal-body" style="text-align:center"><div id="rouCard" style="width:min(230px,66vw);margin:4px auto 10px"></div><p id="rouSub" style="color:var(--muted);min-height:24px;margin:6px 0 12px"></p><div class="actions" style="justify-content:center"><button class="btn primary" id="rouOpen" style="display:none">Ver ficha</button><button class="btn" id="rouAgain" style="display:none">🎲 Otra vez</button><button class="btn" id="rouSnd" onclick="toggleRouSound()">🔊</button></div></div></div></div>
@@ -869,24 +922,60 @@ function rdMakePlyr(){
   rdPlyr.on("exitfullscreen",()=>document.getElementById("rdPlayer").classList.remove("rd-full"))
  }catch(e){rdPlyr=null}
  return rdPlyr}
+let rdTimers=[];
+function rdClearTimers(){rdTimers.forEach(clearTimeout);rdTimers=[]}
+/* Estado visual del reproductor: loading | ready | warn | error */
+function rdUi(state,msg){
+ const L=document.getElementById("rdLoading"),A=document.getElementById("rdAlert"),M=document.getElementById("rdAlertMsg");
+ if(L)L.hidden=state!=="loading";
+ if(A){A.dataset.kind=state;A.hidden=state!=="warn"&&state!=="error";if(M)M.textContent=msg||""}}
+function rdUiKind(){const A=document.getElementById("rdAlert");return A?A.dataset.kind||"":""}
+function rdNativeVlc(){const zp=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.ZinePlayer;return zp&&zp.play?zp:null}
+function rdOpenVlc(url,title){
+ const zp=rdNativeVlc();
+ if(zp){rdClosePlayer();zp.play({url:url,title:title||""}).catch(e=>alert("No se pudo abrir VLC: "+((e&&e.message)||e)));return}
+ toast("Abriendo VLC… si no pasa nada, copia el enlace");
+ window.location.href="vlc://"+url}
+/* El navegador decodifica el video pero no el audio: Chrome/Safari lo reportan con estos contadores */
+function rdAudioMissing(v){
+ if(v.muted||v.volume===0)return false;
+ if(typeof v.webkitAudioDecodedByteCount==="number")return v.webkitAudioDecodedByteCount===0;
+ if(typeof v.mozHasAudio==="boolean")return !v.mozHasAudio;
+ return false}
+function rdScheduleAudioCheck(v){
+ rdClearTimers();
+ [3500,8000].forEach(ms=>rdTimers.push(setTimeout(()=>{
+  if(v.paused||v.ended||!v.getAttribute("src")||v.currentTime<2)return;
+  if(rdAudioMissing(v))rdUi("warn","El video se reproduce, pero este dispositivo no puede decodificar su audio. Prueba otra fuente o ábrelo con VLC.")
+ },ms)))}
 function rdPlay(r,title){
  const url=r.download;
+ rdClearTimers();
  document.getElementById("rdPlayerTitle").textContent=title||"Reproductor";
- const zp=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.ZinePlayer;
+ const v=document.getElementById("rdVideo"),pl=rdMakePlyr();
  const vlcBtn=document.getElementById("rdVlc");
- vlcBtn.style.display=(zp&&zp.play)?"":"none";
- vlcBtn.onclick=()=>{rdClosePlayer();zp.play({url:url,title:title||""}).catch(e=>alert("No se pudo abrir VLC: "+((e&&e.message)||e)))};
- const v=document.getElementById("rdVideo");
- const pl=rdMakePlyr();
- v.onerror=()=>toast("Este formato no se reproduce aquí. Prueba con VLC.");
+ vlcBtn.textContent=rdNativeVlc()?"▶ Abrir con VLC (recomendado)":"🔊 Abrir con VLC";
+ vlcBtn.onclick=()=>rdOpenVlc(url,title);
+ document.getElementById("rdCopy").onclick=()=>{if(navigator.clipboard)navigator.clipboard.writeText(url);toast("Enlace copiado. En VLC: Transmisión de red → pegar")};
+ v.onerror=()=>{
+  if(!v.getAttribute("src"))return;
+  rdClearTimers();
+  const code=v.error&&v.error.code;
+  rdUi("error",code===2?"Se cortó la conexión con el servidor. Revisa tu red o prueba otra fuente.":"Este dispositivo no puede reproducir este formato (video o audio no compatible). Prueba otra fuente o ábrelo con VLC.")};
+ v.onwaiting=()=>{if(rdUiKind()!=="error"&&rdUiKind()!=="warn")rdUi("loading")};
+ v.onplaying=()=>{if(rdUiKind()==="loading")rdUi("ready");rdScheduleAudioCheck(v)};
+ rdUi("loading");
  v.src=url;v.load();
  Promise.resolve(pl?pl.play():v.play()).catch(()=>{});
- document.getElementById("rdCopy").onclick=()=>{if(navigator.clipboard)navigator.clipboard.writeText(url);toast("Enlace copiado. En VLC: Transmisión de red → pegar")};
  document.getElementById("rdPlayer").classList.add("open")}
 function rdClosePlayer(){
- const v=document.getElementById("rdVideo");v.onerror=null;
+ rdClearTimers();
+ const v=document.getElementById("rdVideo");v.onerror=v.onwaiting=v.onplaying=null;
  try{if(rdPlyr)rdPlyr.pause();else v.pause()}catch(e){}
  v.removeAttribute("src");v.load();
+ rdUi("ready");
+ const pn=document.getElementById("addonStreamsPanel");if(pn)pn.hidden=true;
+ const nw=document.getElementById("rdNow");if(nw)nw.hidden=true;
  document.getElementById("rdPlayer").classList.remove("open","rd-full")}
 async function rdPlayFlow(title){
  if(!rdToken()){toast("Primero pega tu token de Real-Debrid");openApiModal("rd");return}
