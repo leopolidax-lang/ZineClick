@@ -62,6 +62,11 @@
     '.zcw-tx b{font-size:18px;line-height:1.15;text-shadow:0 1px 8px rgba(0,0,0,.7)}' +
     '.zcw-tx span{color:#c3cbe0;font-size:13px}' +
     '.zcw-bar{position:absolute;z-index:2;left:14px;bottom:10px;height:3px;border-radius:3px;background:#fff}' +
+    '.zcw-dots{position:absolute;z-index:3;right:8px;bottom:6px;padding:6px 10px;border-radius:10px;color:#fff;font-size:18px;line-height:1;letter-spacing:1px;background:rgba(0,0,0,.35);border:0;cursor:pointer}' +
+    '.zcw-dots:hover{background:rgba(255,255,255,.2)}' +
+    '.zcw-pop{position:fixed;z-index:2000000001;min-width:210px;padding:6px;border-radius:14px;background:#101421;border:1px solid rgba(255,255,255,.14);box-shadow:0 12px 40px rgba(0,0,0,.6)}' +
+    '.zcw-pop button{display:block;width:100%;text-align:left;padding:12px 14px;border:0;border-radius:10px;background:none;color:#f4f7ff;font:600 14px Inter,system-ui,sans-serif;cursor:pointer}' +
+    '.zcw-pop button:hover{background:rgba(255,255,255,.08)}' +
     /* menú de addons */
     '#zamRoot{position:fixed;inset:0;z-index:2000000000;display:flex;flex-direction:column;color:#f4f7ff;background:radial-gradient(ellipse at 85% 18%,rgba(120,30,40,.28),transparent 45%),radial-gradient(ellipse at 10% 0,rgba(40,70,140,.22),transparent 40%),#07090f;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}' +
     '#zamRoot[hidden]{display:none}' +
@@ -201,11 +206,43 @@
     return { key: keyOf(type, t.tmdbId), tmdbId: t.tmdbId, type: type, title: t.title, poster: t.posterPath || "", backdrop: t.backdropPath || "", s: s, e: e, epName: name || "", src: src };
   }
   function playerTitle(t, s, e) { return t.mediaType === "tv" ? t.title + " · T" + s + "E" + e : t.title; }
+  var webMeta = null, webLast = 0, webResume = 0, webBound = false;
+  function bindWeb() {
+    var v = $("rdVideo"); if (!v || webBound) return;
+    webBound = true;
+    v.addEventListener("timeupdate", function () {
+      if (!webMeta || !v.duration || !isFinite(v.duration)) return;
+      var n = Date.now(); if (n - webLast < 5000) return; webLast = n;
+      ZCW.progress(webMeta, v.currentTime * 1000, v.duration * 1000, false);
+    });
+    v.addEventListener("ended", function () {
+      if (webMeta && v.duration && isFinite(v.duration)) { ZCW.progress(webMeta, v.duration * 1000, v.duration * 1000, true); webMeta = null; }
+    });
+    v.addEventListener("loadedmetadata", function () {
+      if (webResume > 30000 && v.duration && webResume < v.duration * 1000 - 60000) { try { v.currentTime = webResume / 1000; } catch (x) {} }
+      webResume = 0;
+    });
+  }
+  function saveWebNow() {
+    var v = $("rdVideo");
+    if (webMeta && v && v.duration && isFinite(v.duration) && v.currentTime > 0) ZCW.progress(webMeta, v.currentTime * 1000, v.duration * 1000, false);
+  }
+  var origClose = typeof W.rdClosePlayer === "function" ? W.rdClosePlayer : null;
+  if (origClose) W.rdClosePlayer = function () {
+    try { saveWebNow(); } catch (x) {}
+    webMeta = null;
+    var r = origClose.apply(this, arguments);
+    try { refreshRow(); decorateDetail(); } catch (x) {}
+    return r;
+  };
+
   function launch(url, t, s, e, meta) {
     W._addonCtx = t.mediaType === "tv" ? { type: "tv", tmdbId: t.tmdbId, title: t.title, season: s, episode: e } : { type: "movie", tmdbId: t.tmdbId, title: t.title };
     var title = playerTitle(t, s, e);
     if (W.ZNP && W.ZNP.available()) { W.ZNP.open(url, title, null, meta); return; }
     closeMenu();
+    bindWeb(); webMeta = meta; webLast = 0;
+    var prev = meta && ZCW.get(meta.key); webResume = prev && prev.s === meta.s && prev.e === meta.e && !prev.done ? (prev.pos || 0) : 0;
     if (typeof W.rdPlay === "function") W.rdPlay({ download: url }, title); else { try { navigator.clipboard.writeText(url); } catch (x) {} alert("Enlace copiado al portapapeles."); }
   }
 
@@ -432,6 +469,25 @@
   }
 
   /* =============== Fila "Seguir viendo" en el inicio =============== */
+  function closePop() { var p = $("zcwPop"); if (p) p.remove(); }
+  function showPop(btn, key) {
+    closePop();
+    var en = ZCW.get(key); if (!en) return;
+    var pop = D.createElement("div"); pop.id = "zcwPop"; pop.className = "zcw-pop";
+    pop.innerHTML = '<button type="button" data-a="d">Detalles</button><button type="button" data-a="r">Quitar de Seguir viendo</button>';
+    D.body.appendChild(pop);
+    var r = btn.getBoundingClientRect();
+    pop.style.right = Math.max(8, W.innerWidth - r.right) + "px";
+    pop.style.bottom = Math.max(8, W.innerHeight - r.top + 6) + "px";
+    pop.onclick = function (ev) {
+      var b = ev.target.closest && ev.target.closest("[data-a]"); if (!b) return;
+      closePop();
+      if (b.getAttribute("data-a") === "d") { if (typeof W.openCredit === "function") W.openCredit(en.type === "tv" ? "tv" : "movie", Number(en.tmdbId)); }
+      else ZCW.remove(key);
+    };
+    setTimeout(function () { D.addEventListener("click", closePop, { once: true }); }, 0);
+  }
+
   function refreshRow() {
     var home = $("homePage"); if (!home) return;
     var list = ZCW.list(), sec = $("zcwSection");
@@ -442,6 +498,7 @@
       if (anchor) home.insertBefore(sec, anchor); else home.appendChild(sec);
       var tm = 0, fired = false;
       sec.addEventListener("pointerdown", function (ev) {
+        if (ev.target.closest && ev.target.closest("[data-more]")) return;
         var c = ev.target.closest && ev.target.closest("[data-k]"); if (!c) return;
         fired = false; clearTimeout(tm);
         tm = setTimeout(function () {
@@ -452,6 +509,8 @@
       ["pointerup", "pointerleave", "pointercancel", "pointermove"].forEach(function (n) { sec.addEventListener(n, function () { clearTimeout(tm); }); });
       sec.addEventListener("contextmenu", function (ev) { ev.preventDefault(); });
       sec.addEventListener("click", function (ev) {
+        var more = ev.target.closest && ev.target.closest("[data-more]");
+        if (more) { ev.stopPropagation(); showPop(more, more.closest("[data-k]").getAttribute("data-k")); return; }
         var c = ev.target.closest && ev.target.closest("[data-k]"); if (!c || fired) { fired = false; return; }
         var en = ZCW.get(c.getAttribute("data-k"));
         if (!en) return;
@@ -466,7 +525,8 @@
       return '<div class="zcw-card" data-k="' + E(en.key) + '">' + (img ? '<img loading="lazy" alt="" src="' + img + '">' : "") +
         (pct ? '<span class="zcw-pct">' + pct + "% visto</span>" : "") +
         '<div class="zcw-tx">' + (en.type === "tv" ? "<small>T" + en.s + " E" + en.e + "</small>" : "") + "<b>" + E(en.title) + "</b>" + (en.type === "tv" && en.epName ? "<span>" + E(en.epName) + "</span>" : "") + "</div>" +
-        (pct ? '<i class="zcw-bar" style="width:' + Math.max(12, Math.round(pct * 0.6)) + 'px"></i>' : "") + "</div>";
+        (pct ? '<i class="zcw-bar" style="width:' + Math.max(12, Math.round(pct * 0.6)) + 'px"></i>' : "") +
+        '<button type="button" class="zcw-dots" data-more aria-label="Más opciones">•••</button></div>';
     }).join("") + "</div>";
   }
 
