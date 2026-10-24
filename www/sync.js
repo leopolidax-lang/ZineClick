@@ -540,110 +540,206 @@
 
 
 /* ==========================================================================
-   Addons externos (Nuvio/Stremio)
+   Addons externos (Nuvio/Stremio) — admite varios
    ========================================================================== */
-
-// Guardar y borrar el enlace del Addon en el almacenamiento local
-document.addEventListener('DOMContentLoaded', () => {
-  const addonInput = document.getElementById('nuvioAddonInput');
-  const saveBtn = document.getElementById('saveAddonBtn');
-  const deleteBtn = document.getElementById('deleteAddonBtn');
-
-  if (addonInput && saveBtn && deleteBtn) {
-    if (localStorage.getItem('zynora_external_addon')) {
-      addonInput.value = localStorage.getItem('zynora_external_addon');
-    }
-
-    saveBtn.addEventListener('click', () => {
-      const url = addonInput.value.trim();
-      if (url) {
-        localStorage.setItem('zynora_external_addon', url);
-        alert('¡Proveedor externo guardado y vinculado!');
-      }
-    });
-
-    deleteBtn.addEventListener('click', () => {
-      addonInput.value = '';
-      localStorage.removeItem('zynora_external_addon');
-      alert('Proveedor desvinculado.');
-    });
-  }
-});
+var ADDON_KEY = 'zynora_external_addons';
 
 function _addonEsc(s) {
-  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+}
+function _addonHost(u) { try { return new URL(u).hostname; } catch (e) { return u; } }
+function _addonBase(u) {
+  return String(u || '').trim().replace(/^stremio:\/\//i, 'https://').replace(/\/manifest\.json.*$/i, '').replace(/\/+$/, '');
+}
+function addonLoad() {
+  try {
+    var raw = localStorage.getItem(ADDON_KEY);
+    if (raw === null) { // migra el addon único de la versión anterior
+      var list = [], old = localStorage.getItem('zynora_external_addon');
+      if (old) list = [{ url: _addonBase(old), name: _addonHost(old) }];
+      localStorage.setItem(ADDON_KEY, JSON.stringify(list));
+      localStorage.removeItem('zynora_external_addon');
+      return list;
+    }
+    var a = JSON.parse(raw);
+    return Array.isArray(a) ? a.filter(function (x) { return x && x.url; }) : [];
+  } catch (e) { return []; }
+}
+function addonSave(list) { try { localStorage.setItem(ADDON_KEY, JSON.stringify(list)); } catch (e) {} }
+function addonCount() { return addonLoad().length; }
+
+function _addonFetch(url, ms) {
+  var ctrl = new AbortController();
+  var timer = setTimeout(function () { ctrl.abort(); }, ms || 15000);
+  return fetch(url, { signal: ctrl.signal }).then(function (r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }).finally(function () { clearTimeout(timer); });
+}
+
+function addonRenderList() {
+  var box = document.getElementById('addonList');
+  if (!box) return;
+  var list = addonLoad();
+  if (!list.length) {
+    box.innerHTML = '<p class="muted" style="font-size:13px;margin:0 0 12px;">Aún no hay addons instalados.</p>';
+    return;
+  }
+  box.innerHTML = list.map(function (a, i) {
+    return '<div style="display:flex;align-items:center;gap:10px;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);">' +
+      '<div style="min-width:0;"><b style="display:block;font-size:14px;">' + _addonEsc(a.name || _addonHost(a.url)) + '</b>' +
+      '<small class="muted" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _addonEsc(a.url) + '</small></div>' +
+      '<button class="btn small" data-addon-del="' + i + '" style="background:rgba(255,0,0,0.1);border-color:rgba(255,0,0,0.2);color:#ff6b6b;flex:none;">Eliminar</button></div>';
+  }).join('');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  var input = document.getElementById('nuvioAddonInput');
+  var addBtn = document.getElementById('saveAddonBtn');
+  var listBox = document.getElementById('addonList');
+  if (!input || !addBtn || !listBox) return;
+  addonRenderList();
+
+  addBtn.addEventListener('click', async function () {
+    var base = _addonBase(input.value);
+    if (!/^https?:\/\//i.test(base)) { alert('Pega el enlace completo del addon (empieza con https://).'); return; }
+    var list = addonLoad();
+    if (list.some(function (a) { return a.url === base; })) { alert('Ese addon ya está instalado.'); return; }
+    var name = _addonHost(base);
+    addBtn.disabled = true; var label = addBtn.textContent; addBtn.textContent = 'Verificando…';
+    try {
+      var m = await _addonFetch(base + '/manifest.json', 8000);
+      if (m && m.name) name = m.name;
+      var res = (m && m.resources) || [];
+      var hasStream = !res.length || res.some(function (r) { return r === 'stream' || (r && r.name === 'stream'); });
+      if (!hasStream) { alert('Este addon no ofrece enlaces de video (stream).'); return; }
+    } catch (e) {
+      if (!confirm('No se pudo verificar el addon (puede ser un bloqueo del navegador o un enlace incorrecto). ¿Agregarlo de todos modos?')) return;
+    } finally {
+      addBtn.disabled = false; addBtn.textContent = label;
+    }
+    list.push({ url: base, name: name });
+    addonSave(list);
+    input.value = '';
+    addonRenderList();
+  });
+
+  listBox.addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('[data-addon-del]');
+    if (!b) return;
+    var list = addonLoad();
+    var a = list[Number(b.getAttribute('data-addon-del'))];
+    if (!a || !confirm('¿Eliminar «' + (a.name || a.url) + '»?')) return;
+    list.splice(Number(b.getAttribute('data-addon-del')), 1);
+    addonSave(list);
+    addonRenderList();
+  });
+});
+
+/* Avisa de códecs que los navegadores suelen no reproducir (de ahí "video sin audio"). */
+function _addonCodecWarn(stream) {
+  var txt = [stream.name, stream.title, stream.description, stream.behaviorHints && stream.behaviorHints.filename].join(' ');
+  if ((stream.behaviorHints && stream.behaviorHints.notWebReady) || /\b(DTS|E-?AC-?3|AC-?3|DD\+?|TrueHD|Atmos|HEVC|x265|H\.?265|MKV)\b/i.test(txt)) {
+    return '<small style="color:#ffb86b;display:block;">⚠ Puede no sonar o no abrir en el navegador; si pasa, usa VLC</small>';
+  }
+  return '';
+}
+
+function _addonRenderStreams(container, addon, streams, currentTitle, showHeader) {
+  var wrap = document.createElement('div');
+  if (showHeader) {
+    var h = document.createElement('div');
+    h.style.cssText = 'font-size:11px;letter-spacing:1px;text-transform:uppercase;opacity:.7;margin:10px 0 6px;';
+    h.textContent = addon.name || _addonHost(addon.url);
+    wrap.appendChild(h);
+  }
+  if (!streams.length) {
+    var p = document.createElement('p');
+    p.className = 'muted'; p.style.cssText = 'font-size:13px;margin:0 0 8px;';
+    p.textContent = 'Sin transmisiones para este título.';
+    wrap.appendChild(p);
+  }
+  streams.forEach(function (stream) {
+    var itemBtn = document.createElement('button');
+    itemBtn.className = 'verse-relation';
+    itemBtn.style.width = '100%';
+    itemBtn.style.cursor = 'pointer';
+    itemBtn.style.marginBottom = '8px';
+    itemBtn.innerHTML =
+      '<span class="rel-arrow">▶</span><div>' +
+      '<b>' + _addonEsc(stream.title || stream.name || 'Servidor Multimedia') + '</b>' +
+      '<small>' + _addonEsc(stream.description || 'Transmisión directa') + '</small>' +
+      _addonCodecWarn(stream) + '</div>';
+
+    itemBtn.addEventListener('click', async function () {
+      var playbackUrl = stream.url;
+      var magnet = stream.magnet || (playbackUrl && playbackUrl.indexOf('magnet:') === 0 ? playbackUrl : '') ||
+        (stream.infoHash ? 'magnet:?xt=urn:btih:' + stream.infoHash : '');
+      if (magnet) {
+        var uiBackup = itemBtn.innerHTML;
+        itemBtn.innerHTML = '<span class="rel-arrow" style="color: var(--pink);">✦</span><div><b>Desrestringiendo con Real-Debrid...</b><small>Generando puente de alta velocidad</small></div>';
+        try {
+          var r = await rdResolve(magnet); // definido en index.html
+          playbackUrl = r && r.download;
+        } catch (e) {
+          alert(e.message || 'No se pudo resolver con Real-Debrid.');
+          playbackUrl = null;
+        }
+        itemBtn.innerHTML = uiBackup;
+      }
+      if (playbackUrl) ejecutarReproductorZynora(playbackUrl, currentTitle);
+    });
+    wrap.appendChild(itemBtn);
+  });
+  container.appendChild(wrap);
 }
 
 async function consultarFuentesAddon(type, id, currentTitle) {
-  const container = document.getElementById('opcionesStreamContainer');
-  const addonBase = localStorage.getItem('zynora_external_addon');
+  var container = document.getElementById('opcionesStreamContainer');
   if (!container) return;
-  if (!addonBase) {
-    container.innerHTML = '<p class="muted" style="font-size: 13px; margin: 0;">Configura la URL de un proveedor en Ajustes para sincronizar flujos de video externos.</p>';
+  var addons = addonLoad();
+  if (!addons.length) {
+    container.innerHTML = '<p class="muted" style="font-size: 13px; margin: 0;">Instala un addon en Ajustes para sincronizar flujos de video externos.</p>';
     return;
   }
   container.innerHTML = '<p class="muted" style="font-size: 13px; margin: 0; color: var(--cyan);">Rastreando flujos de red disponibles...</p>';
-  const cleanUrl = addonBase.replace('/manifest.json', '');
-  const contentType = (type === 'tv' || type === 'series') ? 'series' : 'movie';
-  const queryEndpoint = `${cleanUrl}/stream/${contentType}/${id}.json`;
+  var contentType = (type === 'tv' || type === 'series') ? 'series' : 'movie';
 
-  try {
-    const response = await fetch(queryEndpoint);
-    const data = await response.json();
-    const streams = data.streams || [];
-    if (streams.length === 0) {
-      container.innerHTML = '<p class="muted" style="font-size: 13px; margin: 0;">No se encontraron transmisiones para este identificador.</p>';
+  var results = await Promise.all(addons.map(function (a) {
+    return _addonFetch(a.url + '/stream/' + contentType + '/' + encodeURIComponent(id).replace(/%3A/g, ':') + '.json', 15000)
+      .then(function (d) { return { addon: a, streams: (d && d.streams) || [] }; })
+      .catch(function (e) { console.error(a.url, e); return { addon: a, error: true }; });
+  }));
+
+  container.innerHTML = '';
+  var showHeader = addons.length > 1;
+  var total = 0;
+  results.forEach(function (r) {
+    if (r.error) {
+      var p = document.createElement('p');
+      p.className = 'muted'; p.style.cssText = 'font-size:13px;margin:8px 0;color:#ff6b6b;';
+      p.textContent = 'No se pudo conectar con «' + (r.addon.name || _addonHost(r.addon.url)) + '».';
+      container.appendChild(p);
       return;
     }
-    container.innerHTML = '';
-
-    streams.forEach(stream => {
-      const itemBtn = document.createElement('button');
-      itemBtn.className = 'verse-relation';
-      itemBtn.style.width = '100%';
-      itemBtn.style.cursor = 'pointer';
-      itemBtn.style.marginBottom = '8px';
-      itemBtn.innerHTML = `
-        <span class="rel-arrow">▶</span>
-        <div>
-          <b>${_addonEsc(stream.title || stream.name || 'Servidor Multimedia')}</b>
-          <small>${_addonEsc(stream.description || 'Transmisión directa')}</small>
-        </div>
-      `;
-
-      itemBtn.addEventListener('click', async () => {
-        let playbackUrl = stream.url;
-        const magnet = stream.magnet || (playbackUrl && playbackUrl.startsWith('magnet:') ? playbackUrl : '') ||
-          (stream.infoHash ? 'magnet:?xt=urn:btih:' + stream.infoHash : '');
-        if (magnet) {
-          const uiBackup = itemBtn.innerHTML;
-          itemBtn.innerHTML = '<span class="rel-arrow" style="color: var(--pink);">✦</span><div><b>Desrestringiendo con Real-Debrid...</b><small>Generando puente de alta velocidad</small></div>';
-          try {
-            // rdResolve (index.html) maneja magnets y enlaces con Real-Debrid
-            const r = await rdResolve(magnet);
-            playbackUrl = r && r.download;
-          } catch (e) {
-            alert(e.message || 'No se pudo resolver con Real-Debrid.');
-            playbackUrl = null;
-          }
-          itemBtn.innerHTML = uiBackup;
-        }
-        if (playbackUrl) {
-          ejecutarReproductorZynora(playbackUrl, currentTitle);
-        }
-      });
-      container.appendChild(itemBtn);
-    });
-  } catch (error) {
-    console.error(error);
-    container.innerHTML = '<p class="muted" style="font-size: 13px; margin: 0; color: #ff6b6b;">Error al conectar con la API del proveedor externo.</p>';
+    total += r.streams.length;
+    if (r.streams.length || showHeader) _addonRenderStreams(container, r.addon, r.streams, currentTitle, showHeader);
+  });
+  if (!total && !container.children.length) {
+    container.innerHTML = '<p class="muted" style="font-size: 13px; margin: 0;">No se encontraron transmisiones para este identificador.</p>';
   }
 }
 
 function ejecutarReproductorZynora(videoUrl, title) {
   if (typeof rdPlay === 'function') {
-    // Reproductor real de la app (Plyr + botón VLC + copiar enlace)
     rdPlay({ download: videoUrl }, title);
+    // En navegador (sin la app) el botón de VLC está oculto: se ofrece vía vlc://
+    var vlcBtn = document.getElementById('rdVlc');
+    var inApp = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.ZinePlayer && Capacitor.Plugins.ZinePlayer.play;
+    if (vlcBtn && !inApp) {
+      vlcBtn.style.display = '';
+      vlcBtn.onclick = function () { window.location.href = 'vlc://' + videoUrl; };
+    }
   } else {
     navigator.clipboard.writeText(videoUrl);
     alert('Enlace copiado al portapapeles.');
@@ -653,15 +749,26 @@ function ejecutarReproductorZynora(videoUrl, title) {
 /* Abre el panel de enlaces del addon desde la ficha de un título.
    Los addons Stremio/Nuvio piden ID de IMDb (tt...), no el de TMDB, así que se convierte primero. */
 async function addonOpen(tmdbId, mediaType, title) {
+  if (!addonCount()) { // sin addons: lleva a Ajustes para instalar uno
+    if (typeof closeModal === 'function') closeModal();
+    if (typeof openSettings === 'function') openSettings();
+    setTimeout(function () {
+      var c = document.getElementById('addonCard');
+      if (c && c.scrollIntoView) c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      var i = document.getElementById('nuvioAddonInput');
+      if (i) i.focus();
+    }, 150);
+    return;
+  }
   title = decodeURIComponent(title || '');
-  const type = mediaType === 'tv' ? 'tv' : 'movie';
+  var type = mediaType === 'tv' ? 'tv' : 'movie';
   try {
-    if (typeof toast === 'function') toast('Buscando enlaces en el addon…');
-    const ext = await tmdb(`/${type}/${tmdbId}/external_ids`);
-    const imdb = ext && ext.imdb_id;
+    if (typeof toast === 'function') toast('Buscando enlaces en los addons…');
+    var ext = await tmdb('/' + type + '/' + tmdbId + '/external_ids');
+    var imdb = ext && ext.imdb_id;
     if (!/^tt\d{6,10}$/.test(imdb || '')) throw new Error('No se encontró el ID de IMDb de este título.');
     // Series: de momento temporada 1, episodio 1 (formato Stremio tt1234567:1:1)
-    const streamId = type === 'tv' ? `${imdb}:1:1` : imdb;
+    var streamId = type === 'tv' ? imdb + ':1:1' : imdb;
     document.getElementById('rdPlayerTitle').textContent = title || 'Reproductor';
     document.getElementById('rdPlayer').classList.add('open');
     consultarFuentesAddon(type, streamId, title);
