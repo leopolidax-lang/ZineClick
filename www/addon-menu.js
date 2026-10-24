@@ -28,9 +28,40 @@
       var a = ewAll(), k = String(id), m = a[k] || (a[k] = {});
       if (on) m[s + ":" + e] = 1; else delete m[s + ":" + e];
       try { localStorage.setItem(EW_KEY, JSON.stringify(a)); } catch (x) {}
+    },
+    setMany: function (id, pairs) {
+      var a = ewAll(), k = String(id), m = a[k] || (a[k] = {});
+      pairs.forEach(function (p) { m[p[0] + ":" + p[1]] = 1; });
+      try { localStorage.setItem(EW_KEY, JSON.stringify(a)); } catch (x) {}
     }
   };
   W.ZEW = EW;
+
+  /* Al ver el episodio N, todos los anteriores (de esa y de temporadas previas) cuentan como vistos */
+  var prevDone = {};
+  function markBefore(id, s, e) {
+    s = Number(s); e = Number(e);
+    if (!(s >= 1) || !(e >= 1)) return Promise.resolve();
+    return Promise.resolve().then(function () { return seasonsOf(id); }).then(function (seasons) {
+      var list = [];
+      seasons.forEach(function (x) {
+        if (x.n < 1 || x.n > s) return;
+        var last = x.n < s ? x.count : e - 1;
+        for (var i = 1; i <= last; i++) list.push([x.n, i]);
+      });
+      if (list.length) EW.setMany(id, list);
+    });
+  }
+  function watchedHook(meta) {
+    var k = meta.tmdbId + ":" + meta.s + ":" + meta.e;
+    if (prevDone[k]) return;
+    prevDone[k] = 1;
+    markBefore(meta.tmdbId, meta.s, meta.e).then(function () { try { repaintSeen(); } catch (x) {} }).catch(function () { delete prevDone[k]; });
+  }
+  function repaintSeen() {
+    var b = $("modalBody"), p = b && b.querySelector('.tab-panel[data-panel="eps"]');
+    if (p) refreshSeen(p);
+  }
 
   var ZCW = {
     get: function (k) { return cwAll()[k] || null; },
@@ -45,6 +76,7 @@
       var m = cwAll(), old = m[meta.key];
       var finished = !!ended || (len > 0 && time > len - 45000);
       if (meta.type === "tv" && (finished || (len > 0 && time / len >= 0.9))) EW.set(meta.tmdbId, meta.s, meta.e, true);
+      if (meta.type === "tv" && (finished || time >= 60000)) watchedHook(meta);
       if (!old && time < 20000) return;
       var base = Object.assign({}, old || {}, {
         key: meta.key, tmdbId: meta.tmdbId, type: meta.type, title: meta.title, poster: meta.poster, backdrop: meta.backdrop,
@@ -470,7 +502,7 @@
     var en = ZCW.get(keyOf("tv", t.tmdbId)), want = en ? Number(en.s) : -1;
     var first = (seasons.filter(function (x) { return x.n >= 1; })[0] || seasons[0]).n;
     panel._zep = { t: t, seasons: seasons, view: seasons.some(function (x) { return x.n === want; }) ? want : first };
-    panel.innerHTML = '<div class="zep-sea"></div><div class="zep-list"></div><p class="zep-hint">Mantén pulsado un episodio para marcarlo o quitarlo de vistos.</p>';
+    panel.innerHTML = '<div class="zep-sea"></div><div class="zep-list"></div><p class="zep-hint">Mantén pulsado un episodio para marcarlo como visto (y los anteriores) o quitarlo.</p>';
     var z = panel._zep, tm = 0, fired = false;
     panel.querySelector(".zep-sea").addEventListener("click", async function (ev) {
       var b = ev.target.closest && ev.target.closest("[data-s]"); if (!b) return;
@@ -485,7 +517,8 @@
         var n = Number(b.getAttribute("data-e")), on = !isSeen(t.tmdbId, z.view, n);
         EW.set(t.tmdbId, z.view, n, on);
         var th = b.querySelector(".zep-th"); if (th) th.classList.toggle("seen", on);
-        say(on ? "Marcado como visto" : "Quitado de vistos");
+        if (on) markBefore(t.tmdbId, z.view, n).then(function () { refreshSeen(panel); }).catch(noop);
+        say(on ? "Marcado como visto (y los anteriores)" : "Quitado de vistos");
       }, 550);
     });
     ["pointerup", "pointerleave", "pointercancel", "pointermove"].forEach(function (n) { list.addEventListener(n, function () { clearTimeout(tm); }); });
@@ -636,5 +669,28 @@
     refreshRow();
   }
   if (D.readyState === "loading") D.addEventListener("DOMContentLoaded", start); else start();
-  W.ZAM = { open: openMenu, playFlow: playFlow };
+  /* ---- fuentes alternativas desde el reproductor ---- */
+  function sameSnap(a, b) {
+    return !!(a && b && a.addon === b.addon && a.name === b.name && a.title === b.title && (a.infoHash || "") === (b.infoHash || ""));
+  }
+  async function srcList(m) {
+    var type = m.type === "tv" ? "tv" : "movie", imdb = await imdbOf(type, m.tmdbId), res = await fetchStreams(imdb, type, m.s, m.e), out = [];
+    res.forEach(function (r) {
+      r.streams.forEach(function (st) {
+        var i = info(st), sn = snapOf(r.addon, st);
+        out.push({
+          label: (i.res || "?") + (i.size ? " · " + i.size : ""),
+          sub: [r.addon.name || W._addonHost(r.addon.url)].concat(i.tags.slice(0, 3), i.lang).join(" · "),
+          on: sameSnap(sn, m.src), snap: sn
+        });
+      });
+    });
+    return out;
+  }
+  async function srcResolve(m, snap) {
+    var type = m.type === "tv" ? "tv" : "movie", url = await resolveUrl(snap), nm = type === "tv" ? await epName(m.tmdbId, m.s, m.e) : "";
+    var t = { tmdbId: m.tmdbId, mediaType: type, title: m.title, posterPath: m.poster, backdropPath: m.backdrop };
+    return { url: url, meta: metaFor(t, m.s, m.e, nm, snap) };
+  }
+  W.ZAM = { open: openMenu, playFlow: playFlow, sources: srcList, resolve: srcResolve };
 })();
