@@ -50,6 +50,11 @@
     '.znp-trk{position:absolute;left:0;right:0;height:4px;border-radius:4px;background:rgba(255,255,255,.25)}' +
     '.znp-fill{position:absolute;left:0;height:4px;border-radius:4px;width:0;background:linear-gradient(90deg,var(--cyan,#64f4ff),var(--purple,#a78bfa))}' +
     '.znp-knob{position:absolute;left:0;width:16px;height:16px;margin-left:-8px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(100,244,255,.25)}' +
+    '.znp-pv{position:absolute;bottom:38px;left:0;width:184px;transform:translateX(-50%);display:none;flex-direction:column;align-items:center;gap:5px;pointer-events:none}' +
+    '.znp-pv.on{display:flex}' +
+    '.znp-pv img{display:none;width:184px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;border:2px solid #fff;background:#0b0e18}' +
+    '.znp-pv img.ok{display:block}' +
+    '.znp-pv span{padding:3px 10px;border-radius:8px;background:rgba(0,0,0,.72);font-size:13px}' +
     '.znp-row{display:flex;justify-content:space-between;color:#d6dcef;font-size:13px;margin-top:-2px}' +
     '.znp-acts{display:flex;gap:8px;margin-top:8px;overflow-x:auto;scrollbar-width:none}' +
     '.znp-acts::-webkit-scrollbar{display:none}' +
@@ -77,7 +82,9 @@
   var isOpen = false, dragging = false, dragT = 0, sheetOpen = false;
   var hideT = 0, msgT = 0, flashT = 0, tapT = 0, lastTap = 0, lastSide = 0;
   var curTitle = "", fallback = null, backH = null, listening = false, resumed = false, lastSave = 0;
-  var rate = 1, aspect = "fit";
+  var origPlay = typeof W.rdPlay === "function" ? W.rdPlay : null;
+  var rate = 1, aspect = "fit", meta = null;
+  var thumbC = {}, thumbBusy = false, thumbOk = true, thumbFail = 0, thumbWant = -1;
 
   function fmt(ms) {
     var s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
@@ -94,11 +101,41 @@
     var now = Date.now();
     if (!force && now - lastSave < 5000) return;
     lastSave = now;
+    try { if (meta && W.ZCW) W.ZCW.progress(meta, st.time, st.length, false); } catch (e) {}
     var m = posMap();
     if (st.time > 30000 && st.time < st.length - 45000) m[curTitle] = st.time; else delete m[curTitle];
     var keys = Object.keys(m);
     if (keys.length > 80) delete m[keys[0]];
     try { localStorage.setItem("znp_pos", JSON.stringify(m)); } catch (e) {}
+  }
+
+  /* ---------- vista previa de la escena al deslizar la barra ---------- */
+  function bucket(ms) { return Math.max(0, Math.round(ms / 5000) * 5000); }
+  function showThumb() {
+    if (!dragging || !ui.pvI) return;
+    var d = thumbC[bucket(dragT)];
+    if (d) { ui.pvI.src = d; ui.pvI.classList.add("ok"); }
+  }
+  function runThumb() {
+    var b = thumbWant;
+    if (thumbBusy || !thumbOk || b < 0 || thumbC[b]) return;
+    thumbBusy = true;
+    call("getThumb", { ms: b }).then(function (r) {
+      if (r && r.data) { thumbC[b] = r.data; thumbFail = 0; } else thumbFail++;
+    }).catch(function () { thumbFail++; }).then(function () {
+      thumbBusy = false;
+      if (thumbFail >= 3) thumbOk = false;
+      showThumb();
+      if (dragging && !thumbC[bucket(dragT)]) { thumbWant = bucket(dragT); runThumb(); }
+    });
+  }
+  function movePv(clientX) {
+    var r = ui.bar.getBoundingClientRect(), half = 92;
+    ui.pv.style.left = Math.max(half, Math.min(r.width - half, clientX - r.left)) + "px";
+    ui.pvT.textContent = fmt(dragT);
+    ui.pv.classList.add("on");
+    var b = bucket(dragT);
+    if (thumbC[b]) showThumb(); else { ui.pvI.classList.remove("ok"); thumbWant = b; runThumb(); }
   }
 
   /* ---------- construcción de la interfaz ---------- */
@@ -116,14 +153,14 @@
         '<div class="znp-mid"><button class="znp-skip" id="znpRew" aria-label="Retroceder 10 segundos">' + ICON.skip + '</button>' +
           '<button class="znp-big" id="znpPlay" aria-label="Reproducir o pausar"></button>' +
           '<button class="znp-skip f" id="znpFwd" aria-label="Adelantar 10 segundos">' + ICON.skip + '</button></div>' +
-        '<div class="znp-bot"><div class="znp-bar" id="znpBar"><div class="znp-trk"></div><div class="znp-fill" id="znpFill"></div><div class="znp-knob" id="znpKnob"></div></div>' +
+        '<div class="znp-bot"><div class="znp-bar" id="znpBar"><div class="znp-pv" id="znpPv"><img id="znpPvI" alt=""><span id="znpPvT"></span></div><div class="znp-trk"></div><div class="znp-fill" id="znpFill"></div><div class="znp-knob" id="znpKnob"></div></div>' +
           '<div class="znp-row"><span id="znpCur">0:00</span><span id="znpDur"></span></div>' +
           '<div class="znp-acts"><button data-p="audio">Audio</button><button data-p="subs">Subtítulos</button><button data-p="speed" id="znpSpeed">Velocidad 1x</button><button data-p="aspect">Pantalla</button>' +
           '<button class="znp-nx" id="znpNext" hidden>Siguiente ▶</button></div></div>' +
       '</div>' +
       '<div class="znp-sheet" id="znpSheet" hidden><div class="znp-sh-t" id="znpShT"></div><div class="znp-sh-l" id="znpShL"></div></div>';
     D.body.appendChild(root);
-    ["Tap", "Ui", "Back", "Title", "Sub", "Rew", "Play", "Fwd", "Bar", "Fill", "Knob", "Cur", "Dur", "Speed", "Next", "Sheet", "ShT", "ShL", "Fl", "Fr", "Msg"]
+    ["Tap", "Ui", "Back", "Title", "Sub", "Rew", "Play", "Fwd", "Bar", "Fill", "Knob", "Cur", "Dur", "Pv", "PvI", "PvT", "Speed", "Next", "Sheet", "ShT", "ShL", "Fl", "Fr", "Msg"]
       .forEach(function (k) { ui[k.charAt(0).toLowerCase() + k.slice(1)] = $("znp" + k); });
 
     ui.back.onclick = function () { close(true); };
@@ -153,12 +190,12 @@
     ui.bar.addEventListener("pointerdown", function (e) {
       if (st.length <= 0) return;
       dragging = true; dragT = frac(e) * st.length; try { ui.bar.setPointerCapture(e.pointerId); } catch (x) {}
-      clearTimeout(hideT); paint();
+      clearTimeout(hideT); paint(); movePv(e.clientX);
     });
-    ui.bar.addEventListener("pointermove", function (e) { if (dragging) { dragT = frac(e) * st.length; paint(); } });
+    ui.bar.addEventListener("pointermove", function (e) { if (dragging) { dragT = frac(e) * st.length; paint(); movePv(e.clientX); } });
     function endDrag() {
       if (!dragging) return;
-      dragging = false; st.time = dragT; call("seekTo", { ms: Math.round(dragT) }).catch(noop); paint(); showUi();
+      dragging = false; ui.pv.classList.remove("on"); st.time = dragT; call("seekTo", { ms: Math.round(dragT) }).catch(noop); paint(); showUi();
     }
     ui.bar.addEventListener("pointerup", endDrag);
     ui.bar.addEventListener("pointercancel", endDrag);
@@ -267,7 +304,7 @@
     });
     p.addListener("znpEnded", function () {
       if (!isOpen) return;
-      var tv = isTv(); st.time = st.length; savePos(true); close(true);
+      var tv = isTv(); st.time = st.length; try { if (meta && W.ZCW) W.ZCW.progress(meta, st.length, st.length, true); } catch (e) {} meta = null; close(true);
       if (tv && typeof W.addonStep === "function") W.addonStep(1);
     });
     p.addListener("znpError", function () {
@@ -278,10 +315,11 @@
   }
 
   /* ---------- abrir y cerrar ---------- */
-  function open(url, title, fb) {
+  function open(url, title, fb, mt) {
     var p = plug(); if (!p) return false;
     build(); listen(p);
-    curTitle = title || ""; fallback = fb || null; resumed = false; rate = 1; aspect = "fit"; lastSave = 0;
+    meta = mt || null; thumbC = {}; thumbBusy = false; thumbOk = true; thumbFail = 0; thumbWant = -1;
+    curTitle = title || ""; fallback = fb || (origPlay ? function () { origPlay({ download: url }, title); } : null); resumed = false; rate = 1; aspect = "fit"; lastSave = 0;
     st = { time: 0, length: 0, playing: false, buffering: true };
     ui.title.textContent = curTitle || "Reproduciendo";
     var c = W._addonCtx;
@@ -306,11 +344,11 @@
     detachBack();
     root.hidden = true;
     D.documentElement.classList.remove("znp-on");
+    try { D.dispatchEvent(new Event("znp:closed")); } catch (e) {}
     if (stopNative !== false) { var p = plug(); if (p && p.stop) p.stop().catch(noop); }
   }
 
   /* ---------- enganche con la app ---------- */
-  var origPlay = typeof W.rdPlay === "function" ? W.rdPlay : null;
   var origVlc = typeof W.rdOpenVlc === "function" ? W.rdOpenVlc : null;
   W.rdPlay = function (r, title) {
     if (r && r.download && open(r.download, title, origPlay ? function () { origPlay(r, title); } : null)) return;
@@ -321,5 +359,5 @@
     if (open(url, title, null)) return;
     if (origVlc) return origVlc.apply(this, arguments);
   };
-  W.ZNP = { open: open, close: close };
+  W.ZNP = { open: open, close: close, available: function () { return !!plug(); } };
 })();
