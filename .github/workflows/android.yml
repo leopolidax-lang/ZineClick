@@ -77,7 +77,7 @@ jobs:
           import os
           p = 'www/index.html'
           t = open(p, encoding='utf-8').read()
-          for f in ('addon-menu.js', 'native-player.js', 'plugins.js'):
+          for f in ('addon-menu.js', 'native-player.js', 'plugins.js', 'tv.js'):
               tag = '<script src="%s"></script>' % f
               if not os.path.exists('www/' + f):
                   print('::warning::Falta www/' + f + ' (súbelo a la carpeta www del repositorio)')
@@ -86,7 +86,7 @@ jobs:
                   t = t[:i] + tag + '\n' + t[i:]
           open(p, 'w', encoding='utf-8').write(t)
           PY
-          grep -c "addon-menu.js\|native-player.js\|plugins.js" www/index.html
+          grep -c "addon-menu.js\|native-player.js\|plugins.js\|tv.js" www/index.html
 
       - name: Sincronizar con Android
         run: npx cap sync android
@@ -117,6 +117,45 @@ jobs:
           sed -i 's|<string name="app_name">[^<]*</string>|<string name="app_name">Zynora</string>|' "$F"
           sed -i 's|<string name="title_activity_main">[^<]*</string>|<string name="title_activity_main">Zynora</string>|' "$F"
           grep -n "app_name\|title_activity_main" "$F"
+
+      - name: Android TV (aparece en el menú de la tele, con banner)
+        continue-on-error: true
+        run: |
+          python3 -m venv /tmp/venvtv
+          /tmp/venvtv/bin/pip install pillow
+          /tmp/venvtv/bin/python - <<'PY'
+          from PIL import Image
+          import os
+          res = 'android/app/src/main/res/drawable'
+          os.makedirs(res, exist_ok=True)
+          if os.path.exists('icon.png'):
+              ic = Image.open('icon.png').convert('RGBA').resize((300, 300), Image.LANCZOS)
+              bn = Image.new('RGBA', (640, 360), (0, 0, 0, 255))
+              bn.paste(ic, (170, 30), ic)
+              bn.convert('RGB').save(res + '/tv_banner.png')
+              print('Banner de TV creado')
+          PY
+          python3 - <<'PY'
+          import os
+          m = 'android/app/src/main/AndroidManifest.xml'
+          t = open(m, encoding='utf-8').read()
+          if 'android.software.leanback' not in t:
+              k = t.find('<application')
+              assert k > 0, 'No se encontró <application>'
+              feat = ('<uses-feature android:name="android.software.leanback" android:required="false" />\n    '
+                      '<uses-feature android:name="android.hardware.touchscreen" android:required="false" />\n    ')
+              t = t[:k] + feat + t[k:]
+          if 'LEANBACK_LAUNCHER' not in t:
+              i = t.find('android.intent.category.LAUNCHER')
+              assert i > 0, 'No se encontró la categoría LAUNCHER'
+              j = t.find('/>', i) + 2
+              t = t[:j] + '\n                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />' + t[j:]
+          if os.path.exists('android/app/src/main/res/drawable/tv_banner.png') and 'android:banner' not in t:
+              t = t.replace('<application', '<application\n        android:banner="@drawable/tv_banner"', 1)
+          open(m, 'w', encoding='utf-8').write(t)
+          print('Manifest listo para Android TV')
+          PY
+          grep -n "leanback\|LEANBACK\|banner" android/app/src/main/AndroidManifest.xml
 
       - name: Clave de firma fija (para poder actualizar sin desinstalar)
         env:
