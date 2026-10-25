@@ -77,7 +77,7 @@ jobs:
           import os
           p = 'www/index.html'
           t = open(p, encoding='utf-8').read()
-          for f in ('addon-menu.js', 'native-player.js'):
+          for f in ('addon-menu.js', 'native-player.js', 'plugins.js'):
               tag = '<script src="%s"></script>' % f
               if not os.path.exists('www/' + f):
                   print('::warning::Falta www/' + f + ' (súbelo a la carpeta www del repositorio)')
@@ -86,7 +86,7 @@ jobs:
                   t = t[:i] + tag + '\n' + t[i:]
           open(p, 'w', encoding='utf-8').write(t)
           PY
-          grep -c "addon-menu.js\|native-player.js" www/index.html
+          grep -c "addon-menu.js\|native-player.js\|plugins.js" www/index.html
 
       - name: Sincronizar con Android
         run: npx cap sync android
@@ -292,6 +292,8 @@ jobs:
               private ViewGroup videoParent;
               private final Handler handler = new Handler(Looper.getMainLooper());
               private String url = "";
+          private String referer = "";
+          private String uagent = "";
               private String aspect = "fit";
               private boolean active = false;
               private boolean suspended = false;
@@ -395,6 +397,8 @@ jobs:
               private void attachAndPlay(long seekTo, boolean thenPlay) {
                   player.attachViews(videoLayout, null, true, false);
                   Media m = new Media(libVLC, Uri.parse(url));
+                  if (!referer.isEmpty()) m.addOption(":http-referrer=" + referer);
+                  if (!uagent.isEmpty()) m.addOption(":http-user-agent=" + uagent);
                   player.setMedia(m);
                   m.release();
                   player.play();
@@ -501,6 +505,8 @@ jobs:
               @PluginMethod
               public void play(final PluginCall call) {
                   final String u = call.getString("url");
+                  final String rf = call.getString("referer", "");
+                  final String ag = call.getString("userAgent", "");
                   if (u == null || u.isEmpty()) {
                       call.reject("Falta el enlace");
                       return;
@@ -509,6 +515,8 @@ jobs:
                       @Override
                       public void run() {
                           try {
+                              referer = rf;
+                              uagent = ag;
                               startPlayback(u);
                               call.resolve();
                           } catch (Throwable t) {
