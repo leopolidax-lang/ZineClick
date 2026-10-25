@@ -294,7 +294,7 @@
         delete self.calls[id];
         self.tmo++;
         if (self.tmo >= 3 && !self.test) { try { patch(self.p.id, { noresp: true }); } catch (e) {} }
-        reject(new Error("«" + self.p.name + "» tardó demasiado en responder."));
+        reject(new Error("«" + self.p.name + "» tardó demasiado en responder (puede que su sitio esté caído o lento). Prueba con otra fuente."));
         self.kill();
       }, ms);
       self.calls[id] = { resolve: resolve, reject: reject, t: t, n: 0 };
@@ -366,7 +366,13 @@
       checkUrl(p, cur, "fetch");
       var r;
       try { r = await rawRequest(method, cur, headers, body, timeout); }
-      catch (e) { throw ferr(/abort|timeout|timed out/i.test(String(e && e.message)) ? "timeout" : "network", String((e && e.message) || "error de red")); }
+      catch (e) {
+        var em = String((e && e.message) || ""), hn = ""; try { hn = new URL(cur).hostname; } catch (x) {}
+        if (/resolve host|UnknownHost|No address associated|ENOTFOUND|Name or service/i.test(em)) throw ferr("network", "No se pudo encontrar el sitio " + hn + " (puede estar caído, haber cambiado de dirección o estar bloqueado en tu red).");
+        if (/abort|timeout|timed out/i.test(em)) throw ferr("timeout", "El sitio " + hn + " tardó demasiado en responder.");
+        if (/SSL|certificate|handshake|TLS/i.test(em)) throw ferr("network", "No se pudo abrir una conexión segura con " + hn + ".");
+        throw ferr("network", "No se pudo conectar con " + hn + ".");
+      }
       if (r.finalUrl && r.finalUrl !== cur) { checkUrl(p, r.finalUrl, "fetch"); cur = r.finalUrl; }
       if ([301, 302, 303, 307, 308].indexOf(r.status) >= 0 && r.headers.location && o.redirect !== "manual") {
         if (++hops > 10) throw ferr("network", "demasiadas redirecciones");
@@ -381,7 +387,7 @@
   }
 
   /* =============== Llamadas al plugin y revisión de sus respuestas =============== */
-  var TMO = { search: 15000, home: 20000, browse: 20000, episodes: 20000, resolve: 20000 };
+  var TMO = { search: 25000, home: 25000, browse: 25000, episodes: 25000, resolve: 30000 };
   function callPlugin(p, fn, arg) { return rtOf(p).call(fn, arg, TMO[fn] || 20000); }
   var ID = /^[A-Za-z0-9._~-]{1,128}$/;
   function str(v, n) { return typeof v === "string" ? v.trim().slice(0, n) : (typeof v === "number" && isFinite(v) ? String(v).slice(0, n) : ""); }
@@ -583,29 +589,29 @@
   /* =============== Pantalla de plugins =============== */
   var CSS = '' +
     '#zplRoot{position:fixed;inset:0;z-index:2000000000;display:flex;flex-direction:column;color:#f4f7ff;background:radial-gradient(ellipse at 85% 10%,rgba(120,30,40,.22),transparent 45%),radial-gradient(ellipse at 10% 0,rgba(40,70,140,.2),transparent 40%),#07090f;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}' +
-    '#zplRoot[hidden]{display:none}#zplRoot button,.zpl-sh button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}' +
-    '.zpl-top{display:flex;align-items:center;gap:14px;padding:calc(var(--sat,14px) + 6px) 18px 8px}.zpl-top svg{width:26px;height:26px;fill:currentColor}.zpl-top b{flex:1;font-size:26px;font-weight:700}' +
-    '.zpl-plus{width:52px;height:52px;border-radius:50%;background:rgba(100,244,255,.16);color:var(--cyan,#64f4ff)!important;font-size:30px!important;line-height:1}' +
-    '.zpl-tabs{display:flex;gap:6px;padding:6px 18px 0;border-bottom:1px solid rgba(255,255,255,.1);overflow-x:auto;scrollbar-width:none}.zpl-tabs::-webkit-scrollbar{display:none}' +
-    '.zpl-tabs button{flex:none;padding:12px 14px;color:#9aa6c1;font-weight:600;font-size:15px;border-bottom:3px solid transparent;margin-bottom:-1px}.zpl-tabs button.on{color:#fff;border-bottom-color:var(--cyan,#64f4ff)}' +
+    ':where(#zplRoot,.zpl-sh) button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}#zplRoot[hidden]{display:none}' +
+    '.zpl-top{display:flex;align-items:center;gap:14px;padding:calc(var(--sat,14px) + 6px) 18px 8px}.zpl-top svg{width:26px;height:26px;fill:currentColor}.zpl-top b{flex:1;font-size:26px;font-weight:800}' +
+    '.zpl-plus{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,rgba(var(--acc-rgb,100,244,255),.28),rgba(var(--acc-rgb,100,244,255),.1));box-shadow:inset 0 0 0 1px rgba(var(--acc-rgb,100,244,255),.5);color:var(--cyan,#64f4ff);font-size:28px;line-height:1;display:grid;place-items:center}.zpl-back{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.07);display:grid;place-items:center}' +
+    '.zpl-tabs{display:flex;gap:8px;padding:8px 18px 14px;border-bottom:1px solid rgba(255,255,255,.08);overflow-x:auto;scrollbar-width:none}.zpl-tabs::-webkit-scrollbar{display:none}' +
+    '.zpl-tabs button{flex:none;padding:10px 16px;border-radius:999px;background:rgba(255,255,255,.05);color:#9aa6c1;font-weight:700;font-size:14.5px}.zpl-tabs button.on{background:rgba(var(--acc-rgb,100,244,255),.18);color:#fff;box-shadow:inset 0 0 0 1px rgba(var(--acc-rgb,100,244,255),.55)}' +
     '.zpl-body{flex:1;overflow-y:auto;padding:16px 18px calc(28px + env(safe-area-inset-bottom,0px))}' +
     '.zpl-q{width:100%;box-sizing:border-box;padding:15px 16px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:transparent;color:#fff;font:500 16px inherit;outline:none}.zpl-q:focus{border-color:var(--cyan,#64f4ff)}' +
     '.zpl-chips{display:flex;gap:10px;overflow-x:auto;padding:14px 0;scrollbar-width:none}.zpl-chips::-webkit-scrollbar{display:none}' +
-    '.zpl-chips button{flex:none;padding:10px 18px;border-radius:12px;border:1px solid rgba(255,255,255,.16);color:#c3cce3;font-weight:600}.zpl-chips button.on{background:var(--cyan,#64f4ff);border-color:transparent;color:#04121a}' +
+    '.zpl-chips button{flex:none;padding:9px 16px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#c3cce3;font-weight:600;font-size:14px}.zpl-chips button.on{background:linear-gradient(100deg,var(--cyan,#64f4ff),color-mix(in srgb,var(--cyan,#64f4ff) 55%,#9da8ff));border-color:transparent;color:#071018;font-weight:700}' +
     '.zpl-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(min-width:760px){.zpl-grid{grid-template-columns:repeat(3,1fr)}}' +
     '.zpl-card{display:flex;flex-direction:column;gap:6px;padding:18px;border-radius:20px;background:linear-gradient(160deg,color-mix(in srgb,var(--c) 38%,#12141f),#12141f 85%);border:1px solid rgba(255,255,255,.06);min-width:0}' +
     '.zpl-ic{width:54px;height:54px;border-radius:14px;background:var(--c);display:grid;place-items:center;font-weight:800;font-size:24px;color:#fff;overflow:hidden;margin-bottom:6px}.zpl-ic img{width:100%;height:100%;object-fit:cover}' +
     '.zpl-card h4{margin:0;font-size:17px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '.zpl-card p{margin:0;color:#aab3c9;font-size:13.5px;line-height:1.35;min-height:2.7em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
     '.zpl-tag{align-self:flex-start;padding:3px 10px;border-radius:8px;background:rgba(255,255,255,.1);color:#c8d0e6;font-size:12px;font-weight:600}.zpl-tag.w{background:rgba(255,184,77,.16);color:#ffb84d}' +
-    '.zpl-btn{margin-top:8px;padding:13px;border-radius:999px;background:rgba(255,255,255,.12);font-weight:700;font-size:15px}.zpl-btn.pri{background:var(--cyan,#64f4ff);color:#04121a!important}' +
+    '.zpl-btn{margin-top:auto;padding:12px;border-radius:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);font-weight:700;font-size:15px;text-align:center}.zpl-btn.pri{background:linear-gradient(100deg,var(--cyan,#64f4ff),color-mix(in srgb,var(--cyan,#64f4ff) 55%,#9da8ff));border-color:transparent;color:#071018;box-shadow:0 6px 22px rgba(var(--acc-rgb,100,244,255),.22)}.zpl-card p{margin-bottom:10px!important}' +
     '.zpl-msg{padding:36px 10px;text-align:center;color:#9aa6c1;line-height:1.5}.zpl-note{margin:14px 2px 0;color:#7f8aa6;font-size:12px;line-height:1.5}' +
     '.zpl-sh{position:fixed;inset:0;z-index:2000000002;display:flex;align-items:flex-end;background:rgba(0,0,0,.55)}' +
     '.zpl-sh-card{width:100%;max-height:86vh;overflow-y:auto;box-sizing:border-box;padding:12px 22px calc(22px + env(safe-area-inset-bottom,0px));border-radius:26px 26px 0 0;background:#1d1e26;color:#f4f7ff}' +
     '.zpl-grab{width:44px;height:5px;border-radius:5px;background:#8b8d99;margin:0 auto 22px}.zpl-sh h3{margin:0 0 8px;font-size:22px}.zpl-sh .zpl-sm{margin:0 0 6px;color:#a9adbd;font-size:15px;line-height:1.5;word-break:break-word}' +
     '.zpl-sh .zpl-more{color:#ff4d5e;font-size:15px;margin:6px 0 18px}.zpl-sh .zpl-warn{margin:14px 0;padding:12px 14px;border-radius:12px;background:rgba(255,184,77,.12);color:#ffcf85;font-size:14px;line-height:1.45}' +
     '.zpl-act{display:block;width:100%;text-align:left;padding:18px 2px;font-size:18px;font-weight:500}.zpl-act.red{color:#ff6b7a}' +
-    '.zpl-row2{display:flex;gap:10px;margin-top:16px}.zpl-row2 button{flex:1;padding:14px;border-radius:14px;background:rgba(255,255,255,.1);font-weight:700}.zpl-row2 button.pri{background:var(--cyan,#64f4ff);color:#04121a}' +
+    '.zpl-row2{display:flex;gap:10px;margin-top:16px}.zpl-row2 button{flex:1;padding:14px;border-radius:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);font-weight:700}.zpl-row2 button.pri{background:linear-gradient(100deg,var(--cyan,#64f4ff),color-mix(in srgb,var(--cyan,#64f4ff) 55%,#9da8ff));border-color:transparent;color:#071018}' +
     '.zpl-in{width:100%;box-sizing:border-box;margin-top:10px;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.05);color:#fff;font:500 16px inherit;outline:none}' +
     '#zplHome .zph-row{display:flex;gap:14px;overflow-x:auto;padding:2px 2px 12px;scrollbar-width:none}#zplHome .zph-row::-webkit-scrollbar{display:none}' +
     '#zplHome .zph-sub{display:block;color:#8f9ab5;font-size:12px;margin-top:3px}#zplHome .zph-card{flex:0 0 clamp(112px,31vw,150px);padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;display:flex;flex-direction:column;gap:8px}' +
@@ -719,10 +725,16 @@
       })(mq.shift());
     }
   }
+  function pretty(n) {
+    var t = String(n || "").replace(/^(kino|zynora)[-_]?plugins?[-_]?/i, "").replace(/^kino[-_]/i, "").replace(/[-_]+/g, " ").trim();
+    if (!t) t = String(n || "");
+    return t.replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+  }
   function card(en) {
     var p = byRepo(en.repo), mc = MC[en.repo] || {}, m = mc.m;
     if (mc.err && !p && UI.tab === "comm") return "";
-    var name = p ? p.name : m ? m.name : (en.name || en.repo.split("/")[1]);
+    if (!p && !m && UI.tab === "comm") return "";
+    var name = p ? p.name : m ? m.name : (en.name ? pretty(en.name) : pretty(en.repo.split("/")[1]));
     var desc = p ? p.description : m ? m.description : (en.desc || "");
     var color = (p && p.color) || (m && m.color) || en.color || "#5b6b8c"; if (!/^#[0-9A-Fa-f]{6}$/.test(color)) color = "#5b6b8c";
     var icon = p ? p.icon : mc.icon;
@@ -744,6 +756,7 @@
       if (UI.tab === "comm" && !comm) { g.innerHTML = '<div class="zpl-msg">' + (commErr ? E(commErr) + '<br><br><button class="zpl-btn pri" data-a="retry" style="padding:12px 26px">Reintentar</button>' : "Buscando plugins de la comunidad…") + "</div>"; return; }
       list.slice(0, 40).forEach(function (en) { if (UI.tab !== "inst") loadMeta(en.repo); });
       var h = list.map(card).join("");
+      if (!h && UI.tab === "comm" && (mq.length || mrun)) h = '<div class="zpl-msg" style="grid-column:1/-1">Cargando plugins…</div>';
       if (!h) h = '<div class="zpl-msg" style="grid-column:1/-1">' + (UI.tab === "inst" ? "Aún no tienes plugins instalados.<br>Agrega uno con el botón + o desde las otras pestañas." : "No hay plugins que coincidan.") + "</div>";
       g.innerHTML = h;
     }, 30);
@@ -790,7 +803,7 @@
   function build() {
     if (root) return;
     root = D.createElement("div"); root.id = "zplRoot"; root.hidden = true;
-    root.innerHTML = '<div class="zpl-top"><button id="zplBack" aria-label="Volver">' + BACK + '</button><b>Plugins</b><button id="zplAdd" class="zpl-plus" aria-label="Agregar plugin">+</button></div>' +
+    root.innerHTML = '<div class="zpl-top"><button id="zplBack" class="zpl-back" aria-label="Volver">' + BACK + '</button><b>Plugins</b><button id="zplAdd" class="zpl-plus" aria-label="Agregar plugin">+</button></div>' +
       '<div class="zpl-tabs" id="zplTabs"></div><div class="zpl-body"><input id="zplQ" class="zpl-q" placeholder="Buscar plugins" autocomplete="off"><div class="zpl-chips" id="zplChips"></div><div class="zpl-grid" id="zplGrid"></div>' +
       '<p class="zpl-note">Los plugins los crea la comunidad y no están verificados. Cada uno solo puede conectarse a los sitios que ves antes de instalarlo.</p></div>';
     D.body.appendChild(root);
