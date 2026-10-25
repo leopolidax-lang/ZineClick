@@ -156,6 +156,17 @@ jobs:
           print('Manifest listo para Android TV')
           PY
           grep -n "leanback\|LEANBACK\|banner" android/app/src/main/AndroidManifest.xml
+          python3 - <<'PY'
+          p = 'www/index.html'
+          t = open(p, encoding='utf-8').read()
+          old = 'if(document.getElementById("detailModal").classList.contains("open")){modalBack();return}'
+          if 'ZTV.back' not in t and t.count(old) == 1:
+              t = t.replace(old, 'if(window.ZTV&&window.ZTV.back&&window.ZTV.back(ev))return;' + old)
+              open(p, 'w', encoding='utf-8').write(t)
+              print('Boton Atras para TV listo')
+          else:
+              print('AVISO: no se pudo ajustar el boton Atras')
+          PY
 
       - name: Clave de firma fija (para poder actualizar sin desinstalar)
         env:
@@ -284,6 +295,8 @@ jobs:
           package com.zineclick.app;
 
           import android.app.Activity;
+          import android.content.Context;
+          import android.view.inputmethod.InputMethodManager;
           import android.content.pm.ActivityInfo;
           import android.graphics.Bitmap;
           import android.graphics.Color;
@@ -540,6 +553,24 @@ jobs:
               }
 
               /* ---------------- métodos que llama la página ---------------- */
+
+              @PluginMethod
+              public void showKeyboard(final PluginCall call) {
+                  getActivity().runOnUiThread(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              WebView w = getBridge().getWebView();
+                              w.requestFocus();
+                              InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+                              if (imm != null) imm.showSoftInput(w, 0);
+                          } catch (Throwable t) {
+                              // sin teclado
+                          }
+                      }
+                  });
+                  call.resolve();
+              }
 
               @PluginMethod
               public void play(final PluginCall call) {
