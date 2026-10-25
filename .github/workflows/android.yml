@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+
 concurrency:
   group: android-build
   cancel-in-progress: true
@@ -77,7 +80,7 @@ jobs:
           import os
           p = 'www/index.html'
           t = open(p, encoding='utf-8').read()
-          for f in ('addon-menu.js', 'native-player.js', 'plugins.js', 'tv.js'):
+          for f in ('addon-menu.js', 'native-player.js', 'plugins.js', 'tv.js', 'update-check.js'):
               tag = '<script src="%s"></script>' % f
               if not os.path.exists('www/' + f):
                   print('::warning::Falta www/' + f + ' (súbelo a la carpeta www del repositorio)')
@@ -86,7 +89,7 @@ jobs:
                   t = t[:i] + tag + '\n' + t[i:]
           open(p, 'w', encoding='utf-8').write(t)
           PY
-          grep -c "addon-menu.js\|native-player.js\|plugins.js\|tv.js" www/index.html
+          grep -c "addon-menu.js\|native-player.js\|plugins.js\|tv.js\|update-check.js" www/index.html
 
       - name: Sincronizar con Android
         run: npx cap sync android
@@ -1553,3 +1556,9 @@ jobs:
         with:
           name: Zynora-APK
           path: Zynora-v1.0.${{ github.run_number }}.apk
+
+      - name: Publicar versión (para el aviso de actualización en la app)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v1.0.${{ github.run_number }}" "Zynora-v1.0.${{ github.run_number }}.apk" --title "Zynora v1.0.${{ github.run_number }}" --notes "Actualización de Zynora" --latest
