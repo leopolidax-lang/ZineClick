@@ -171,6 +171,8 @@
   /* =============== Datos de fuentes (addons) =============== */
   function addonsAll() { return typeof W.addonLoad === "function" ? W.addonLoad() : []; }
   function addons() { return addonsAll().filter(function (a) { return a.stream !== false; }); }
+  function plg() { return W.ZPL || null; }
+  function hasSources() { return addons().length > 0 || !!(plg() && plg().count() > 0); }
 
   function imdbOf(type, id) {
     return W.tmdb("/" + type + "/" + id + "/external_ids").then(function (x) {
@@ -180,6 +182,7 @@
     });
   }
   function fetchStreams(imdb, type, s, e, onlyUrl) {
+    if (!imdb) return Promise.resolve([]);
     var list = addons().filter(function (a) { return !onlyUrl || a.url === onlyUrl; });
     var path = type === "tv" ? "series/" + imdb + ":" + s + ":" + e : "movie/" + imdb;
     return Promise.all(list.map(function (a) {
@@ -304,6 +307,7 @@
   };
 
   function launch(url, t, s, e, meta) {
+    W.__zplHdr = (meta && meta.hdr) || null;
     W._addonCtx = t.mediaType === "tv" ? { type: "tv", tmdbId: t.tmdbId, title: t.title, season: s, episode: e } : { type: "movie", tmdbId: t.tmdbId, title: t.title };
     var title = playerTitle(t, s, e);
     if (W.ZNP && W.ZNP.available()) { W.ZNP.open(url, title, null, meta); return; }
@@ -363,7 +367,7 @@
     $("zamChips").innerHTML = "";
     $("zamList").innerHTML = '<div class="zam-msg">Buscando fuentes…</div>';
     try {
-      M.imdb = await imdbOf(type, t.tmdbId);
+      try { M.imdb = await imdbOf(type, t.tmdbId); } catch (e0) { M.imdb = ""; if (!(plg() && plg().count())) throw e0; }
       if (type === "tv") {
         M.seasons = await seasonsOf(t.tmdbId);
         var first = (M.seasons.filter(function (x) { return x.n >= 1; })[0] || M.seasons[0]).n;
@@ -382,7 +386,8 @@
       var nm = await epName(m.t.tmdbId, m.s, m.e);
       $("zamS").textContent = "T" + m.s + " · E" + m.e + (nm ? " — " + nm : "");
     }
-    var res = await fetchStreams(m.imdb, m.type, m.s, m.e);
+    var both = await Promise.all([fetchStreams(m.imdb, m.type, m.s, m.e), (plg() && plg().count()) ? plg().find(m.t, m.type, m.s, m.e).catch(function () { return []; }) : Promise.resolve([])]);
+    var res = both[0].concat(both[1]);
     if (my !== req) return;
     m.res = res; m.filter = "all"; m.items = [];
     res.forEach(function (r, ai) { r.streams.forEach(function (st) { m.items.push({ ai: ai, addon: r.addon, st: st, inf: info(st) }); }); });
@@ -418,9 +423,12 @@
     busy = true;
     var pl = el.querySelector("[data-pl]"); if (pl) pl.classList.add("ld");
     try {
-      var snap = snapOf(it.addon, it.st), url = await resolveUrl(snap);
+      var snap = snapOf(it.addon, it.st), url, hdr = null;
+      if (it.st._zpl) { var rr = await plg().resolveFor(it.st._zpl, M.type, M.s, M.e); url = rr.url; hdr = rr.headers; snap.plg = it.st._zpl; }
+      else url = await resolveUrl(snap);
       var nm = M.type === "tv" ? await epName(M.t.tmdbId, M.s, M.e) : "";
-      launch(url, M.t, M.s, M.e, metaFor(M.t, M.s, M.e, nm, snap));
+      var mt0 = metaFor(M.t, M.s, M.e, nm, snap); mt0.hdr = hdr;
+      launch(url, M.t, M.s, M.e, mt0);
     } catch (e) { alert(e.message || "No se pudo abrir esta fuente. Prueba con otra."); }
     busy = false; if (pl) pl.classList.remove("ld");
   }
@@ -430,6 +438,11 @@
 
   async function playEpisode(t, s, e, snap, exact) {
     var type = t.mediaType === "tv" ? "tv" : "movie", nm = type === "tv" ? await epName(t.tmdbId, s, e) : "";
+    if (snap && snap.plg) {
+      if (!plg()) return false;
+      var rr = await plg().resolveFor(snap.plg, type, s, e), mt1 = metaFor(t, s, e, nm, snap); mt1.hdr = rr.headers;
+      launch(rr.url, t, s, e, mt1); return true;
+    }
     if (exact && snap) { var u = await resolveUrl(snap); launch(u, t, s, e, metaFor(t, s, e, nm, snap)); return true; }
     if (!snap) return false;
     var imdb = await imdbOf(type, t.tmdbId), res = await fetchStreams(imdb, type, s, e, snap.addon);
@@ -542,7 +555,7 @@
   /* =============== Pestaña "Episodios" de la ficha =============== */
   function isSeen(id, s, e) { return EW.has(id, s, e); }
   function openEpisode(t, s, e) {
-    if (!addons().length) { playFlow(t, true); return; }
+    if (!hasSources()) { playFlow(t, true); return; }
     openMenu(t, s, e);
   }
   function paintSeasons(panel) {
@@ -642,8 +655,8 @@
 
   function playFlow(t, manual) {
     if (!t || !t.tmdbId) { say("Conecta TMDB para poder reproducir este título"); return; }
-    if (!addons().length) {
-      say("Instala un addon para poder reproducir");
+    if (!hasSources()) {
+      say("Instala un addon o plugin para poder reproducir");
       if (origAddonOpen) origAddonOpen(t.tmdbId, t.mediaType, encodeURIComponent(t.title));
       return;
     }
@@ -665,7 +678,7 @@
     var b = body.querySelector('button[onclick^="rdPlayFlow("]'); if (!b) return;
     var t = currentTitle(), en = t && t.tmdbId ? ZCW.get(keyOf(t.mediaType === "tv" ? "tv" : "movie", t.tmdbId)) : null;
     var label = "▶ Reproducir";
-    if (en && en.src && addons().length) label = "▶ Continuar" + (en.type === "tv" && !en.done ? " T" + en.s + " · E" + en.e : "");
+    if (en && en.src && hasSources()) label = "▶ Continuar" + (en.type === "tv" && !en.done ? " T" + en.s + " · E" + en.e : "");
     if (b.textContent !== label) b.textContent = label;
     if (b.dataset.zam) return;
     b.dataset.zam = "1";
@@ -724,7 +737,7 @@
         var c = ev.target.closest && ev.target.closest("[data-k]"); if (!c || fired) { fired = false; return; }
         var en = ZCW.get(c.getAttribute("data-k"));
         if (!en) return;
-        if (!addons().length) { playFlow(asTitle(en), false); return; }
+        if (!hasSources()) { playFlow(asTitle(en), false); return; }
         safeContinue(en);
       });
     }

@@ -510,7 +510,7 @@
     sheetOpen = false; ui.sheet.hidden = true; dragging = false;
     isOpen = true; root.hidden = false; D.documentElement.classList.add("znp-on");
     paint(); showUi(); attachBack();
-    p.play({ url: url, title: curTitle }).catch(function (e) {
+    p.play({ url: url, title: curTitle, referer: (W.__zplHdr && (W.__zplHdr.Referer || W.__zplHdr.referer)) || "", userAgent: (W.__zplHdr && (W.__zplHdr["User-Agent"] || W["__zplHdr"]["user-agent"])) || "" }).catch(function (e) {
       var f = fallback; close(false);
       if (f) { say("No se pudo abrir el reproductor nativo; se usa el interno"); f(); }
       else alert("No se pudo abrir el reproductor: " + ((e && e.message) || e));
