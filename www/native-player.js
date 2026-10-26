@@ -342,19 +342,33 @@
 
   /* ---------- Chromecast (descubrimiento y envío los hace VLC en el APK) ---------- */
   function castRefresh() {
-    call("castList").then(function (r) {
+    Promise.all([call("castList"), call("tvList").catch(function () { return {}; })]).then(function (rr) {
+      var r = rr[0], tv = rr[1] || {};
       if (!sheetOpen || sheetKind !== "cast") return;
       castName = (r && r.current) || "";
-      var devs = (r && r.devices) || [], sig = JSON.stringify(devs) + "|" + castName;
+      var devs = (r && r.devices) || [], sig = JSON.stringify(devs) + "|" + castName + "|" + (tv.available ? 1 : 0) + (tv.on ? 1 : 0);
       if (sig === castSig) return;
       castSig = sig;
-      var items = [{ label: "Este teléfono", sub: "Reproducir aquí", on: !castName, fn: function () { castPick(-1, ""); } }];
+      var items = [{ label: "Este teléfono", sub: "Reproducir aquí", on: !castName && !tv.on, fn: function () { if (tv.on) tvPick(false); else castPick(-1, ""); } }];
+      if (tv.available || tv.on) items.push({ label: "Pantalla inalámbrica", sub: "Solo el video en la tele; los controles quedan en el teléfono", on: !!tv.on, fn: function () { tvPick(!tv.on); } });
+      else items.push({ label: "Pantalla inalámbrica", sub: "Activa la proyección desde el panel del teléfono y vuelve a abrir este menú", fn: function () {} });
       devs.forEach(function (d) { items.push({ label: d.name, sub: "Chromecast", on: !!castName && d.name === castName, fn: function () { castPick(d.id, d.name); } }); });
-      if (!devs.length) items.push({ label: "Buscando dispositivos…", sub: "Usa la misma red Wi-Fi que tu Chromecast", fn: function () {} });
+      if (!devs.length && !tv.available && !tv.on) items.push({ label: "Buscando dispositivos…", sub: "Usa la misma red Wi-Fi que tu Chromecast", fn: function () {} });
       fillSheet("Transmitir a", items, "");
     }).catch(function () {
       if (sheetOpen && sheetKind === "cast") fillSheet("Transmitir a", [], "La transmisión no está disponible en esta versión de la app.");
     });
+  }
+  function tvPick(on) {
+    msg(on ? "Enviando el video a la tele…" : "Volviendo al teléfono…");
+    call("tvTo", { on: on }).then(function (r) {
+      var onNow = !!(r && r.on);
+      ui.cast.classList.toggle("on", onNow);
+      root.classList.toggle("znp-casting", onNow);
+      ui.cb.textContent = onNow ? "Reproduciendo en la tele" : "";
+      msg(onNow ? "Reproduciendo en la tele" : "Reproduciendo en el teléfono");
+      castSig = "";
+    }).catch(function () { msg("No se pudo usar la pantalla de la tele"); });
   }
   function castPick(id, name) {
     msg(id < 0 ? "Volviendo al teléfono…" : "Conectando con " + name + "…");
@@ -485,6 +499,15 @@
       var on = !!(e && e.on);
       root.classList.toggle("znp-pip", on);
       if (on) { closeSheet(); } else { showUi(); }
+    });
+    p.addListener("znpTv", function (e) {
+      if (!isOpen) return;
+      var on = !!(e && e.on);
+      ui.cast.classList.toggle("on", on);
+      root.classList.toggle("znp-casting", on);
+      ui.cb.textContent = on ? "Reproduciendo en la tele" : "";
+      castSig = "";
+      if (!on) msg("Volviendo al teléfono");
     });
     p.addListener("znpError", function () {
       if (!isOpen) return;
