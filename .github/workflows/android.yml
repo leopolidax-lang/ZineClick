@@ -1596,43 +1596,20 @@ jobs:
                           return;
                       }
                       String u = URLDecoder.decode(req.substring(i + 2, sp), "UTF-8");
-                      HttpURLConnection c = (HttpURLConnection) new URL(u).openConnection();
-                      c.setInstanceFollowRedirects(true);
-                      c.setConnectTimeout(15000);
-                      c.setReadTimeout(30000);
-                      String ua = agent.isEmpty() ? UA_DEF : agent;
-                      c.setRequestProperty("User-Agent", ua);
-                      c.setRequestProperty("Accept", "*/*");
-                      c.setRequestProperty("Accept-Language", "es-419,es;q=0.9");
-                      String ref = referer;
-                      if (!ref.isEmpty()) {
-                          c.setRequestProperty("Referer", ref);
-                          try {
-                              URL r = new URL(ref);
-                              c.setRequestProperty("Origin", r.getProtocol() + "://" + r.getHost() + (r.getPort() > 0 ? ":" + r.getPort() : ""));
-                          } catch (Throwable e) {
-                              // sin Origin
-                          }
+                      Object[] got = download(u);
+                      if (got == null) {
+                          send(out, 502, "text/plain", new byte[0]);
+                          s.close();
+                          return;
                       }
-                      int code = c.getResponseCode();
+                      int code = ((Integer) got[0]).intValue();
                       if (code >= 400) {
                           send(out, code, "text/plain", new byte[0]);
                           s.close();
                           return;
                       }
-                      String finalUrl = c.getURL().toString();
-                      InputStream up = c.getInputStream();
-                      ByteArrayOutputStream bo = new ByteArrayOutputStream();
-                      byte[] buf = new byte[32768];
-                      int n;
-                      long total = 0;
-                      while ((n = up.read(buf)) != -1) {
-                          bo.write(buf, 0, n);
-                          total += n;
-                          if (total > 80L * 1024 * 1024) break;
-                      }
-                      up.close();
-                      byte[] data = bo.toByteArray();
+                      String finalUrl = (String) got[1];
+                      byte[] data = (byte[]) got[2];
                       String path = u;
                       int q = path.indexOf('?');
                       if (q >= 0) path = path.substring(0, q);
@@ -1651,6 +1628,72 @@ jobs:
                           // nada
                       }
                   }
+              }
+
+              /** Descarga con hasta 6 intentos; devuelve {codigo, urlFinal, bytes} o null si todo falla. */
+              private static Object[] download(String u) {
+                  int code = 0;
+                  for (int attempt = 0; attempt < 6; attempt++) {
+                      HttpURLConnection c = null;
+                      try {
+                          if (attempt > 0) Thread.sleep(Math.min(400L * attempt, 1500L));
+                          c = (HttpURLConnection) new URL(u).openConnection();
+                          c.setInstanceFollowRedirects(true);
+                          c.setConnectTimeout(15000);
+                          c.setReadTimeout(30000);
+                          String ua = agent.isEmpty() ? UA_DEF : agent;
+                          c.setRequestProperty("User-Agent", ua);
+                          c.setRequestProperty("Accept", "*/*");
+                          c.setRequestProperty("Accept-Language", "es-419,es;q=0.9");
+                          String ref = referer;
+                          if (!ref.isEmpty()) {
+                              c.setRequestProperty("Referer", ref);
+                              try {
+                                  URL r = new URL(ref);
+                                  c.setRequestProperty("Origin", r.getProtocol() + "://" + r.getHost() + (r.getPort() > 0 ? ":" + r.getPort() : ""));
+                              } catch (Throwable e) {
+                                  // sin Origin
+                              }
+                          }
+                          code = c.getResponseCode();
+                          if (code == 429 || code >= 500) {
+                              continue;
+                          }
+                          if (code >= 400) {
+                              return new Object[] { Integer.valueOf(code), u, new byte[0] };
+                          }
+                          String finalUrl = c.getURL().toString();
+                          long declared = c.getContentLengthLong();
+                          boolean plain = c.getContentEncoding() == null;
+                          InputStream up = c.getInputStream();
+                          ByteArrayOutputStream bo = new ByteArrayOutputStream();
+                          byte[] buf = new byte[32768];
+                          int n;
+                          long total = 0;
+                          while ((n = up.read(buf)) != -1) {
+                              bo.write(buf, 0, n);
+                              total += n;
+                              if (total > 80L * 1024 * 1024) break;
+                          }
+                          up.close();
+                          byte[] data = bo.toByteArray();
+                          if (plain && declared >= 0 && data.length != declared) {
+                              continue; // descarga cortada: se reintenta
+                          }
+                          return new Object[] { Integer.valueOf(code), finalUrl, data };
+                      } catch (Throwable e) {
+                          // se reintenta
+                      } finally {
+                          if (c != null) {
+                              try {
+                                  c.disconnect();
+                              } catch (Throwable e2) {
+                                  // nada
+                              }
+                          }
+                      }
+                  }
+                  return null;
               }
 
               private static String resolve(String base, String rel) {
