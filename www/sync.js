@@ -12,7 +12,7 @@
 
   /* ---------- qué se sincroniza y qué NUNCA ---------- */
   var LISTS = { cc_v2_watchlist: "watchlist", cc_v2_favorites: "favorites", cc_v2_watched: "watched" };
-  var KV = { cineclick_taste_v1: "taste", zy_settings_v1: "settings", zc_profile_v1: "profile", cc_region: "region" };
+  var KV = { cineclick_taste_v1: "taste", zy_settings_v1: "settings", zc_profile_v1: "profile", cc_region: "region", zynora_external_addons: "addons" };
   var KV_BY_NAME = {}; Object.keys(KV).forEach(function (k) { KV_BY_NAME[KV[k]] = k; });
   var LIST_KEY = {}; Object.keys(LISTS).forEach(function (k) { LIST_KEY[LISTS[k]] = k; });
   /* Credenciales de servicios externos: separadas por cuenta, pero JAMÁS se suben a la nube. */
@@ -77,7 +77,10 @@
   function isNative() { try { return !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()); } catch (e) { return false; } }
   function cap(n) { return window.Capacitor && Capacitor.Plugins && Capacitor.Plugins[n]; }
   function toast(m) { if (typeof window.toast === "function") window.toast(m); }
-  function refreshApp() { try { if (typeof window.ZS_REFRESH === "function") window.ZS_REFRESH(); } catch (e) {} }
+  function refreshApp() {
+    try { if (typeof window.ZS_REFRESH === "function") window.ZS_REFRESH(); } catch (e) {}
+    try { if (typeof addonRenderList === "function") addonRenderList(); if (typeof addonChanged === "function") addonChanged(); } catch (e) {}
+  }
 
   var SCHEME = "com.zineclick.app", NATIVE_REDIRECT = SCHEME + "://auth-callback";
   function redirectUrl() { return isNative() ? NATIVE_REDIRECT : location.origin + location.pathname; }
@@ -269,9 +272,23 @@
       var leg = rawGet.call(LS, k);
       if (leg && !rawGet.call(LS, real(k))) rawSet.call(LS, real(k), leg);
     });
+    migrateAddons();
     rawSet.call(LS, "zs_legacy_owner", scope);
     return added;
   }
+
+  /* ---------- addons que ya existían en el dispositivo: los hereda UNA sola cuenta ---------- */
+  function migrateAddons() {
+    if (scope === "guest") return;
+    var own = rawGet.call(LS, "zs_addons_owner");
+    if (own && own !== scope) return;
+    var leg = rawGet.call(LS, "zynora_external_addons");
+    if (!leg || !arr2(leg).length) return;
+    var cur = rawGet.call(LS, real("zynora_external_addons"));
+    if (cur == null || !arr2(cur).length) LS.setItem("zynora_external_addons", leg);
+    rawSet.call(LS, "zs_addons_owner", scope);
+  }
+  function arr2(s) { var a = J(s, []); return Array.isArray(a) ? a : []; }
 
   /* ---------- entrar / salir de una cuenta ---------- */
   async function enterAccount(user) {
@@ -402,7 +419,7 @@
       if (hasImportable()) h += '<div class="st-row"><div class="st-lab"><b>Datos de este dispositivo</b><small>Hay ' + esc(legacySummary().join(", ")) + ' que aún no están en tu cuenta.</small></div><div class="actions" style="margin-top:12px"><button class="btn" type="button" id="zsImport">Importar a mi cuenta</button></div></div>';
       h += '<div class="st-row"><div class="st-lab"><b>Eliminar mi cuenta</b><small>Borra tu cuenta y tus datos en la nube.</small></div><div class="actions" style="margin-top:12px"><button class="btn small" type="button" id="zsDel">Eliminar cuenta</button></div></div>';
       if (sub) sub.textContent = "Tu perfil se sincroniza con tu cuenta.";
-      if (note) note.textContent = "Tus listas, gustos, valoraciones, ajustes y perfil se sincronizan con tu cuenta. Las credenciales de TMDB, Real-Debrid y tu servidor multimedia se quedan solo en este dispositivo.";
+      if (note) note.textContent = "Tus listas, gustos, valoraciones, ajustes y perfil se sincronizan con tu cuenta. Tus addons también se sincronizan (si el enlace de un addon incluye una clave, se guarda en tu cuenta). Las credenciales de TMDB, Real-Debrid y tu servidor multimedia se quedan solo en este dispositivo.";
     }
     card.innerHTML = h;
     var b;
@@ -519,6 +536,7 @@
   }
 
   function start() {
+    migrateAddons();
     initSupabase(); buildUI();
     window.addEventListener("online", function () { syncNow(); renderCard(); });
     window.addEventListener("offline", renderCard);
@@ -555,8 +573,9 @@ function addonLoad() {
   try {
     var raw = localStorage.getItem(ADDON_KEY);
     if (raw === null) { // migra el addon único de la versión anterior
-      var list = [], old = localStorage.getItem('zynora_external_addon');
-      if (old) list = [{ url: _addonBase(old), name: _addonHost(old) }];
+      var old = localStorage.getItem('zynora_external_addon');
+      if (!old) return [];
+      var list = [{ url: _addonBase(old), name: _addonHost(old) }];
       localStorage.setItem(ADDON_KEY, JSON.stringify(list));
       localStorage.removeItem('zynora_external_addon');
       return list;
