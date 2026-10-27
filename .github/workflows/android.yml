@@ -360,6 +360,20 @@ jobs:
               private String mmrUrl = "";
               private boolean mmrFailed = false;
 
+              private void pushState() {
+                  try {
+                      if (!active || suspended || player == null) return;
+                      JSObject o = new JSObject();
+                      o.put("time", Math.max(player.getTime(), 0L));
+                      o.put("length", Math.max(player.getLength(), 0L));
+                      o.put("playing", player.isPlaying());
+                      o.put("buffering", buffering);
+                      notifyListeners("znpState", o);
+                  } catch (Throwable t) {
+                      // se ignora
+                  }
+              }
+
               private final Runnable ticker = new Runnable() {
                   @Override
                   public void run() {
@@ -386,9 +400,13 @@ jobs:
                           case MediaPlayer.Event.Buffering:
                               buffering = e.getBuffering() < 100f;
                               break;
+                          case MediaPlayer.Event.Paused:
+                              pushState();
+                              break;
                           case MediaPlayer.Event.Playing:
                               buffering = false;
                               applyAspect();
+                              pushState();
                               break;
                           case MediaPlayer.Event.EndReached:
                               notifyListeners("znpEnded", new JSObject());
@@ -454,6 +472,7 @@ jobs:
                   Media m = new Media(libVLC, Uri.parse(url));
                   if (!referer.isEmpty()) m.addOption(":http-referrer=" + referer);
                   if (!uagent.isEmpty()) m.addOption(":http-user-agent=" + uagent);
+                  m.addOption(":adaptive-logic=highest");
                   player.setMedia(m);
                   m.release();
                   player.play();
@@ -619,7 +638,9 @@ jobs:
                       @Override
                       public void run() {
                           if (player != null) {
-                              if (player.isPlaying()) player.pause(); else player.play();
+                              if (call.hasOption("play")) {
+                                  if (call.getBoolean("play", true)) player.play(); else player.pause();
+                              } else if (player.isPlaying()) player.pause(); else player.play();
                           }
                           call.resolve();
                       }
