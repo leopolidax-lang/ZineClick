@@ -429,7 +429,7 @@
       var nm = M.type === "tv" ? await epName(M.t.tmdbId, M.s, M.e) : "";
       var mt0 = metaFor(M.t, M.s, M.e, nm, snap); mt0.hdr = hdr;
       launch(url, M.t, M.s, M.e, mt0);
-    } catch (e) { alert(e.message || "No se pudo abrir esta fuente. Prueba con otra."); }
+    } catch (e) { alert((e && (e.userMessage || e.message)) || "No se pudo abrir esta fuente. Prueba con otra."); }
     busy = false; if (pl) pl.classList.remove("ld");
   }
 
