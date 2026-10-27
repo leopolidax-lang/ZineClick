@@ -1539,6 +1539,12 @@ jobs:
           import java.net.URLDecoder;
           import java.net.URLEncoder;
           import java.nio.charset.StandardCharsets;
+          import java.util.concurrent.Callable;
+          import java.util.concurrent.ConcurrentHashMap;
+          import java.util.concurrent.ExecutorService;
+          import java.util.concurrent.Executors;
+          import java.util.concurrent.Future;
+          import java.util.concurrent.TimeUnit;
           import java.util.regex.Matcher;
           import java.util.regex.Pattern;
 
@@ -1663,7 +1669,7 @@ jobs:
                           return;
                       }
                       String u = URLDecoder.decode(req.substring(i + 2, sp), "UTF-8");
-                      Object[] got = download(u);
+                      Object[] got = fetch(u);
                       if (got == null) {
                           send(out, 502, "text/plain", new byte[0]);
                           s.close();
@@ -1697,11 +1703,54 @@ jobs:
                   }
               }
 
+              private static final ConcurrentHashMap<String, String> nextOf = new ConcurrentHashMap<String, String>();
+              private static final ConcurrentHashMap<String, Future<Object[]>> pre = new ConcurrentHashMap<String, Future<Object[]>>();
+              private static final ExecutorService pool = Executors.newFixedThreadPool(3);
+
+              /** Entrega el trozo ya precargado si existe; si no, lo descarga. Luego precarga los siguientes. */
+              private static Object[] fetch(String u) {
+                  Object[] r = null;
+                  Future<Object[]> f = pre.remove(u);
+                  if (f != null) {
+                      try {
+                          r = f.get(40, TimeUnit.SECONDS);
+                      } catch (Throwable e) {
+                          r = null;
+                      }
+                  }
+                  if (r == null) r = download(u);
+                  prefetchNext(u);
+                  return r;
+              }
+
+              private static void prefetchNext(String cur) {
+                  try {
+                      if (nextOf.size() > 4000) nextOf.clear();
+                      String n = cur;
+                      for (int i = 0; i < 2; i++) {
+                          n = nextOf.get(n);
+                          if (n == null) return;
+                          if (pre.containsKey(n)) continue;
+                          if (pre.size() > 8) pre.clear();
+                          final String target = n;
+                          pre.put(target, pool.submit(new Callable<Object[]>() {
+                              @Override
+                              public Object[] call() {
+                                  return download(target);
+                              }
+                          }));
+                      }
+                  } catch (Throwable e) {
+                      // la precarga es opcional
+                  }
+              }
+
               /** Descarga con hasta 6 intentos; devuelve {codigo, urlFinal, bytes} o null si todo falla. */
               private static Object[] download(String u) {
                   int code = 0;
                   for (int attempt = 0; attempt < 6; attempt++) {
                       HttpURLConnection c = null;
+                      boolean keep = false;
                       try {
                           if (attempt > 0) Thread.sleep(Math.min(400L * attempt, 1500L));
                           c = (HttpURLConnection) new URL(u).openConnection();
@@ -1747,11 +1796,12 @@ jobs:
                           if (plain && declared >= 0 && data.length != declared) {
                               continue; // descarga cortada: se reintenta
                           }
+                          keep = true;
                           return new Object[] { Integer.valueOf(code), finalUrl, data };
                       } catch (Throwable e) {
                           // se reintenta
                       } finally {
-                          if (c != null) {
+                          if (c != null && !keep) {
                               try {
                                   c.disconnect();
                               } catch (Throwable e2) {
@@ -1774,6 +1824,8 @@ jobs:
               private static String rewrite(String text, String base) throws Exception {
                   StringBuilder sb = new StringBuilder();
                   String[] lines = text.split("\r?\n");
+                  boolean media = text.indexOf("#EXTINF") >= 0;
+                  String prevSeg = null;
                   for (String l : lines) {
                       String tr = l.trim();
                       if (tr.isEmpty()) {
@@ -1788,7 +1840,12 @@ jobs:
                           m.appendTail(out);
                           sb.append(out).append("\n");
                       } else {
-                          sb.append(proxied(resolve(base, tr))).append("\n");
+                          String abs = resolve(base, tr);
+                          if (media) {
+                              if (prevSeg != null) nextOf.put(prevSeg, abs);
+                              prevSeg = abs;
+                          }
+                          sb.append(proxied(abs)).append("\n");
                       }
                   }
                   return sb.toString();
