@@ -493,7 +493,7 @@ jobs:
                   if (!referer.isEmpty()) m.addOption(":http-referrer=" + referer);
                   if (!uagent.isEmpty()) m.addOption(":http-user-agent=" + uagent);
                   m.addOption(":adaptive-logic=highest");
-                  m.addOption(":ipv4-timeout=20000");
+                  m.addOption(":ipv4-timeout=8000");
                   player.setMedia(m);
                   m.release();
                   player.play();
@@ -1554,6 +1554,17 @@ jobs:
                   }
               }
 
+              /** Envuelve cualquier lista .m3u8 (se usa cuando VLC no logra la conexión directa). */
+              public static synchronized String wrapAlways(String url, String ref, String ua) {
+                  try {
+                      if (url == null || !url.startsWith("http")) return url;
+                      if (!url.toLowerCase().contains(".m3u8")) return url;
+                      return wrapForce(url, ref, ua);
+                  } catch (Throwable t) {
+                      return url;
+                  }
+              }
+
               static synchronized String wrapForce(String url, String ref, String ua) {
                   try {
                       referer = ref == null ? "" : ref;
@@ -1805,7 +1816,7 @@ jobs:
           s = open(PLUGIN, encoding='utf-8').read()
           old = 'Media m = new Media(libVLC, Uri.parse(url));'
           assert s.count(old) == 1, 'No se encontró la línea que abre el video'
-          s = s.replace(old, 'Media m = new Media(libVLC, Uri.parse(ZineProxy.wrap(url, referer, uagent)));')
+          s = s.replace(old, 'Media m = new Media(libVLC, Uri.parse(retries > 0 ? ZineProxy.wrapAlways(url, referer, uagent) : ZineProxy.wrap(url, referer, uagent)));')
           open(PLUGIN, 'w', encoding='utf-8').write(s)
           print('Servidor local de video habilitado')
           PY
