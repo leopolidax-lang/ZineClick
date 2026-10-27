@@ -17,6 +17,7 @@
     skip: '<svg viewBox="0 0 24 24"><path d="M12 4.6A7.9 7.9 0 1 1 5.95 7.42"/><path d="M14.7 2.2 12 4.6l2.7 2.4"/></svg><b>10</b>',
     /* iconos de línea fina (sin cuadro ni círculo) */
     audio: '<svg viewBox="0 0 24 24"><path d="M4 9.5v5h3.6l4.4 4V5.5l-4.4 4z"/><path d="M15.6 9.2a4 4 0 0 1 0 5.6M18.3 6.6a8 8 0 0 1 0 10.8"/></svg>',
+    quality: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3.5"/><path d="M7.5 9.5v5M7.5 12h3M10.5 9.5v5M14 9.5h1.6a1.9 1.9 0 0 1 0 5H14z"/></svg>',
     subs: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3.5"/><path d="M7 10.5h4M13.5 10.5H17M7 14.5h2.6M12.2 14.5H17"/></svg>',
     speed: '<svg viewBox="0 0 24 24"><path d="M4.6 17.5a8.5 8.5 0 1 1 14.8 0"/><path d="M12 14l3.8-4.6"/><circle cx="12" cy="14.2" r="1.1"/></svg>',
     aspect: '<svg viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/></svg>',
@@ -116,7 +117,7 @@
   var hideT = 0, msgT = 0, flashT = 0, tapT = 0, lastTap = 0, lastSide = 0;
   var curTitle = "", fallback = null, backH = null, listening = false, resumed = false, lastSave = 0;
   var origPlay = typeof W.rdPlay === "function" ? W.rdPlay : null;
-  var castName = "", castPoll = 0, castSig = "", rate = 1, aspect = "fit", meta = null, sheetKind = "", startAt = 0, applied = false, applyTry = 0, applyT = 0;
+  var castName = "", castPoll = 0, castSig = "", rate = 1, aspect = "fit", meta = null, sheetKind = "", quality = 0, startAt = 0, applied = false, applyTry = 0, applyT = 0;
   var thumbC = {}, thumbBusy = false, thumbOk = true, thumbFail = 0, thumbWant = -1;
 
   function fmt(ms) {
@@ -194,6 +195,7 @@
           '<div class="znp-acts">' +
             '<button class="znp-ic" data-p="audio" aria-label="Audio" title="Audio">' + ICON.audio + '</button>' +
             '<button class="znp-ic" data-p="subs" aria-label="Subtítulos" title="Subtítulos">' + ICON.subs + '</button>' +
+            '<button class="znp-ic" data-p="quality" aria-label="Calidad" title="Calidad">' + ICON.quality + '</button>' +
             '<button class="znp-ic" data-p="speed" id="znpSpeed" aria-label="Velocidad" title="Velocidad">' + ICON.speed + '<small id="znpSpeedB"></small></button>' +
             '<button class="znp-ic" data-p="aspect" aria-label="Pantalla" title="Pantalla">' + ICON.aspect + '</button>' +
             '<button class="znp-ic znp-nx" id="znpNext" aria-label="Siguiente episodio" title="Siguiente episodio" hidden>' + ICON.next + '</button></div></div>' +
@@ -322,6 +324,10 @@
     } else if (kind === "speed") {
       fillSheet("Velocidad", [0.5, 0.75, 1, 1.25, 1.5, 2].map(function (r) {
         return { label: r === 1 ? "Normal" : r + "x", on: r === rate, fn: function () { rate = r; speedBadge(); call("setRate", { rate: r }).catch(noop); } };
+      }));
+    } else if (kind === "quality") {
+      fillSheet("Calidad", [[0, "Automática", "Si no cambia nada, este enlace solo trae una calidad"], [1080, "1080p"], [720, "720p"], [480, "480p"], [360, "360p"]].map(function (q) {
+        return { label: q[1], sub: q[0] === 0 ? q[2] : "", on: q[0] === quality, fn: function () { quality = q[0]; call("setQuality", { height: q[0] }).catch(noop); } };
       }));
     } else if (kind === "aspect") {
       fillSheet("Pantalla", [["fit", "Ajustar"], ["zoom", "Zoom (recorta los bordes)"], ["fill", "Estirar"], ["16:9", "16:9"], ["4:3", "4:3"]].map(function (a) {
@@ -531,7 +537,7 @@
     var p = plug(); if (!p) return false;
     build(); listen(p);
     meta = mt || null; thumbC = {}; thumbBusy = false; thumbOk = true; thumbFail = 0; thumbWant = -1;
-    curTitle = title || ""; fallback = fb || (origPlay ? function () { origPlay({ download: url }, title); } : null); resumed = false; rate = 1; aspect = "fit"; lastSave = 0;
+    curTitle = title || ""; fallback = fb || (origPlay ? function () { origPlay({ download: url }, title); } : null); resumed = false; rate = 1; aspect = "fit"; quality = 0; lastSave = 0;
     castName = ""; castSig = ""; clearInterval(castPoll); if (ui.cast) { ui.cast.classList.remove("on"); } root.classList.remove("znp-casting");
     startAt = Number(startMs) || 0; applied = false; applyTry = 0; clearTimeout(applyT); applyT = 0;
     st = { time: 0, length: 0, playing: false, buffering: true }; wantUntil = 0;
