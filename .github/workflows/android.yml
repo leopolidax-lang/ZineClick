@@ -2113,6 +2113,108 @@ jobs:
           print('Ajustes de reproduccion aplicados')
           PY
 
+      - name: Mejora - arreglos (ventana flotante y calidad automática)
+        id: fix
+        if: steps.native.outcome == 'success'
+        continue-on-error: true
+        run: |
+          snap() { rm -rf "/tmp/snap_$1"; mkdir -p "/tmp/snap_$1"; cp -a android/app/src/main "/tmp/snap_$1/main"; cp android/app/build.gradle "/tmp/snap_$1/build.gradle"; }
+          snap fix
+          python3 - <<'PY'
+          PKG = 'android/app/src/main/java/com/zineclick/app/'
+          PLUGIN = PKG + 'ZinePlayerPlugin.java'
+          MAINACT = PKG + 'MainActivity.java'
+
+
+          def load(p):
+              return open(p, encoding='utf-8').read()
+
+
+          def save(p, t):
+              open(p, 'w', encoding='utf-8').write(t)
+
+
+          def rep(s, old, new):
+              assert s.count(old) == 1, 'No se encontro (o esta repetido): ' + old
+              return s.replace(old, new)
+
+
+          LIFE = '    /* ---------------- ciclo de vida de la app ---------------- */\n'
+
+          FIX = """
+              /* ---------------- arreglos de la ventana flotante ---------------- */
+
+              /* Antes, al entrar a la ventana flotante el telefono mandaba onStop y el reproductor se destruia y se
+                 volvia a crear desde cero (por eso salia pantalla negra con sonido). Ahora, si la ventana flotante
+                 esta activa o a punto de abrirse, onStop se ignora y el video sigue vivo. */
+              /* Si vuelve a quedar negro al regresar, probar con true (refresco viejo, una sola vez al salir). */
+              private static final boolean PIP_REFRESH = false;
+              private volatile boolean pipEntering = false;
+              private volatile boolean uiResumed = true;
+
+              public void pipWillEnter() {
+                  pipEntering = true;
+              }
+
+              private boolean pipKeep() {
+                  if (pipEntering) return true;
+                  try {
+                      Activity a = getActivity();
+                      return a != null && Build.VERSION.SDK_INT >= 24 && a.isInPictureInPictureMode();
+                  } catch (Throwable t) {
+                      return false;
+                  }
+              }
+
+              /* Si la ventana flotante se cierra con la X (y no se expande), la app queda detenida: ahi si se para el video. */
+              private void pipCheckClosed() {
+                  handler.postDelayed(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              if (player == null || !active || suspended) return;
+                              if (!uiResumed) handleOnStop();
+                          } catch (Throwable t) {
+                              // sin efecto
+                          }
+                      }
+                  }, 1000);
+              }
+
+              @Override
+              protected void handleOnPause() {
+                  uiResumed = false;
+              }
+
+              @Override
+              protected void handleOnResume() {
+                  uiResumed = true;
+              }
+
+          """
+
+          s = load(PLUGIN)
+          # 1) calidad automatica: tope de 480p (con 720p la fuente de LA Cartoon no alcanza y se traba)
+          s = rep(s, 'private static final int AUTO_MAXH = 720;', 'private static final int AUTO_MAXH = 480;')
+          # 2) onStop no destruye el video mientras la ventana flotante esta activa
+          s = rep(s, 'protected void handleOnStop() {',
+                  'protected void handleOnStop() {\n        if (pipKeep()) {\n            android.util.Log.d("ZinePip", "handleOnStop ignorado: ventana flotante");\n            return;\n        }')
+          # 3) al salir de la ventana flotante: se limpia la marca y se vigila si se cerro con la X
+          s = rep(s, 'public void pipChanged(boolean on) {',
+                  'public void pipChanged(boolean on) {\n        if (!on) {\n            pipEntering = false;\n            pipCheckClosed();\n        }')
+          # 4) el refresco de superficie ya no corre por defecto (provocaba errores de EGL al volver)
+          s = rep(s, 'handler.postDelayed(pipRefreshRun, 350);', 'if (PIP_REFRESH && !on) handler.postDelayed(pipRefreshRun, 500);')
+          s = rep(s, 'handler.postDelayed(pipRefreshRun, 1300);', '')
+          s = rep(s, LIFE, FIX + LIFE)
+          save(PLUGIN, s)
+
+          # 5) MainActivity: avisar al plugin cuando la ventana flotante realmente se pidio
+          m = load(MAINACT)
+          m = rep(m, 'enterPictureInPictureMode(b.build());', 'if (enterPictureInPictureMode(b.build())) z.pipWillEnter();')
+          save(MAINACT, m)
+          print('Arreglos aplicados')
+          PY
+
       - name: Compilar APK
         id: build
         continue-on-error: true
