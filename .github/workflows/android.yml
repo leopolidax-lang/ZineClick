@@ -1918,6 +1918,201 @@ jobs:
           print('Servidor local de video habilitado')
           PY
 
+      - name: Mejora - ajustes de reproducción (calidad, audio y registro de trabas)
+        id: tune
+        if: steps.native.outcome == 'success'
+        continue-on-error: true
+        run: |
+          snap() { rm -rf "/tmp/snap_$1"; mkdir -p "/tmp/snap_$1"; cp -a android/app/src/main "/tmp/snap_$1/main"; cp android/app/build.gradle "/tmp/snap_$1/build.gradle"; }
+          snap tune
+          python3 - <<'PY'
+          import os
+
+          PKG = 'android/app/src/main/java/com/zineclick/app/'
+          PLUGIN = PKG + 'ZinePlayerPlugin.java'
+          PROXY = PKG + 'ZineProxy.java'
+
+
+          def load(p):
+              return open(p, encoding='utf-8').read()
+
+
+          def save(p, t):
+              open(p, 'w', encoding='utf-8').write(t)
+
+
+          def rep(s, old, new):
+              assert s.count(old) == 1, 'No se encontro (o esta repetido): ' + old
+              return s.replace(old, new)
+
+
+          LIFE = '    /* ---------------- ciclo de vida de la app ---------------- */\n'
+
+          TUNE = """
+              /* ---------------- ajustes de reproduccion (calidad automatica, pistas y cambio de audio) ---------------- */
+
+              /* Tope de la calidad "Automatica". Con 720 VLC no sube a 1080p y se traba menos; usa 0 para quitar el tope. */
+              private static final int AUTO_MAXH = 720;
+
+              private String trackNameOf(MediaPlayer.TrackDescription[] list, int id) {
+                  if (list == null) return null;
+                  for (int i = 0; i < list.length; i++) {
+                      if (list[i] != null && list[i].id == id) return list[i].name == null ? "" : list[i].name;
+                  }
+                  return null;
+              }
+
+              private int trackIdOf(MediaPlayer.TrackDescription[] list, String name, int fallback) {
+                  if (list == null || name == null) return fallback;
+                  for (int i = 0; i < list.length; i++) {
+                      if (list[i] != null && name.equals(list[i].name == null ? "" : list[i].name)) return list[i].id;
+                  }
+                  return fallback;
+              }
+
+              /* Antes de reiniciar el video (cambio de calidad) se anota que audio, subtitulo y velocidad habia. */
+              private void keepTracks() {
+                  try {
+                      final int aId = player.getAudioTrack();
+                      final int sId = player.getSpuTrack();
+                      final String aName = trackNameOf(player.getAudioTracks(), aId);
+                      final String sName = trackNameOf(player.getSpuTracks(), sId);
+                      final float rate = player.getRate();
+                      reapplyTracks(aId, aName, sId, sName, rate, 0);
+                  } catch (Throwable t) {
+                      // sin pistas anotadas: se queda con las de por defecto
+                  }
+              }
+
+              /* Cuando las pistas del video reiniciado aparecen, se vuelve a poner lo que habia (por nombre, no por numero). */
+              private void reapplyTracks(final int aId, final String aName, final int sId, final String sName, final float rate, final int tries) {
+                  handler.postDelayed(new Runnable() {
+                      @Override
+                      public void run() {
+                          if (player == null || !active || suspended) return;
+                          boolean done = false;
+                          try {
+                              MediaPlayer.TrackDescription[] at = player.getAudioTracks();
+                              if (at != null && at.length > 0) {
+                                  if (aName != null) {
+                                      int ia = trackIdOf(at, aName, aId);
+                                      if (player.getAudioTrack() != ia) player.setAudioTrack(ia);
+                                  }
+                                  MediaPlayer.TrackDescription[] st = player.getSpuTracks();
+                                  if (sName != null && st != null && st.length > 0) {
+                                      int is = trackIdOf(st, sName, sId);
+                                      if (player.getSpuTrack() != is) player.setSpuTrack(is);
+                                  }
+                                  if (rate > 0f && rate != 1.0f) player.setRate(rate);
+                                  android.util.Log.d("ZineTune", "pistas restauradas: audio=" + aName + " subs=" + sName + " (intento " + tries + ")");
+                                  done = true;
+                              }
+                          } catch (Throwable t) {
+                              // se reintenta
+                          }
+                          if (!done && tries < 25) reapplyTracks(aId, aName, sId, sName, rate, tries + 1);
+                      }
+                  }, 1000);
+              }
+
+              /* Tras cambiar de audio se fuerza un re-sincronizado: VLC reinicia la lectura y el sonido nuevo entra antes. */
+              private void nudgeAfterAudio() {
+                  handler.postDelayed(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              if (player == null || !active || suspended) return;
+                              long t = player.getTime();
+                              if (t > 3000) {
+                                  player.setTime(t);
+                                  android.util.Log.d("ZineTune", "re-sincronizado tras cambiar de audio en " + t);
+                              }
+                          } catch (Throwable e) {
+                              // sin efecto
+                          }
+                      }
+                  }, 300);
+              }
+
+          """
+
+          s = load(PLUGIN)
+          # 1) tope de calidad automatica
+          s = rep(s, '        if (qualityH > 0) m.addOption(":adaptive-maxheight=" + qualityH);\n',
+                  '        int capH = qualityH > 0 ? qualityH : AUTO_MAXH;\n        if (capH > 0) m.addOption(":adaptive-maxheight=" + capH);\n')
+          # 2) al cambiar la calidad se conservan audio, subtitulos y velocidad
+          s = rep(s, 'qualityH = h;', 'qualityH = h;\n                    if (player != null && active) keepTracks();')
+          # 3) al cambiar el audio se fuerza el re-sincronizado
+          s = rep(s, 'if (player != null) player.setAudioTrack(id);', 'if (player != null) { player.setAudioTrack(id); nudgeAfterAudio(); }')
+          # 4) registro de cuando VLC se queda sin datos (para ver las trabas en el siguiente log)
+          s = rep(s, 'buffering = e.getBuffering() < 100f;',
+                  'boolean zWasBuf = buffering;\n                buffering = e.getBuffering() < 100f;\n                if (zWasBuf != buffering) android.util.Log.d("ZineBuf", buffering ? "buffering: empieza a recargar" : "buffering: listo");')
+          # 5) registro de la ventana flotante (para ver que pasa al volver)
+          s = rep(s, 'public void pipChanged(boolean on) {',
+                  'public void pipChanged(boolean on) {\n        android.util.Log.d("ZinePip", "pipChanged on=" + on + " active=" + active + " suspended=" + suspended + " player=" + (player != null));')
+          s = rep(s, 'protected void handleOnStop() {',
+                  'protected void handleOnStop() {\n        android.util.Log.d("ZinePip", "handleOnStop active=" + active + " suspended=" + suspended);')
+          s = rep(s, 'protected void handleOnStart() {',
+                  'protected void handleOnStart() {\n        android.util.Log.d("ZinePip", "handleOnStart active=" + active + " suspended=" + suspended);')
+          s = rep(s, LIFE, TUNE + LIFE)
+
+          CACHE = """    /* ---- memoria de los ultimos trozos: al cambiar de audio/calidad o retroceder, VLC los vuelve a pedir ---- */
+              private static final java.util.LinkedHashMap<String, Object[]> cache = new java.util.LinkedHashMap<String, Object[]>(32, 0.75f, true);
+              private static long cacheBytes = 0;
+              private static final long CACHE_MAX = 40L * 1024 * 1024;
+
+              private static String tail(String u) {
+                  if (u == null) return "";
+                  int q = u.indexOf('?');
+                  String p = q >= 0 ? u.substring(0, q) : u;
+                  return p.length() > 48 ? "..." + p.substring(p.length() - 48) : p;
+              }
+
+              private static synchronized Object[] cacheGet(String u) {
+                  Object[] r = cache.get(u);
+                  if (r != null) android.util.Log.d("ZineProxy", "memoria: trozo ya descargado " + tail(u));
+                  return r;
+              }
+
+              private static synchronized void cachePut(String u, Object[] r) {
+                  try {
+                      if (r == null || r.length < 3 || ((Integer) r[0]).intValue() >= 400) return;
+                      byte[] d = (byte[]) r[2];
+                      if (d == null || d.length < 1024 || d.length > 16 * 1024 * 1024) return;
+                      if (d[0] == '#') return; // las listas .m3u8 siempre se piden de nuevo
+                      if (cache.containsKey(u)) return;
+                      cache.put(u, r);
+                      cacheBytes += d.length;
+                      java.util.Iterator<java.util.Map.Entry<String, Object[]>> it = cache.entrySet().iterator();
+                      while (cacheBytes > CACHE_MAX && it.hasNext()) {
+                          java.util.Map.Entry<String, Object[]> en = it.next();
+                          cacheBytes -= ((byte[]) en.getValue()[2]).length;
+                          it.remove();
+                      }
+                  } catch (Throwable e) {
+                      // la memoria de trozos es opcional
+                  }
+              }
+
+          """
+
+          if os.path.exists(PROXY):
+              p = load(PROXY)
+              p = rep(p, '    private static void prefetchNext(String cur) {', CACHE + '    private static void prefetchNext(String cur) {')
+              p = rep(p, 'if (r == null) r = download(u);', 'if (r == null) r = cacheGet(u);\n        if (r == null) r = download(u);\n        cachePut(u, r);')
+              p = rep(p, 'for (int attempt = 0; attempt < 6; attempt++) {', 'final long t0 = System.currentTimeMillis();\n        for (int attempt = 0; attempt < 6; attempt++) {')
+              p = rep(p, 'if (code == 429 || code >= 500) {',
+                      'if (code == 429 || code >= 500) {\n                    android.util.Log.w("ZineProxy", "HTTP " + code + " intento " + (attempt + 1) + " " + tail(u));')
+              p = rep(p, 'keep = true;',
+                      'keep = true;\n                android.util.Log.d("ZineProxy", "descargado " + (data.length / 1024) + "KB en " + (System.currentTimeMillis() - t0) + "ms (intento " + (attempt + 1) + ") " + tail(u));')
+              p = rep(p, '// se reintenta\n',
+                      'android.util.Log.w("ZineProxy", "fallo " + e + " (intento " + (attempt + 1) + ") " + tail(u));\n                // se reintenta\n')
+              save(PROXY, p)
+
+          save(PLUGIN, s)
+          print('Ajustes de reproduccion aplicados')
+          PY
+
       - name: Compilar APK
         id: build
         continue-on-error: true
@@ -1926,9 +2121,21 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
+      - name: Plan B00 - compilar sin los ajustes de reproducción
+        id: buildt
+        if: steps.build.outcome == 'failure' && steps.tune.outcome != 'skipped'
+        continue-on-error: true
+        working-directory: android
+        run: |
+          restore() { rm -rf app/src/main; cp -a "/tmp/snap_$1/main" app/src/main; cp "/tmp/snap_$1/build.gradle" app/build.gradle; }
+          echo "::warning::Los ajustes de reproducción no compilaron. Se genera el APK sin ellos."
+          test -d "/tmp/snap_tune"
+          restore tune
+          ./gradlew assembleDebug
+
       - name: Plan B0 - compilar sin el servidor local de video
         id: buildp
-        if: steps.build.outcome == 'failure' && steps.proxy.outcome != 'skipped'
+        if: steps.build.outcome == 'failure' && steps.buildt.outcome != 'success' && steps.proxy.outcome != 'skipped'
         continue-on-error: true
         working-directory: android
         run: |
@@ -1940,7 +2147,7 @@ jobs:
 
       - name: Plan B1 - compilar sin las miniaturas de VLC
         id: build2
-        if: steps.build.outcome == 'failure' && steps.buildp.outcome != 'success' && steps.thumbs.outcome != 'skipped'
+        if: steps.build.outcome == 'failure' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.thumbs.outcome != 'skipped'
         continue-on-error: true
         working-directory: android
         run: |
@@ -1953,7 +2160,7 @@ jobs:
 
       - name: Plan B2 - compilar sin Chromecast
         id: build3
-        if: steps.build.outcome == 'failure' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.cast.outcome != 'skipped'
+        if: steps.build.outcome == 'failure' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.cast.outcome != 'skipped'
         continue-on-error: true
         working-directory: android
         run: |
@@ -1966,7 +2173,7 @@ jobs:
 
       - name: Plan B3 - compilar sin ventana flotante
         id: build4
-        if: steps.build.outcome == 'failure' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.build3.outcome != 'success' && steps.pip.outcome != 'skipped'
+        if: steps.build.outcome == 'failure' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.build3.outcome != 'success' && steps.pip.outcome != 'skipped'
         continue-on-error: true
         working-directory: android
         run: |
@@ -1979,7 +2186,7 @@ jobs:
 
       - name: Plan B4 - compilar sin las mejoras del reproductor
         id: build5
-        if: steps.build.outcome == 'failure' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.build3.outcome != 'success' && steps.build4.outcome != 'success' && steps.tracks.outcome != 'skipped'
+        if: steps.build.outcome == 'failure' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.build3.outcome != 'success' && steps.build4.outcome != 'success' && steps.tracks.outcome != 'skipped'
         continue-on-error: true
         working-directory: android
         run: |
@@ -1991,7 +2198,7 @@ jobs:
 
 
       - name: Plan B - compilar sin el reproductor nativo
-        if: steps.build.outcome == 'failure' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.build3.outcome != 'success' && steps.build4.outcome != 'success' && steps.build5.outcome != 'success'
+        if: steps.build.outcome == 'failure' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.build3.outcome != 'success' && steps.build4.outcome != 'success' && steps.build5.outcome != 'success'
         working-directory: android
         run: |
           echo "::warning::El reproductor nativo no compiló. Se genera el APK sin él (el video se verá en el reproductor interno)."
