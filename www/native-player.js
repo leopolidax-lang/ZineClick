@@ -112,6 +112,7 @@
   var root = null, ui = {};
   var st = { time: 0, length: 0, playing: false, buffering: true };
   var isOpen = false, dragging = false, dragT = 0, sheetOpen = false;
+  var wantPlay = null, wantUntil = 0;
   var hideT = 0, msgT = 0, flashT = 0, tapT = 0, lastTap = 0, lastSide = 0;
   var curTitle = "", fallback = null, backH = null, listening = false, resumed = false, lastSave = 0;
   var origPlay = typeof W.rdPlay === "function" ? W.rdPlay : null;
@@ -275,7 +276,12 @@
   }
 
   /* ---------- acciones ---------- */
-  function toggle() { call("togglePlay").catch(noop); st.playing = !st.playing; paint(); showUi(); }
+  function toggle() {
+    var want = !st.playing;
+    wantPlay = want; wantUntil = Date.now() + 1500;
+    call("togglePlay", { play: want }).catch(noop);
+    st.playing = want; paint(); showUi();
+  }
   function seekBy(ms) {
     call("seekBy", { ms: ms }).catch(noop);
     st.time = Math.max(0, Math.min(st.length || 1e12, st.time + ms)); paint(); showUi();
@@ -479,6 +485,9 @@
     p.addListener("znpState", function (s) {
       if (!isOpen || !s) return;
       st.time = Number(s.time) || 0; st.length = Number(s.length) || 0; st.playing = !!s.playing; st.buffering = !!s.buffering;
+      if (wantUntil) {
+        if (st.playing === wantPlay || Date.now() > wantUntil) wantUntil = 0; else st.playing = wantPlay;
+      }
       if (!resumed && st.length > 0) {
         resumed = true;
         var want = startAt, saved = want || Number(posMap()[curTitle]) || 0;
@@ -512,7 +521,7 @@
     p.addListener("znpError", function () {
       if (!isOpen) return;
       var fb = fallback; close(true);
-      if (fb) { say("El reproductor nativo falló; se usa el interno"); fb(); } else say("No se pudo reproducir este video. Prueba otra fuente.");
+      if (fb) { say("VLC no pudo con esta fuente; se usa el reproductor interno"); try { var pn = D.getElementById("addonStreamsPanel"); if (pn) pn.hidden = true; } catch (e2) {} fb(); } else say("No se pudo reproducir este video. Prueba otra fuente.");
     });
   }
 
@@ -524,7 +533,7 @@
     curTitle = title || ""; fallback = fb || (origPlay ? function () { origPlay({ download: url }, title); } : null); resumed = false; rate = 1; aspect = "fit"; lastSave = 0;
     castName = ""; castSig = ""; clearInterval(castPoll); if (ui.cast) { ui.cast.classList.remove("on"); } root.classList.remove("znp-casting");
     startAt = Number(startMs) || 0; applied = false; applyTry = 0; clearTimeout(applyT); applyT = 0;
-    st = { time: 0, length: 0, playing: false, buffering: true };
+    st = { time: 0, length: 0, playing: false, buffering: true }; wantUntil = 0;
     ui.title.textContent = curTitle || "Reproduciendo";
     var c = W._addonCtx;
     ui.sub.textContent = c && c.type === "tv" ? "Temporada " + c.season + " · Episodio " + c.episode : "";
