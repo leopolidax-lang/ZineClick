@@ -494,6 +494,7 @@ jobs:
                   if (!referer.isEmpty()) m.addOption(":http-referrer=" + referer);
                   if (!uagent.isEmpty()) m.addOption(":http-user-agent=" + uagent);
                   m.addOption(":ipv4-timeout=8000");
+                  m.addOption(":network-caching=8000");
                   player.setMedia(m);
                   m.release();
                   player.play();
@@ -536,7 +537,7 @@ jobs:
                   buffering = true;
                   ArrayList<String> args = new ArrayList<String>();
                   retries = 0;
-                  args.add("--network-caching=3000");
+                  args.add("--network-caching=8000");
                   args.add("--file-caching=3000");
                   args.add("--http-reconnect");
                   libVLC = new LibVLC(a, args);
@@ -1705,7 +1706,7 @@ jobs:
 
               private static final ConcurrentHashMap<String, String> nextOf = new ConcurrentHashMap<String, String>();
               private static final ConcurrentHashMap<String, Future<Object[]>> pre = new ConcurrentHashMap<String, Future<Object[]>>();
-              private static final ExecutorService pool = Executors.newFixedThreadPool(3);
+              private static final ExecutorService pool = Executors.newFixedThreadPool(4);
 
               /** Entrega el trozo ya precargado si existe; si no, lo descarga. Luego precarga los siguientes. */
               private static Object[] fetch(String u) {
@@ -1727,11 +1728,11 @@ jobs:
                   try {
                       if (nextOf.size() > 4000) nextOf.clear();
                       String n = cur;
-                      for (int i = 0; i < 2; i++) {
+                      for (int i = 0; i < 4; i++) {
                           n = nextOf.get(n);
                           if (n == null) return;
                           if (pre.containsKey(n)) continue;
-                          if (pre.size() > 8) pre.clear();
+                          if (pre.size() > 12) pre.clear();
                           final String target = n;
                           pre.put(target, pool.submit(new Callable<Object[]>() {
                               @Override
