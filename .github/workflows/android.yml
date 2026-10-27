@@ -357,6 +357,7 @@ jobs:
               private boolean resumePlaying = true;
               private long resumeAt = 0;
               private final ExecutorService thumbEx = Executors.newSingleThreadExecutor();
+              private final ExecutorService relEx = Executors.newSingleThreadExecutor();
               private MediaMetadataRetriever mmr;
               private String mmrUrl = "";
               private boolean mmrFailed = false;
@@ -492,7 +493,6 @@ jobs:
                   Media m = new Media(libVLC, Uri.parse(url));
                   if (!referer.isEmpty()) m.addOption(":http-referrer=" + referer);
                   if (!uagent.isEmpty()) m.addOption(":http-user-agent=" + uagent);
-                  m.addOption(":adaptive-logic=highest");
                   m.addOption(":ipv4-timeout=8000");
                   player.setMedia(m);
                   m.release();
@@ -551,35 +551,48 @@ jobs:
                   active = false;
                   suspended = false;
                   handler.removeCallbacksAndMessages(null);
+                  final MediaPlayer oldPlayer = player;
+                  final LibVLC oldLib = libVLC;
+                  player = null;
+                  libVLC = null;
                   try {
-                      if (player != null) {
-                          player.setEventListener(null);
-                          player.stop();
-                          player.detachViews();
-                          player.release();
+                      if (oldPlayer != null) {
+                          oldPlayer.setEventListener(null);
+                          oldPlayer.detachViews();
                       }
                   } catch (Throwable t) {
                       // se sigue liberando el resto
                   }
-                  try {
-                      if (libVLC != null) libVLC.release();
-                  } catch (Throwable t) {
-                      // idem
-                  }
-                  player = null;
-                  libVLC = null;
-                  thumbEx.execute(new Runnable() {
-                      @Override
-                      public void run() {
-                          closeRetriever();
-                      }
-                  });
                   try {
                       if (videoLayout != null && videoParent != null) videoParent.removeView(videoLayout);
                   } catch (Throwable t) {
                       // idem
                   }
                   videoLayout = null;
+                  thumbEx.execute(new Runnable() {
+                      @Override
+                      public void run() {
+                          closeRetriever();
+                      }
+                  });
+                  relEx.execute(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              if (oldPlayer != null) {
+                                  oldPlayer.stop();
+                                  oldPlayer.release();
+                              }
+                          } catch (Throwable t) {
+                              // idem
+                          }
+                          try {
+                              if (oldLib != null) oldLib.release();
+                          } catch (Throwable t) {
+                              // idem
+                          }
+                      }
+                  });
               }
 
               private void restoreWindow() {
@@ -1547,7 +1560,7 @@ jobs:
                   try {
                       if (url == null || !url.startsWith("http")) return url;
                       String low = url.toLowerCase();
-                      if (!(low.contains("rpmvid.com") && low.contains(".m3u8"))) return url;
+                      if (!((low.contains("rpmvid.com") || low.contains("okcdn.ru") || low.contains("mycdn.me")) && low.contains(".m3u8"))) return url;
                       return wrapForce(url, ref, ua);
                   } catch (Throwable t) {
                       return url;
