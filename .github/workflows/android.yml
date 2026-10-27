@@ -352,6 +352,7 @@ jobs:
               private String aspect = "fit";
               private boolean active = false;
               private int retries = 0;
+              private int qualityH = 0;
               private boolean suspended = false;
               private boolean buffering = true;
               private boolean resumePlaying = true;
@@ -495,6 +496,7 @@ jobs:
                   if (!uagent.isEmpty()) m.addOption(":http-user-agent=" + uagent);
                   m.addOption(":ipv4-timeout=8000");
                   m.addOption(":network-caching=8000");
+                  if (qualityH > 0) m.addOption(":adaptive-maxheight=" + qualityH);
                   player.setMedia(m);
                   m.release();
                   player.play();
@@ -537,6 +539,7 @@ jobs:
                   buffering = true;
                   ArrayList<String> args = new ArrayList<String>();
                   retries = 0;
+                  qualityH = 0;
                   args.add("--network-caching=8000");
                   args.add("--file-caching=3000");
                   args.add("--http-reconnect");
@@ -751,6 +754,28 @@ jobs:
               }
 
               @PluginMethod
+              public void setQuality(final PluginCall call) {
+                  final int h = call.getInt("height", 0);
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              qualityH = h;
+                              if (player != null && active) {
+                                  final long rt = Math.max(player.getTime(), 0L);
+                                  player.stop();
+                                  player.detachViews();
+                                  attachAndPlay(rt, true);
+                              }
+                          } catch (Throwable t) {
+                              // si no se puede reiniciar, se queda con la calidad anterior
+                          }
+                          call.resolve();
+                      }
+                  });
+              }
+
+              @PluginMethod
               public void setSubtitle(final PluginCall call) {
                   final int id = call.getInt("id", -1);
                   ui(new Runnable() {
@@ -792,6 +817,7 @@ jobs:
                           } catch (Throwable t) {
                               // se devuelven las listas que se hayan podido leer
                           }
+                          res.put("quality", qualityH);
                           res.put("audio", audio);
                           res.put("subs", subs);
                           call.resolve(res);
