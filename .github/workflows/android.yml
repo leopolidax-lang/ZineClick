@@ -351,6 +351,7 @@ jobs:
           private String uagent = "";
               private String aspect = "fit";
               private boolean active = false;
+              private int retries = 0;
               private boolean suspended = false;
               private boolean buffering = true;
               private boolean resumePlaying = true;
@@ -405,6 +406,7 @@ jobs:
                               break;
                           case MediaPlayer.Event.Playing:
                               buffering = false;
+                              retries = 0;
                               applyAspect();
                               pushState();
                               break;
@@ -412,6 +414,24 @@ jobs:
                               notifyListeners("znpEnded", new JSObject());
                               break;
                           case MediaPlayer.Event.EncounteredError:
+                              if (retries < 2 && active && !suspended && player != null) {
+                                  retries++;
+                                  final long rt = Math.max(player.getTime(), 0L);
+                                  handler.postDelayed(new Runnable() {
+                                      @Override
+                                      public void run() {
+                                          try {
+                                              if (player == null || !active || suspended) return;
+                                              player.stop();
+                                              player.detachViews();
+                                              attachAndPlay(rt, true);
+                                          } catch (Throwable t) {
+                                              // si el reintento falla, el siguiente error avisa a la página
+                                          }
+                                      }
+                                  }, 1000);
+                                  break;
+                              }
                               JSObject o = new JSObject();
                               o.put("message", "VLC no pudo reproducir este video");
                               notifyListeners("znpError", o);
@@ -473,6 +493,7 @@ jobs:
                   if (!referer.isEmpty()) m.addOption(":http-referrer=" + referer);
                   if (!uagent.isEmpty()) m.addOption(":http-user-agent=" + uagent);
                   m.addOption(":adaptive-logic=highest");
+                  m.addOption(":ipv4-timeout=20000");
                   player.setMedia(m);
                   m.release();
                   player.play();
@@ -514,6 +535,7 @@ jobs:
                   suspended = false;
                   buffering = true;
                   ArrayList<String> args = new ArrayList<String>();
+                  retries = 0;
                   args.add("--network-caching=3000");
                   args.add("--file-caching=3000");
                   args.add("--http-reconnect");
