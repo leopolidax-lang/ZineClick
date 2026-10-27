@@ -5,7 +5,8 @@
    - El código del plugin corre aislado (iframe con sandbox y CSP): solo puede salir a internet con kino.fetch,
      y solo hacia los sitios (hosts) que el plugin declaró y la persona aprobó.
    - Los plugins aportan: fuentes en el menú de reproducción, y filas en el Inicio.
-   Funciona en la app Android (usa la red nativa de Capacitor); en la web de PC la mayoría de sitios bloquean por CORS. */
+   Funciona en la app Android (usa la red nativa de Capacitor). En la web usa el proxy de Zynora (window.ZY_PROXY, ver worker.js)
+   para saltarse el CORS; sin proxy, la mayoría de sitios se bloquean. */
 (function () {
   "use strict";
   var W = window, D = document;
@@ -28,6 +29,17 @@
 
   /* =============== Red (nativa en la app) =============== */
   function http() { var c = W.Capacitor; return c && c.Plugins && c.Plugins.CapacitorHttp && c.Plugins.CapacitorHttp.request ? c.Plugins.CapacitorHttp : null; }
+  /* Proxy web (Cloudflare Worker). En la app Android no se usa. */
+  function proxyBase() { return String(W.ZY_PROXY || "").replace(/\/+$/, ""); }
+  function b64url(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+  /* Convierte el enlace de video de un plugin en uno que pasa por el proxy (con sus cabeceras). */
+  function mediaUrl(url, headers) {
+    var px = proxyBase(); if (!px || !/^https?:\/\//i.test(url)) return url;
+    var u = url.replace(/^http:\/\//i, "https://"), list = false;
+    try { list = /\.m3u8$/i.test(new URL(u).pathname); } catch (e) { /* nada */ }
+    var h = headers && Object.keys(headers).length ? headers : null;
+    return px + "/media?u=" + encodeURIComponent(u) + (h ? "&h=" + b64url(JSON.stringify(h)) : "") + (list ? "&k=l" : "");
+  }
   function lower(h) { var o = {}; Object.keys(h || {}).forEach(function (k) { o[String(k).toLowerCase()] = String(h[k]); }); return o; }
   async function rawRequest(method, url, headers, body, timeout) {
     var h = http();
@@ -38,7 +50,19 @@
       if (typeof d !== "string") d = d == null ? "" : JSON.stringify(d);
       return { status: r.status, headers: lower(r.headers), text: d };
     }
-    var ctrl = new AbortController(), t = setTimeout(function () { ctrl.abort(); }, timeout);
+    var ctrl = new AbortController(), t = setTimeout(function () { ctrl.abort(); }, timeout + 5000);
+    var px = proxyBase();
+    if (px) {
+      /* Web: la petición la hace el proxy (sin CORS). Él responde siempre 200 con {status, headers, text}. */
+      try {
+        var pb = null;
+        if (body != null) pb = typeof body === "string" ? body : (/x-www-form/i.test((headers || {})["Content-Type"] || "") ? new URLSearchParams(body).toString() : JSON.stringify(body));
+        var pr = await fetch(px + "/fetch", { method: "POST", headers: { "Content-Type": "application/json" }, signal: ctrl.signal, body: JSON.stringify({ url: url, method: method, headers: headers || {}, body: pb, timeout: timeout }) });
+        var pj = null; try { pj = await pr.json(); } catch (x) { /* sin JSON */ }
+        if (!pr.ok || !pj || typeof pj.status !== "number") throw new Error("proxy: " + ((pj && pj.error) || ("HTTP " + pr.status)));
+        return { status: pj.status, headers: lower(pj.headers), text: typeof pj.text === "string" ? pj.text : "" };
+      } finally { clearTimeout(t); }
+    }
     try {
       var init = { method: method, headers: headers || {}, signal: ctrl.signal, redirect: "follow" };
       if (body != null) init.body = typeof body === "string" ? body : (/x-www-form/i.test((headers || {})["Content-Type"] || "") ? new URLSearchParams(body).toString() : JSON.stringify(body));
@@ -848,7 +872,7 @@
 
   W.ZPL = {
     count: function () { return sources().length; },
-    list: all, find: find, resolveFor: resolveFor, open: open, install: install, uninstall: uninstall,
+    list: all, find: find, resolveFor: resolveFor, open: open, install: install, uninstall: uninstall, mediaUrl: mediaUrl,
     _t: { checkManifest: checkManifest, parseSpec: parseSpec, validHostName: validHostName, hostMatches: hostMatches, checkUrl: checkUrl, cleanItem: cleanItem, cleanStream: cleanStream, cmpVer: cmpVer, buildDoc: buildDoc, pluginFetch: pluginFetch, zplBoot: zplBoot }
   };
 })();

@@ -314,6 +314,7 @@
     closeMenu();
     bindWeb(); webMeta = meta; webLast = 0;
     var prev = meta && ZCW.get(meta.key); webResume = prev && prev.s === meta.s && prev.e === meta.e && !prev.done ? (prev.pos || 0) : 0;
+    if (meta && meta.hdr && plg() && plg().mediaUrl) url = plg().mediaUrl(url, meta.hdr); /* web: el video de un plugin pasa por el proxy */
     if (typeof W.rdPlay === "function") W.rdPlay({ download: url }, title); else { try { navigator.clipboard.writeText(url); } catch (x) {} alert("Enlace copiado al portapapeles."); }
   }
 

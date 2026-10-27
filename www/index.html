@@ -33,6 +33,7 @@
 </script>
 <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
 <script defer src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js"></script>
 <script src="supabase.js"></script>
 <script src="config.js"></script>
 <script src="sync.js"></script>
@@ -915,6 +916,18 @@ function rdMakePlyr(){
   rdPlyr.on("exitfullscreen",()=>document.getElementById("rdPlayer").classList.remove("rd-full"))
  }catch(e){rdPlyr=null}
  return rdPlyr}
+let rdHls=null;
+function rdDestroyHls(){if(rdHls){try{rdHls.destroy()}catch(e){}rdHls=null}}
+function rdStartHls(v,url){
+ if(!(window.Hls&&window.Hls.isSupported()))return false;
+ rdDestroyHls();
+ rdHls=new Hls({enableWorker:true,maxBufferLength:30});
+ rdHls.on(Hls.Events.ERROR,(ev,d)=>{
+  if(!d||!d.fatal)return;
+  if(d.type===Hls.ErrorTypes.NETWORK_ERROR&&!rdHls.__retry){rdHls.__retry=1;rdHls.startLoad();return}
+  if(d.type===Hls.ErrorTypes.MEDIA_ERROR&&!rdHls.__rec){rdHls.__rec=1;rdHls.recoverMediaError();return}
+  rdUi("error","No se pudo reproducir esta fuente. Prueba otra.")});
+ rdHls.loadSource(url);rdHls.attachMedia(v);return true}
 let rdTimers=[];
 function rdClearTimers(){rdTimers.forEach(clearTimeout);rdTimers=[]}
 /* Estado visual del reproductor: loading | ready | warn | error */
@@ -950,21 +963,25 @@ function rdPlay(r,title){
  vlcBtn.textContent="▶ Abrir con VLC";
  vlcBtn.onclick=()=>rdOpenVlc(url,title);
  document.getElementById("rdCopy").onclick=()=>{if(navigator.clipboard)navigator.clipboard.writeText(url);toast("Enlace copiado. En VLC: Transmisión de red → pegar")};
+ v.__triedHls=0;rdDestroyHls();
  v.onerror=()=>{
   if(!v.getAttribute("src"))return;
+  if(!rdHls&&!v.__triedHls&&/\/media\?u=/.test(url)&&window.Hls&&Hls.isSupported()){v.__triedHls=1;rdStartHls(v,url);return}
   rdClearTimers();
   const code=v.error&&v.error.code;
   rdUi("error",code===2?"Se cortó la conexión con el servidor. Revisa tu red o prueba otra fuente.":"Este dispositivo no puede reproducir este formato (video o audio no compatible). Prueba otra fuente o ábrelo con VLC.")};
  v.onwaiting=()=>{if(rdUiKind()!=="error"&&rdUiKind()!=="warn")rdUi("loading")};
  v.onplaying=()=>{if(rdUiKind()==="loading")rdUi("ready");rdScheduleAudioCheck(v)};
  rdUi("loading");
- v.src=url;v.load();
+ const isHls=/\.m3u8(\?|&|$)/i.test(url)||/[?&]k=l(&|$)/.test(url);
+ if(!(isHls&&rdStartHls(v,url))){v.src=url;v.load()}
  Promise.resolve(pl?pl.play():v.play()).catch(()=>{});
  document.getElementById("rdPlayer").classList.add("open")}
 function rdClosePlayer(){
  rdClearTimers();
  const v=document.getElementById("rdVideo");v.onerror=v.onwaiting=v.onplaying=null;
  try{if(rdPlyr)rdPlyr.pause();else v.pause()}catch(e){}
+ rdDestroyHls();
  v.removeAttribute("src");v.load();
  rdUi("ready");
  const pn=document.getElementById("addonStreamsPanel");if(pn)pn.hidden=true;
@@ -1447,4 +1464,6 @@ zyInit();
 </script>
 <script src="addon-menu.js"></script>
 <script src="native-player.js"></script>
+<script>window.ZY_PROXY="https://zynora-proxy.leopolidax.workers.dev"</script>
+<script src="plugins.js"></script>
 </body></html>
