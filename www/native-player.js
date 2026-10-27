@@ -208,9 +208,9 @@
     ui.fwd.onclick = function () { seekBy(10000); pulseSkip(1); };
     ui.play.onclick = function () { toggle(); };
     ui.next.onclick = function () { close(true); if (typeof W.addonStep === "function") W.addonStep(1); };
-    ui.src.onclick = function () { openSheet("src"); };
-    ui.cast.onclick = function () { openSheet("cast"); };
-    root.querySelectorAll(".znp-acts [data-p]").forEach(function (b) { b.onclick = function () { openSheet(b.getAttribute("data-p")); }; });
+    ui.src.onclick = function () { toggleSheet("src"); };
+    ui.cast.onclick = function () { toggleSheet("cast"); };
+    root.querySelectorAll(".znp-acts [data-p]").forEach(function (b) { b.onclick = function () { toggleSheet(b.getAttribute("data-p")); }; });
 
     /* toque en el video: un toque muestra/oculta controles; doble toque a los lados salta 10 s, al centro pausa */
     ui.tap.addEventListener("click", function (e) {
@@ -288,6 +288,7 @@
   }
 
   /* ---------- panel lateral: audio, subtítulos, velocidad, pantalla ---------- */
+  function toggleSheet(kind) { if (sheetOpen && sheetKind === kind) { closeSheet(); return; } openSheet(kind); }
   function closeSheet() { clearInterval(castPoll); sheetOpen = false; if (ui.sheet) ui.sheet.hidden = true; showUi(); }
   function fillSheet(title, items, empty) {
     ui.shT.textContent = title; ui.shL.innerHTML = "";
@@ -399,7 +400,7 @@
       var t = st.time, title = curTitle;
       close(true);
       setTimeout(function () { open(r.url, title, null, r.meta, t); }, 250);
-    }).catch(function (e) { msg((e && e.message) || "No se pudo abrir esa fuente"); });
+    }).catch(function (e) { msg((e && (e.userMessage || e.message)) || "No se pudo abrir esa fuente"); });
   }
 
   /* ---------- recordar idioma de audio y subtítulos entre episodios ---------- */
