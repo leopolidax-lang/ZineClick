@@ -520,40 +520,56 @@
       W.openCredit(mt, hit.id);
     } catch (e) { say((e && e.message) || "No se pudo abrir ese título."); }
   }
-  function renderHome() {
-    var home = $("homePage"); if (!home) return;
-    var ps = homes(), wrap = $("zplHome");
-    if (!ps.length) { if (wrap) wrap.remove(); HOME = []; return; }
-    if (!wrap) {
-      wrap = D.createElement("div"); wrap.id = "zplHome";
-      wrap.addEventListener("click", function (ev) {
+  /* Pestaña «Plugins»: muestra el catálogo (filas del Inicio) de cada plugin instalado, uno a la vez. */
+  var HP = "";
+  function showTab() { renderHome(true); }
+  function renderHome(show) {
+    var page = $("pluginsPage"); if (!page) return;
+    var ps = homes(), body = $("zplTab");
+    if (!body) {
+      body = D.createElement("div"); body.id = "zplTab"; page.appendChild(body);
+      body.addEventListener("click", function (ev) {
+        var ch = ev.target.closest && ev.target.closest("[data-hp]");
+        if (ch) { HP = ch.getAttribute("data-hp"); body.removeAttribute("data-sig"); renderHome(true); return; }
+        if (ev.target.closest && ev.target.closest("[data-zplopen]")) { try { open(); } catch (e) {} return; }
         var c = ev.target.closest && ev.target.closest(".zph-card"); if (!c) return;
         var x = HOME[Number(c.getAttribute("data-i"))], it = x && x.row.items[Number(c.getAttribute("data-j"))];
         if (it) openMeta(it);
       });
     }
-    var anchor = $("zacWrap") || $("zcwSection");
-    if (wrap.parentNode !== home) {
-      if (anchor && anchor.parentNode === home) home.insertBefore(wrap, anchor.nextSibling);
-      else { var first = home.querySelector("section.section:not(#zcwSection)"); if (first) home.insertBefore(wrap, first); else home.appendChild(wrap); }
+    if (show !== true && page.classList.contains("hidden")) return; /* se pinta al abrir la pestaña */
+    if (!ps.length) {
+      HOME = []; ++homeTok; body.removeAttribute("data-sig");
+      body.innerHTML = '<div class="zph-empty"><p>Aquí aparecerá el catálogo de tus plugins.</p><button type="button" class="btn" data-zplopen="1">Instalar un plugin</button></div>';
+      return;
     }
-    var sig = ps.map(function (p) { return p.id + p.version; }).join(",");
-    if (wrap.getAttribute("data-sig") === sig && Date.now() - Number(wrap.getAttribute("data-t") || 0) < 21600000) return;
-    wrap.setAttribute("data-sig", sig); wrap.setAttribute("data-t", String(Date.now()));
-    var tok = ++homeTok; wrap.innerHTML = ""; HOME = [];
-    ps.forEach(function (p) {
-      homeOf(p).then(function (rows) {
-        if (tok !== homeTok) return;
-        rows.forEach(function (r) {
-          var i = HOME.push({ p: p, row: r }) - 1, sec = D.createElement("div");
-          sec.className = "zph-sec";
-          sec.innerHTML = '<div class="section-head"><div><h2>' + E(r.title) + '</h2><small class="zph-sub">' + E(p.name) + "</small></div></div>" +
-            '<div class="zph-row">' + r.items.map(function (it, j) {
-              return '<button type="button" class="zph-card" data-i="' + i + '" data-j="' + j + '"><span class="zph-p"><img loading="lazy" alt="" src="' + E(it.poster) + '"></span><b>' + E(it.title) + "</b></button>";
-            }).join("") + "</div>";
-          wrap.appendChild(sec);
-        });
-      }).catch(function (e) { try { console.warn("[plugin " + p.id + "] inicio:", e && e.message); } catch (x) {} });
+    if (!ps.some(function (p) { return p.id === HP; })) HP = ps[0].id;
+    var sig = ps.map(function (p) { return p.id + p.version; }).join(",") + "|" + HP;
+    if (body.getAttribute("data-sig") === sig && Date.now() - Number(body.getAttribute("data-t") || 0) < 21600000) return;
+    var cur = ps.filter(function (p) { return p.id === HP; })[0], tok = ++homeTok;
+    body.setAttribute("data-sig", sig); body.setAttribute("data-t", String(Date.now())); HOME = [];
+    body.innerHTML = '<div class="chips" id="zplChips">' + ps.map(function (p) {
+      return '<button type="button" class="chip' + (p.id === HP ? " active" : "") + '" data-hp="' + E(p.id) + '">' + E(p.name) + "</button>";
+    }).join("") + '</div><div id="zplHome"><p class="zph-st">Cargando catálogo…</p></div>';
+    var wrap = $("zplHome");
+    homeOf(cur).then(function (rows) {
+      if (tok !== homeTok) return;
+      wrap.innerHTML = "";
+      if (!rows.length) { body.removeAttribute("data-sig"); wrap.innerHTML = '<p class="zph-st">Este plugin no tiene catálogo disponible ahora.</p>'; return; }
+      rows.forEach(function (r) {
+        var i = HOME.push({ p: cur, row: r }) - 1, sec = D.createElement("div");
+        sec.className = "zph-sec";
+        sec.innerHTML = '<div class="section-head"><div><h2>' + E(r.title) + "</h2></div></div>" +
+          '<div class="zph-row">' + r.items.map(function (it, j) {
+            return '<button type="button" class="zph-card" data-i="' + i + '" data-j="' + j + '"><span class="zph-p"><img loading="lazy" alt="" src="' + E(it.poster) + '"></span><b>' + E(it.title) + "</b></button>";
+          }).join("") + "</div>";
+        wrap.appendChild(sec);
+      });
+    }).catch(function (e) {
+      if (tok !== homeTok) return;
+      body.removeAttribute("data-sig");
+      wrap.innerHTML = '<p class="zph-st">No se pudo cargar el catálogo. Revisa tu conexión e inténtalo de nuevo.</p>';
+      try { console.warn("[plugin " + cur.id + "] catálogo:", e && e.message); } catch (x) {}
     });
   }
 
@@ -640,7 +656,8 @@
     '#zplHome .zph-row{display:flex;gap:14px;overflow-x:auto;padding:2px 2px 12px;scrollbar-width:none}#zplHome .zph-row::-webkit-scrollbar{display:none}' +
     '#zplHome .zph-sub{display:block;color:#8f9ab5;font-size:12px;margin-top:3px}#zplHome .zph-card{flex:0 0 clamp(112px,31vw,150px);padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;display:flex;flex-direction:column;gap:8px}' +
     '#zplHome .zph-p{display:block;aspect-ratio:2/3;border-radius:16px;overflow:hidden;background:#151b2c;box-shadow:0 8px 22px rgba(0,0,0,.35)}#zplHome .zph-p img{width:100%;height:100%;object-fit:cover;display:block}' +
-    '#zplHome .zph-card b{font-size:13px;line-height:1.25;color:#e8edf8;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}';
+    '#zplHome .zph-card b{font-size:13px;line-height:1.25;color:#e8edf8;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
+    '#zplHome .zph-st,#zplTab .zph-empty p{color:#8f9ab5;font-size:14px;padding:8px 2px}#zplTab .chips{margin:4px 0 16px}#zplTab .zph-empty{padding:18px 2px}';
   var BACK = '<svg viewBox="0 0 24 24"><path d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20z"/></svg>';
   var root = null, UI = { tab: "rec", q: "", cat: "all" }, MC = {}, comm = null, commErr = "", sheetEl = null, backH = null;
 
@@ -872,7 +889,7 @@
 
   W.ZPL = {
     count: function () { return sources().length; },
-    list: all, find: find, resolveFor: resolveFor, open: open, install: install, uninstall: uninstall, mediaUrl: mediaUrl,
+    list: all, find: find, resolveFor: resolveFor, open: open, install: install, uninstall: uninstall, mediaUrl: mediaUrl, showTab: showTab,
     _t: { checkManifest: checkManifest, parseSpec: parseSpec, validHostName: validHostName, hostMatches: hostMatches, checkUrl: checkUrl, cleanItem: cleanItem, cleanStream: cleanStream, cmpVer: cmpVer, buildDoc: buildDoc, pluginFetch: pluginFetch, zplBoot: zplBoot }
   };
 })();
