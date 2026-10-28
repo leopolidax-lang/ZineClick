@@ -401,7 +401,8 @@ html[data-loader="build"] .zl .p3{--x:24px;--y:12px;animation-delay:.5s}
 /* Estilo "Borde de luz": el borde de la pantalla parpadea suave y cambia de color */
 .zl-edge{display:none;position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 28px 6px #22d3ee,inset 0 0 90px 18px rgba(34,211,238,.55);animation:zlEh 7s linear infinite,zlEo 2.4s ease-in-out infinite}
 html[data-loader="edge"] .zl-edge{display:block}
-html[data-loader="edge"] .zl{display:none}
+html[data-loader="edge"] .zl{display:none!important}
+.st-seg.st-seg-grid{display:grid;grid-template-columns:1fr 1fr}
 @keyframes zlEh{from{filter:hue-rotate(0deg) blur(3px)}to{filter:hue-rotate(360deg) blur(3px)}}
 @keyframes zlEo{0%,100%{opacity:.3}50%{opacity:1}}
 html.reduce-motion .zl,html.reduce-motion .zl *,html.reduce-motion .zl-edge{animation-duration:9s!important}
