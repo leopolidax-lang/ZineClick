@@ -102,7 +102,7 @@
     '.znp-sh-l .znp-tx small{color:#8f9ab5;font-weight:500;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
     '#znpRoot svg.znp-ck{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:none;margin-left:auto}' +
     '.znp-spin{position:absolute;left:50%;top:50%;width:min(36vmin,210px);height:min(36vmin,210px);transform:translate(-50%,-50%);pointer-events:none;display:none}#znpRoot .znp-spin .zl{width:100%;height:100%;display:block}' +
-    '#znpRoot.znp-busy .znp-spin{display:block}' +
+    '#znpRoot.znp-busy .znp-spin{display:block}#znpRoot:not(.znp-busy) .zl-edge{display:none!important}' +
     '@keyframes znpS{to{transform:rotate(360deg)}}' +
     '.znp-sh-e{padding:14px 12px;color:#9aa6c1;font-weight:500}' +
     '.znp-flash{position:absolute;z-index:2;top:50%;margin-top:-22px;padding:10px 18px;border-radius:999px;background:rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:opacity .2s}' +
@@ -178,7 +178,7 @@
     var s = D.createElement("style"); s.textContent = CSS; D.head.appendChild(s);
     root = D.createElement("div"); root.id = "znpRoot"; root.hidden = true;
     root.innerHTML =
-      '<div class="znp-tap" id="znpTap"></div><div class="znp-spin"><svg class="zl" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="38"/><circle cx="50" cy="50" r="38"/><g class="zz"><path class="p1" pathLength="100" d="M21 20 L76 33 L22 45 Z"/><path class="p2" pathLength="100" d="M20 69 L54 39 L77 33 L78 36 L60 56 L31 74 Z"/><path class="p3" pathLength="100" d="M60 52 L78 64 L58 80 L32 74 Z"/></g></svg></div>' +
+      '<div class="znp-tap" id="znpTap"></div><div class="znp-spin"><svg class="zl" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="38"/><circle cx="50" cy="50" r="38"/><g class="zz"><path class="p1" pathLength="100" d="M21 20 L76 33 L22 45 Z"/><path class="p2" pathLength="100" d="M20 69 L54 39 L77 33 L78 36 L60 56 L31 74 Z"/><path class="p3" pathLength="100" d="M60 52 L78 64 L58 80 L32 74 Z"/></g></svg></div><i class="zl-edge"></i>' +
       '<div class="znp-flash l" id="znpFl"></div><div class="znp-flash r" id="znpFr"></div>' +
       '<div class="znp-msg" id="znpMsg"></div>' +
       '<div class="znp-ui" id="znpUi">' +
