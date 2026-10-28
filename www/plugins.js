@@ -540,7 +540,8 @@
     if (show !== true && page.classList.contains("hidden")) return; /* se pinta al abrir la pestaña */
     if (!ps.length) {
       HOME = []; ++homeTok; body.removeAttribute("data-sig");
-      body.innerHTML = '<div class="zph-empty"><p>Aquí aparecerá el catálogo de tus plugins.</p><button type="button" class="btn" data-zplopen="1">Instalar un plugin</button></div>';
+      var has = all().length > 0;
+      body.innerHTML = '<div class="zph-empty"><p>' + (has ? "Tus plugins instalados no ofrecen catálogo (solo búsqueda y reproducción), o están desactivados." : "Aquí aparecerá el catálogo de tus plugins.") + '</p><button type="button" class="btn" data-zplopen="1">' + (has ? "Ver mis plugins" : "Instalar un plugin") + "</button></div>";
       return;
     }
     if (!ps.some(function (p) { return p.id === HP; })) HP = ps[0].id;
