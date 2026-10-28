@@ -611,6 +611,10 @@ function _zyStyle() {
     '.zy-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}' +
     '.zy-badge{padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(100,244,255,.12);color:var(--cyan,#64f4ff)}' +
     '.zy-badge.cat{background:rgba(167,139,250,.16);color:#c4b5fd}' +
+    '.zy-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}' +
+    '.zy-act{padding:7px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#e6ebf7;font-size:13px;font-weight:700;cursor:pointer}' +
+    '.zy-act:disabled{opacity:.3;cursor:default}' +
+    '.zy-act.cfg{color:#c4b5fd;border-color:rgba(167,139,250,.35);background:rgba(167,139,250,.12)}' +
     '@keyframes zyFlash{0%{box-shadow:0 0 0 0 rgba(100,244,255,0)}30%{box-shadow:0 0 0 3px rgba(100,244,255,.65),0 0 30px rgba(100,244,255,.35)}100%{box-shadow:0 0 0 0 rgba(100,244,255,0)}}' +
     '.zy-flash{animation:zyFlash 1.6s ease}';
   document.head.appendChild(st);
@@ -677,14 +681,27 @@ function addonRenderList() {
     box.innerHTML = '<p class="muted" style="font-size:13px;margin:0 0 12px;">Aún no hay addons instalados.</p>';
     return;
   }
-  box.innerHTML = list.map(function (a, i) {
+  var hint = list.length > 1 ? '<p class="muted" style="font-size:12px;margin:0 0 6px;">El de arriba tiene prioridad: sus catálogos salen primero en Inicio y sus fuentes de video se consultan primero.</p>' : '';
+  box.innerHTML = hint + list.map(function (a, i) {
     return '<div style="display:flex;align-items:center;gap:10px;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);">' +
       '<div style="min-width:0;"><b style="display:block;font-size:14px;">' + _addonEsc(a.name || _addonHost(a.url)) + '</b>' +
       '<small class="muted" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _addonEsc(a.url) + '</small>' +
       '<div class="zy-badges">' + (a.stream !== false ? '<span class="zy-badge">Enlaces de video</span>' : '') +
-      ((a.catalogs && a.catalogs.length) ? '<span class="zy-badge cat">Catálogo · ' + a.catalogs.length + (a.catalogs.length === 1 ? ' lista' : ' listas') + '</span>' : '') + '</div></div>' +
+      ((a.catalogs && a.catalogs.length) ? '<span class="zy-badge cat">Catálogo · ' + a.catalogs.length + (a.catalogs.length === 1 ? ' lista' : ' listas') + '</span>' : '') + '</div>' +
+      '<div class="zy-acts">' +
+      '<button class="zy-act" data-addon-mv="' + i + '" data-dir="-1" aria-label="Subir"' + (i === 0 ? ' disabled' : '') + '>▲ Subir</button>' +
+      '<button class="zy-act" data-addon-mv="' + i + '" data-dir="1" aria-label="Bajar"' + (i === list.length - 1 ? ' disabled' : '') + '>▼ Bajar</button>' +
+      '<button class="zy-act cfg" data-addon-cfg="' + i + '">⚙ Configurar</button></div></div>' +
       '<button class="btn small" data-addon-del="' + i + '" style="background:rgba(255,0,0,0.1);border-color:rgba(255,0,0,0.2);color:#ff6b6b;flex:none;">Eliminar</button></div>';
   }).join('');
+}
+
+function _addonOpen(url) {
+  try {
+    var B = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.Browser;
+    if (B && B.open) { B.open({ url: url }); return; }
+  } catch (e) {}
+  window.open(url, '_blank');
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -729,6 +746,22 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   listBox.addEventListener('click', async function (ev) {
+    var t = ev.target.closest && ev.target.closest('[data-addon-cfg],[data-addon-mv]');
+    if (t) {
+      var l2 = addonLoad();
+      if (t.hasAttribute('data-addon-cfg')) {
+        var ad = l2[Number(t.getAttribute('data-addon-cfg'))];
+        if (ad) _addonOpen(_addonBase(ad.url) + '/configure');
+        return;
+      }
+      var from = Number(t.getAttribute('data-addon-mv')), to = from + Number(t.getAttribute('data-dir'));
+      if (!l2[from] || to < 0 || to >= l2.length) return;
+      l2.splice(to, 0, l2.splice(from, 1)[0]);
+      addonSave(l2);
+      addonRenderList();
+      addonChanged();
+      return;
+    }
     var b = ev.target.closest && ev.target.closest('[data-addon-del]');
     if (!b) return;
     var idx = Number(b.getAttribute('data-addon-del'));
