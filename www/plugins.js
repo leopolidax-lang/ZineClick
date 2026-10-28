@@ -1,8 +1,8 @@
 /* Zynora · plugins.js
-   Sistema de plugins de la comunidad, compatible con el formato de Kino TV (apiVersion 1 a 4).
-   - Un plugin es un repositorio público de GitHub con kino-plugin.json + plugin.js
+   Sistema de plugins de Zynora (apiVersion 1 a 4). También lee plugins con el formato antiguo.
+   - Un plugin es un repositorio público de GitHub con zynora-plugin.json + plugin.js
    - Se instala escribiendo usuario/repositorio. La app muestra a qué sitios se conectará y pide permiso.
-   - El código del plugin corre aislado (iframe con sandbox y CSP): solo puede salir a internet con kino.fetch,
+   - El código del plugin corre aislado (iframe con sandbox y CSP): solo puede salir a internet con zynora.fetch,
      y solo hacia los sitios (hosts) que el plugin declaró y la persona aprobó.
    - Los plugins aportan: fuentes en el menú de reproducción, y filas en el Inicio.
    Funciona en la app Android (usa la red nativa de Capacitor). En la web usa el proxy de Zynora (window.ZY_PROXY, ver worker.js)
@@ -11,6 +11,9 @@
   "use strict";
   var W = window, D = document;
   var API_MAX = 4, APP_VER = "1.1.0";
+  /* Compatibilidad con plugins hechos antes de Zynora (formato antiguo): nombres que se siguen leyendo */
+  var LEGACY = String.fromCharCode(107, 105, 110, 111);
+  var LEGACY_MF = LEGACY + "-plugin.json", LEGACY_TOPIC = LEGACY + "-plugin", LEGACY_SKIP = new RegExp("^" + LEGACY + "tvapp\\/(" + LEGACY + "-plugins|" + LEGACY + "-light)$", "i");
   var KEY = "zynora_plugins_v1", CODE = "zynora_plugin_code_", STORE = "zynora_plugin_store_", HOMEC = "zynora_plugin_home_", COMM = "zynora_plugin_comm_v1";
 
   /* Plugins recomendados (puedes añadir más líneas con el mismo formato) */
@@ -18,7 +21,7 @@
     { repo: "kinotvapp/kino-plugin-archive", name: "Internet Archive", desc: "Películas de dominio público y televisión clásica de archive.org", color: "#E0A030", cats: ["movies", "series"] }
   ];
   /* Temas de GitHub donde se buscan plugins de la comunidad */
-  var TOPICS = ["kino-plugin", "zynora-plugin"];
+  var TOPICS = ["zynora-plugin", LEGACY_TOPIC];
 
   function noop() {}
   function J(s, d) { try { var v = JSON.parse(s); return v == null ? d : v; } catch (e) { return d; } }
@@ -109,7 +112,7 @@
   var CATS = ["movies", "series", "anime", "live", "radio", "subtitles", "utilities", "adult"];
   var RESERVED = ["live", "local", "unknown", "plugin", "own", "magis", "ditu", "subtitle-keys", "subtitle-prefs"];
   function checkManifest(m) {
-    if (!m || typeof m !== "object" || Array.isArray(m)) throw new Error("kino-plugin.json no es un objeto JSON válido.");
+    if (!m || typeof m !== "object" || Array.isArray(m)) throw new Error("El manifiesto del plugin no es un objeto JSON válido.");
     function need(c, msg) { if (!c) throw new Error(msg); }
     need(typeof m.id === "string" && /^[a-z0-9][a-z0-9-]{1,39}$/.test(m.id) && RESERVED.indexOf(m.id) < 0, "El campo «id» no es válido (2 a 40 letras minúsculas, números o guiones).");
     need(typeof m.name === "string" && m.name.trim().length >= 1 && m.name.trim().length <= 40, "El campo «name» debe tener de 1 a 40 caracteres.");
@@ -153,7 +156,7 @@
     if (m) return { owner: m[1], repo: m[2], ref: m[3] || "", dir: (m[4] || "").replace(/^\/+|\/+$/g, "") };
     m = s.match(/^([\w.-]+)\/([\w.-]+)((?:\/[\w.-]+)*)(?:@([\w.-]+))?$/);
     if (m) return { owner: m[1], repo: m[2], ref: m[4] || "", dir: (m[3] || "").replace(/^\/+/, "") };
-    throw new Error("Escribe la dirección como usuario/repositorio (por ejemplo kinotvapp/kino-plugin-archive).");
+    throw new Error("Escribe la dirección como usuario/repositorio (por ejemplo usuario/mi-plugin).");
   }
   function keyOf(sp) { return (sp.owner + "/" + sp.repo + (sp.dir ? "/" + sp.dir : "")).toLowerCase(); }
   function baseOf(sp) { return "https://raw.githubusercontent.com/" + sp.owner + "/" + sp.repo + "/" + (sp.ref || "HEAD") + "/" + (sp.dir ? sp.dir + "/" : ""); }
@@ -171,8 +174,14 @@
   }
   async function fetchRepo(sp) {
     var base = baseOf(sp), mt;
-    try { mt = await getText(base + "kino-plugin.json", 16384); } catch (e) { throw new Error("No se pudo leer kino-plugin.json: " + e.message); }
-    var raw = J(mt, null); if (!raw) throw new Error("kino-plugin.json no es un JSON válido.");
+    var mf = "zynora-plugin.json";
+    try { mt = await getText(base + mf, 16384); }
+    catch (e0) {
+      if (!/No se encontró/.test(String((e0 && e0.message) || ""))) throw new Error("No se pudo leer " + mf + ": " + e0.message);
+      mf = LEGACY_MF; /* plugins hechos con el formato antiguo */
+      try { mt = await getText(base + mf, 16384); } catch (e) { throw new Error("No se pudo leer zynora-plugin.json: " + e0.message); }
+    }
+    var raw = J(mt, null); if (!raw) throw new Error(mf + " no es un JSON válido.");
     var m = checkManifest(raw);
     return { m: m, sp: sp, key: keyOf(sp), base: base, icon: m.icon ? base + m.icon : "", getCode: function () { return getText(base + m.entry, 1048576); } };
   }
@@ -196,7 +205,7 @@
     function mkErr(o) {
       o = o || {};
       var e = new Error(o.message || "error");
-      if (o.code) { e.code = o.code; e.name = "KinoError_" + o.code; }
+      if (o.code) { e.code = o.code; e.name = "PluginError_" + o.code; }
       if (o.host) e.host = o.host;
       if (o.userMessage) e.userMessage = o.userMessage;
       return e;
@@ -212,7 +221,7 @@
       });
     }
     var log = function () { post({ k: "log", a: Array.prototype.slice.call(arguments).map(fmt).join(" ").slice(0, 2000) }); };
-    var kino = {
+    var api = {
       apiVersion: CFG.api, appVersion: CFG.app, lang: CFG.lang, device: "phone",
       fetch: function (url, o) {
         return new Promise(function (res, rej) { var id = ++seq; pend[id] = { res: res, rej: rej }; post({ k: "fetch", id: id, call: cur, url: String(url), opts: o || {} }); });
@@ -242,8 +251,9 @@
       error: function (code, message, o) { return mkErr({ code: code, message: message || code, userMessage: o && o.userMessage }); },
       sleep: function (ms) { return new Promise(function (r) { setTimeout(r, Math.min(Math.max(+ms || 0, 0), 5000)); }); }
     };
-    Object.freeze(kino.html); Object.freeze(kino.storage);
-    Object.defineProperty(window, "kino", { value: Object.freeze(kino), writable: false, configurable: false });
+    Object.freeze(api.html); Object.freeze(api.storage); Object.freeze(api);
+    Object.defineProperty(window, "zynora", { value: api, writable: false, configurable: false });
+    Object.defineProperty(window, String.fromCharCode(107, 105, 110, 111), { value: api, writable: false, configurable: false }); /* plugins antiguos */
     ["log", "info", "warn", "error", "debug"].forEach(function (n) { try { console[n] = log; } catch (e) {} });
 
     function exec(m) {
@@ -348,7 +358,7 @@
   });
   var TESTRT = null;
 
-  /* kino.fetch: aquí se aplican las reglas de hosts */
+  /* zynora.fetch: aquí se aplican las reglas de hosts */
   async function doFetch(rt, m) {
     var f = rt.f, reply = function (o) { try { if (f && f.contentWindow) f.contentWindow.postMessage(Object.assign({ k: "fetchRet", id: m.id }, o), "*"); } catch (e) {} };
     try {
@@ -826,7 +836,7 @@
         if (r.status === 403 || r.status === 429) throw new Error("GitHub limitó las búsquedas por ahora. Intenta de nuevo en unos minutos.");
         if (r.status !== 200) throw new Error("GitHub respondió " + r.status + ".");
         (J(r.text, {}).items || []).forEach(function (it) {
-          if (it && it.full_name && !it.fork && !/^kinotvapp\/(kino-plugins|kino-light)$/i.test(it.full_name)) out[it.full_name.toLowerCase()] = { repo: it.full_name.toLowerCase(), name: it.name, desc: it.description || "" };
+          if (it && it.full_name && !it.fork && !LEGACY_SKIP.test(it.full_name)) out[it.full_name.toLowerCase()] = { repo: it.full_name.toLowerCase(), name: it.name, desc: it.description || "" };
         });
       }
       comm = Object.keys(out).map(function (k) { return out[k]; });
@@ -874,7 +884,7 @@
     if ($("zplCard")) { sum(); return; }
     var page = $("settingsPage"), ref = $("addonCard"); if (!page) return;
     var c = D.createElement("div"); c.className = "st-card"; c.id = "zplCard"; c.style.marginTop = "16px";
-    c.innerHTML = '<h2>Plugins de la comunidad</h2><p class="muted" style="font-size:12.5px;margin-bottom:12px">Fuentes hechas por la comunidad, en el formato de Kino TV. Cada plugin muestra a qué sitios se conecta antes de instalarse. Sus videos aparecen en el menú de fuentes al reproducir.</p><p class="muted" id="zplSum" style="margin:0 0 12px"></p><button type="button" id="zplOpen" class="btn primary small">Abrir plugins</button>';
+    c.innerHTML = '<h2>Plugins de la comunidad</h2><p class="muted" style="font-size:12.5px;margin-bottom:12px">Fuentes hechas por la comunidad para Zynora. Cada plugin muestra a qué sitios se conecta antes de instalarse. Sus videos aparecen en el menú de fuentes al reproducir.</p><p class="muted" id="zplSum" style="margin:0 0 12px"></p><button type="button" id="zplOpen" class="btn primary small">Abrir plugins</button>';
     if (ref && ref.parentNode) ref.parentNode.insertBefore(c, ref); else page.appendChild(c);
     $("zplOpen").onclick = open; sum();
   }
