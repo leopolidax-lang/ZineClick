@@ -101,7 +101,7 @@
     '.znp-sh-l .znp-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}' +
     '.znp-sh-l .znp-tx small{color:#8f9ab5;font-weight:500;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
     '#znpRoot svg.znp-ck{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:none;margin-left:auto}' +
-    '.znp-spin{position:absolute;left:50%;top:50%;width:min(36vmin,210px);height:min(36vmin,210px);transform:translate(-50%,-50%);pointer-events:none;display:none}.znp-spin .zl{width:100%;height:100%;display:block}' +
+    '.znp-spin{position:absolute;left:50%;top:50%;width:min(36vmin,210px);height:min(36vmin,210px);transform:translate(-50%,-50%);pointer-events:none;display:none}#znpRoot .znp-spin .zl{width:100%;height:100%;display:block}' +
     '#znpRoot.znp-busy .znp-spin{display:block}' +
     '@keyframes znpS{to{transform:rotate(360deg)}}' +
     '.znp-sh-e{padding:14px 12px;color:#9aa6c1;font-weight:500}' +
