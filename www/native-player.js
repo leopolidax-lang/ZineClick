@@ -101,7 +101,7 @@
     '.znp-sh-l .znp-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}' +
     '.znp-sh-l .znp-tx small{color:#8f9ab5;font-weight:500;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
     '#znpRoot svg.znp-ck{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:none;margin-left:auto}' +
-    '.znp-spin{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;border:3px solid rgba(255,255,255,.22);border-top-color:var(--cyan,#64f4ff);animation:znpS .8s linear infinite;pointer-events:none;display:none}' +
+    '.znp-spin{position:absolute;left:50%;top:50%;width:84px;height:84px;margin:-42px 0 0 -42px;pointer-events:none;display:none}' +
     '#znpRoot.znp-busy .znp-spin{display:block}' +
     '@keyframes znpS{to{transform:rotate(360deg)}}' +
     '.znp-sh-e{padding:14px 12px;color:#9aa6c1;font-weight:500}' +
@@ -178,7 +178,7 @@
     var s = D.createElement("style"); s.textContent = CSS; D.head.appendChild(s);
     root = D.createElement("div"); root.id = "znpRoot"; root.hidden = true;
     root.innerHTML =
-      '<div class="znp-tap" id="znpTap"></div><div class="znp-spin"></div>' +
+      '<div class="znp-tap" id="znpTap"></div><div class="znp-spin"><svg class="zl" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="38"/><circle cx="50" cy="50" r="38"/><g class="zz"><path class="p1" pathLength="100" d="M21 20 L76 33 L22 45 Z"/><path class="p2" pathLength="100" d="M20 69 L54 39 L77 33 L78 36 L60 56 L31 74 Z"/><path class="p3" pathLength="100" d="M60 52 L78 64 L58 80 L32 74 Z"/></g></svg></div>' +
       '<div class="znp-flash l" id="znpFl"></div><div class="znp-flash r" id="znpFr"></div>' +
       '<div class="znp-msg" id="znpMsg"></div>' +
       '<div class="znp-ui" id="znpUi">' +
