@@ -107,7 +107,7 @@
     '.zcw-tx small{font-weight:800;font-size:12px;letter-spacing:.3px}' +
     '.zcw-tx b{font-size:18px;line-height:1.15;text-shadow:0 1px 8px rgba(0,0,0,.7)}' +
     '.zcw-tx span{color:#c3cbe0;font-size:13px}' +
-    '.zcw-bar{position:absolute;z-index:2;left:14px;bottom:10px;height:3px;border-radius:3px;background:#fff}' +
+    '.zcw-bar{position:absolute;z-index:2;left:14px;right:14px;bottom:10px;height:3px;border-radius:3px;background:rgba(255,255,255,.28);overflow:hidden}.zcw-bar u{display:block;height:100%;border-radius:3px;background:#fff;text-decoration:none}' +
     '.zcw-dots{position:absolute;z-index:3;right:8px;bottom:6px;padding:6px 10px;border-radius:10px;color:#fff;font-size:18px;line-height:1;letter-spacing:1px;background:rgba(0,0,0,.35);border:0;cursor:pointer}' +
     '.zcw-dots:hover{background:rgba(255,255,255,.2)}' +
     '.zcw-pop{position:fixed;z-index:2000000001;min-width:210px;padding:6px;border-radius:14px;background:#101421;border:1px solid rgba(255,255,255,.14);box-shadow:0 12px 40px rgba(0,0,0,.6)}' +
@@ -749,7 +749,7 @@
       return '<div class="zcw-card" data-k="' + E(en.key) + '">' + (img ? '<img loading="lazy" alt="" src="' + img + '">' : "") +
         (pct ? '<span class="zcw-pct">' + pct + "% visto</span>" : "") +
         '<div class="zcw-tx">' + (en.type === "tv" ? "<small>T" + en.s + " E" + en.e + "</small>" : "") + "<b>" + E(en.title) + "</b>" + (en.type === "tv" && en.epName ? "<span>" + E(en.epName) + "</span>" : "") + "</div>" +
-        (pct ? '<i class="zcw-bar" style="width:' + Math.max(12, Math.round(pct * 0.6)) + 'px"></i>' : "") +
+        (pct ? '<i class="zcw-bar"><u style="width:' + pct + '%"></u></i>' : "") +
         '<button type="button" class="zcw-dots" data-more aria-label="Más opciones">•••</button></div>';
     }).join("") + "</div>";
   }

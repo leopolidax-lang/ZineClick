@@ -206,8 +206,8 @@
       .forEach(function (k) { ui[k.charAt(0).toLowerCase() + k.slice(1)] = $("znp" + k); });
 
     ui.back.onclick = function () { close(true); };
-    ui.rew.onclick = function () { seekBy(-10000); pulseSkip(-1); };
-    ui.fwd.onclick = function () { seekBy(10000); pulseSkip(1); };
+    ui.rew.onclick = function () { seekBy(-10000); flash(-1); pulseSkip(-1); };
+    ui.fwd.onclick = function () { seekBy(10000); flash(1); pulseSkip(1); };
     ui.play.onclick = function () { toggle(); };
     ui.next.onclick = function () { close(true); if (typeof W.addonStep === "function") W.addonStep(1); };
     ui.src.onclick = function () { toggleSheet("src"); };
@@ -271,10 +271,14 @@
     b.classList.remove("spin"); void b.offsetWidth; b.classList.add("spin");
     setTimeout(function () { b.classList.remove("spin"); }, 700);
   }
+  var flashAcc = 0, flashDir = 0;
   function flash(side) {
-    var el = side < 0 ? ui.fl : ui.fr;
-    el.textContent = (side < 0 ? "−10 s" : "+10 s"); el.classList.add("on");
-    clearTimeout(flashT); flashT = setTimeout(function () { el.classList.remove("on"); }, 500);
+    var el = side < 0 ? ui.fl : ui.fr, other = side < 0 ? ui.fr : ui.fl;
+    if (other) other.classList.remove("on");
+    if (flashDir !== side) { flashAcc = 0; flashDir = side; }
+    flashAcc += 10;
+    el.textContent = (side < 0 ? "−" : "+") + flashAcc + " s"; el.classList.add("on");
+    clearTimeout(flashT); flashT = setTimeout(function () { el.classList.remove("on"); flashAcc = 0; flashDir = 0; }, 1100);
   }
 
   /* ---------- acciones ---------- */
