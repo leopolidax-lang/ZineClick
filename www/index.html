@@ -211,7 +211,7 @@
    <h2 id="stH1">Apariencia</h2>
    <div class="st-row st-first"><div class="st-line"><div class="st-lab"><b id="stL1">Negro AMOLED</b><small>Fondo negro puro, sin resplandores. Ahorra batería en pantallas OLED.</small></div><button class="st-sw" type="button" role="switch" aria-checked="false" aria-labelledby="stL1" data-key="amoled"></button></div></div>
    <div class="st-row"><div class="st-lab"><b>Color de acento</b><small>Botones, filtros y detalles activos.</small></div>
-    <div class="st-seg" role="radiogroup" aria-label="Color de acento" data-key="accent"><button type="button" role="radio" aria-checked="false" data-val="cyan"><i class="st-dot" style="background:#64f4ff"></i>Cian</button><button type="button" role="radio" aria-checked="false" data-val="violet"><i class="st-dot" style="background:#b69cff"></i>Violeta</button><button type="button" role="radio" aria-checked="false" data-val="neutral"><i class="st-dot" style="background:#dfe5f2"></i>Neutro</button></div></div>
+    <div class="st-seg" role="radiogroup" aria-label="Color de acento" data-key="accent"><button type="button" role="radio" aria-checked="false" data-val="cyan"><i class="st-dot" style="background:#64f4ff"></i>Cian</button><button type="button" role="radio" aria-checked="false" data-val="violet"><i class="st-dot" style="background:#b69cff"></i>Violeta</button><button type="button" role="radio" aria-checked="false" data-val="neutral"><i class="st-dot" style="background:#dfe5f2"></i>Neutro</button><button type="button" role="radio" aria-checked="false" data-val="rose"><i class="st-dot" style="background:#ff8fd0"></i>Rosa</button><button type="button" role="radio" aria-checked="false" data-val="amber"><i class="st-dot" style="background:#ffc861"></i>Ámbar</button></div></div>
    <div class="st-row"><div class="st-line"><div class="st-lab"><b id="stL2">Reducir animaciones</b><small id="stMotionNote">Quita transiciones, el desplazamiento suave y el avance automático de la portada.</small></div><button class="st-sw" type="button" role="switch" aria-checked="false" aria-labelledby="stL2" data-key="reduceMotion"></button></div></div>
    <div class="st-row"><div class="st-lab"><b>Tamaño de las tarjetas</b><small>Cuántos títulos caben en cada fila del catálogo y de tus listas.</small></div>
     <div class="st-seg" role="radiogroup" aria-label="Tamaño de las tarjetas" data-key="cards"><button type="button" role="radio" aria-checked="false" data-val="compact">Compactas</button><button type="button" role="radio" aria-checked="false" data-val="normal">Normales</button><button type="button" role="radio" aria-checked="false" data-val="large">Grandes</button></div></div>
@@ -1170,7 +1170,7 @@ function zyReduceMotion(){return document.documentElement.classList.contains("re
 function zySanitize(r){
   const d={...zyDefaults,genres:[]};if(!r||typeof r!=="object")return d;
   d.amoled=r.amoled===true;
-  d.accent=["cyan","violet","neutral"].includes(r.accent)?r.accent:"cyan";
+  d.accent=["cyan","violet","neutral","rose","amber"].includes(r.accent)?r.accent:"cyan";
   d.reduceMotion=r.reduceMotion===true;
   d.cards=["compact","normal","large"].includes(r.cards)?r.cards:"normal";
   d.loader=["trace","pulse","build","edge"].includes(r.loader)?r.loader:"pulse";
