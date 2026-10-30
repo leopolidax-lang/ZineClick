@@ -68,13 +68,13 @@
     remove: function (k) { var m = cwAll(); delete m[k]; cwSave(m); refreshRow(); },
     list: function () {
       var m = cwAll();
-      return Object.keys(m).map(function (k) { return m[k]; }).filter(function (x) { return x && !x.done; })
+      return Object.keys(m).map(function (k) { return m[k]; }).filter(function (x) { return x && (!x.done || x.ns); })
         .sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
     },
     progress: function (meta, time, len, ended) {
       if (!meta || !meta.key) return;
       var m = cwAll(), old = m[meta.key];
-      var finished = !!ended || (len > 0 && time > len - 45000);
+      var finished = !!ended || (len > 0 && (time / len >= 0.95 || time > len - 120000));
       if (meta.type === "tv" && (finished || (len > 0 && time / len >= 0.9))) EW.set(meta.tmdbId, meta.s, meta.e, true);
       if (meta.type === "tv" && (finished || time >= 60000)) watchedHook(meta);
       if (!old && time < 20000) return;
@@ -82,6 +82,7 @@
         key: meta.key, tmdbId: meta.tmdbId, type: meta.type, title: meta.title, poster: meta.poster, backdrop: meta.backdrop,
         s: meta.s, e: meta.e, epName: meta.epName || "", src: meta.src || (old && old.src) || null, ts: Date.now()
       });
+      delete base.ns; delete base.ne; delete base.nName;
       if (finished) {
         if (meta.type !== "tv") { delete m[meta.key]; cwSave(m); return; }
         base.done = true; base.pos = 0; base.len = 0;
@@ -90,9 +91,31 @@
       var keys = Object.keys(m);
       if (keys.length > 60) { keys.sort(function (a, b) { return (m[a].ts || 0) - (m[b].ts || 0); }); delete m[keys[0]]; }
       cwSave(m);
+      if (base.done) fillNext(meta.key, meta.tmdbId, meta.s, meta.e);
     }
   };
   W.ZCW = ZCW;
+
+  /* Al terminar un episodio de verdad (créditos), calcula cuál es el siguiente y lo deja en "Seguir viendo".
+     Si era el último episodio de la serie, la quita de la fila. */
+  var nextBusy = {};
+  function fillNext(key, id, s, e) {
+    var bk = key + "|" + s + ":" + e;
+    if (nextBusy[bk]) return;
+    nextBusy[bk] = 1;
+    function same(c) { return c && c.done && String(c.s) === String(s) && String(c.e) === String(e); }
+    nextEp(id, Number(s), Number(e), 1).then(function (n) {
+      var m = cwAll(), c = m[key];
+      if (!same(c)) return;
+      if (!n) { delete m[key]; cwSave(m); refreshRow(); return; }
+      return epName(id, n.s, n.e).catch(function () { return ""; }).then(function (nm) {
+        var m2 = cwAll(), c2 = m2[key];
+        if (!same(c2)) return;
+        c2.ns = n.s; c2.ne = n.e; c2.nName = nm || "";
+        cwSave(m2); refreshRow();
+      });
+    }).catch(function () { delete nextBusy[bk]; });
+  }
 
   /* =============== Estilos =============== */
   var CSS = '' +
@@ -693,11 +716,18 @@
   }
 
   /* =============== Fila "Seguir viendo" en el inicio =============== */
-  function closePop() { var p = $("zcwPop"); if (p) p.remove(); }
+  function closePop() {
+    var p = $("zcwPop"); if (p) p.remove();
+    D.removeEventListener("click", closePop);
+    W.removeEventListener("scroll", closePop, true);
+    W.removeEventListener("resize", closePop);
+  }
   function showPop(btn, key) {
+    var cur = $("zcwPop");
+    if (cur && cur.getAttribute("data-k") === key) { closePop(); return; }
     closePop();
     var en = ZCW.get(key); if (!en) return;
-    var pop = D.createElement("div"); pop.id = "zcwPop"; pop.className = "zcw-pop";
+    var pop = D.createElement("div"); pop.id = "zcwPop"; pop.className = "zcw-pop"; pop.setAttribute("data-k", key);
     pop.innerHTML = '<button type="button" data-a="d">Detalles</button><button type="button" data-a="r">Quitar de Seguir viendo</button>';
     D.body.appendChild(pop);
     var r = btn.getBoundingClientRect();
@@ -709,7 +739,9 @@
       if (b.getAttribute("data-a") === "d") { if (typeof W.openCredit === "function") W.openCredit(en.type === "tv" ? "tv" : "movie", Number(en.tmdbId)); }
       else ZCW.remove(key);
     };
-    setTimeout(function () { D.addEventListener("click", closePop, { once: true }); }, 0);
+    W.addEventListener("scroll", closePop, true);
+    W.addEventListener("resize", closePop);
+    setTimeout(function () { if ($("zcwPop")) D.addEventListener("click", closePop); }, 0);
   }
 
   function refreshRow() {
@@ -745,13 +777,23 @@
     sec.style.display = "";
     sec.innerHTML = '<div class="section-head"><div><h2>Seguir viendo</h2></div></div><div class="zcw-row">' + list.map(function (en) {
       var img = en.backdrop ? TM + "w500" + en.backdrop : (en.poster ? TM + "w500" + en.poster : "");
-      var pct = en.len > 0 ? Math.max(1, Math.min(99, Math.round(en.pos / en.len * 100))) : 0;
+      var nx = !!(en.done && en.ns), pct = (!nx && en.len > 0) ? Math.max(1, Math.min(99, Math.round(en.pos / en.len * 100))) : 0;
+      var cs = nx ? en.ns : en.s, ce = nx ? en.ne : en.e, cn = nx ? en.nName : en.epName;
       return '<div class="zcw-card" data-k="' + E(en.key) + '">' + (img ? '<img loading="lazy" alt="" src="' + img + '">' : "") +
-        (pct ? '<span class="zcw-pct">' + pct + "% visto</span>" : "") +
-        '<div class="zcw-tx">' + (en.type === "tv" ? "<small>T" + en.s + " E" + en.e + "</small>" : "") + "<b>" + E(en.title) + "</b>" + (en.type === "tv" && en.epName ? "<span>" + E(en.epName) + "</span>" : "") + "</div>" +
+        (nx ? '<span class="zcw-pct">Siguiente</span>' : pct ? '<span class="zcw-pct">' + pct + "% visto</span>" : "") +
+        '<div class="zcw-tx">' + (en.type === "tv" ? "<small>T" + cs + " E" + ce + "</small>" : "") + "<b>" + E(en.title) + "</b>" + (en.type === "tv" && cn ? "<span>" + E(cn) + "</span>" : "") + "</div>" +
         (pct ? '<i class="zcw-bar"><u style="width:' + pct + '%"></u></i>' : "") +
         '<button type="button" class="zcw-dots" data-more aria-label="Más opciones">•••</button></div>';
     }).join("") + "</div>";
+  }
+
+  /* En pantalla completa nativa solo se ve el elemento que entra en fullscreen: llevamos el logo de carga dentro */
+  function syncLoader() {
+    var L = D.querySelector("#rdPlayer .rd-loading") || D.querySelector(".rd-loading");
+    if (!L) return;
+    var fe = D.fullscreenElement || D.webkitFullscreenElement;
+    if (fe && !fe.contains(L)) { if (!L._zh) L._zh = L.parentNode; fe.appendChild(L); }
+    else if (!fe && L._zh && L.parentNode !== L._zh) { L._zh.appendChild(L); }
   }
 
   /* =============== Arranque =============== */
@@ -762,6 +804,7 @@
     var mb = $("modalBody");
     if (mb && W.MutationObserver) new MutationObserver(function () { decorateDetail(); }).observe(mb, { childList: true });
     D.addEventListener("znp:closed", function () { refreshRow(); decorateDetail(); });
+    ["fullscreenchange", "webkitfullscreenchange"].forEach(function (n) { D.addEventListener(n, syncLoader); });
     refreshRow();
     try { renderCats(); } catch (e) {}
   }
