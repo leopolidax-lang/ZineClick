@@ -613,3 +613,52 @@ html body #znpRoot .znp-sheet{background:linear-gradient(170deg,rgba(40,26,88,.9
 html body #znpRoot .znp-sh-t{color:var(--cyan)}
 html body #znpRoot .znp-sh-l button.on{background:linear-gradient(135deg,rgba(var(--acc-rgb,100,244,255),.22),rgba(139,92,246,.18))}
 html body #znpRoot .znp-flash,html body #znpRoot .znp-msg{background:rgba(24,16,56,.72);border:1px solid rgba(255,255,255,.14)}
+
+/* =====================================================================
+   ZYNORA · Renovación visual 3 (versión de prueba)
+   Para quitar SOLO esta parte, borra desde aquí hasta el final.
+   ===================================================================== */
+
+/* ----- Lista de addons (Ajustes): una tarjeta por addon ----- */
+#addonList>div{margin:0 0 12px;padding:16px;border-radius:20px;background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.10)}
+#addonList button{border-radius:12px;transition:transform .15s,border-color .2s}
+#addonList button:active{transform:scale(.94)}
+
+/* ----- Panel del perfil (la P, API, RD, AD...) ----- */
+.pf-rail{background:linear-gradient(180deg,rgba(40,26,88,.93),rgba(13,16,36,.96));border-color:rgba(255,255,255,.15);box-shadow:-10px 0 34px rgba(0,0,0,.45)}
+.pf-btn{background:linear-gradient(160deg,rgba(255,255,255,.11),rgba(255,255,255,.03));border-color:rgba(255,255,255,.17);box-shadow:inset 0 1px 0 rgba(255,255,255,.13);transition:transform .15s,border-color .2s,color .2s}
+.pf-btn:active{transform:scale(.92)}
+.pf-p{background:linear-gradient(145deg,rgba(var(--acc-rgb),.50),rgba(139,92,246,.50));box-shadow:0 0 18px rgba(139,92,246,.35)}
+
+/* ----- Banner grande del inicio: más legible y con profundidad ----- */
+.hc-tag{display:inline-block;padding:5px 11px;border-radius:999px;background:rgba(7,9,22,.55);border:1px solid rgba(var(--acc-rgb),.35)}
+.hc-copy h2{text-shadow:0 2px 16px rgba(0,0,0,.75)}
+.hc-meta{text-shadow:0 1px 8px rgba(0,0,0,.8)}
+.hc-open{padding:12px 24px}
+.hc-art img{transform:scale(1.04);transition:transform .6s ease}
+.hc-slide:active .hc-art img{transform:scale(1.09)}
+
+/* ----- Transiciones suaves ----- */
+@keyframes zyFade{from{opacity:0}to{opacity:1}}
+@keyframes zyPop{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes zyHeart{0%{transform:scale(1)}40%{transform:scale(1.4)}100%{transform:scale(1)}}
+#homePage,#explorePage,#pluginsPage,#profilePage,#settingsPage,#listsPage,#recommendPage,#upcomingPage,#cineversePage{animation:zyFade .35s ease both}
+.modal-wrap.open .modal{animation:zyPop .3s cubic-bezier(.2,.8,.2,1) both}
+.fav.on svg{animation:zyHeart .38s ease}
+.btn:active{transform:scale(.96)}
+
+/* ----- Cabecera: al bajar, el logo se achica y la sombra se intensifica ----- */
+@supports (animation-timeline:scroll()){
+ @keyframes zyHdr{from{box-shadow:0 1px 0 rgba(var(--acc-rgb),.18),0 12px 28px rgba(0,0,0,.35)}to{box-shadow:0 1px 0 rgba(var(--acc-rgb),.38),0 18px 36px rgba(0,0,0,.6)}}
+ @keyframes zyLogo{from{transform:scale(1)}to{transform:scale(.88)}}
+ header{animation:zyHdr linear both;animation-timeline:scroll(root);animation-range:0 120px}
+ header .logo{transform-origin:left center;animation:zyLogo linear both;animation-timeline:scroll(root);animation-range:0 120px}
+}
+
+/* ----- Colores de acento nuevos: Rosa y Ámbar (con su propio fondo aurora) ----- */
+html[data-accent="rose"]{--cyan:#ff8fd0;--acc-rgb:255,143,208;--acc-soft:#3a1730;--acc-line:#a3407a}
+html[data-accent="amber"]{--cyan:#ffc861;--acc-rgb:255,200,97;--acc-soft:#33250f;--acc-line:#a37a2c}
+html[data-accent="rose"] #znpRoot{--znp-end:#b69cff}
+html[data-accent="amber"] #znpRoot{--znp-end:#ff8f66}
+html[data-accent="rose"]:not([data-theme="amoled"]) body::before{background:radial-gradient(60% 38% at 6% 3%,rgba(255,103,200,.32),transparent 70%),radial-gradient(55% 34% at 100% 24%,rgba(255,143,208,.18),transparent 70%),radial-gradient(70% 40% at 0% 80%,rgba(139,92,246,.18),transparent 72%),radial-gradient(60% 36% at 100% 100%,rgba(255,90,120,.20),transparent 70%),linear-gradient(180deg,#160b20 0%,#0a0710 55%,#12081a 100%)}
+html[data-accent="amber"]:not([data-theme="amoled"]) body::before{background:radial-gradient(60% 38% at 6% 3%,rgba(255,160,60,.26),transparent 70%),radial-gradient(55% 34% at 100% 24%,rgba(255,200,97,.16),transparent 70%),radial-gradient(70% 40% at 0% 80%,rgba(255,103,70,.14),transparent 72%),radial-gradient(60% 36% at 100% 100%,rgba(139,92,246,.20),transparent 70%),linear-gradient(180deg,#170f0a 0%,#0a0809 55%,#120a12 100%)}
