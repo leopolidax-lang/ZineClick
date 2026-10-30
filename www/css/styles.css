@@ -491,3 +491,7 @@ header nav .nav-more-menu button.active::after{display:none}
   header nav>button[data-page]{padding:0 8px;min-width:0}
   header nav .nav-more-btn{padding:0 12px}
 }
+
+/* Logo de carga visible también en pantalla completa (web) */
+#rdPlayer.rd-full .rd-loading{position:fixed;inset:0;z-index:2147483001}
+#rdPlayer .plyr--fullscreen-active .rd-loading,#rdPlayer .plyr--fullscreen-fallback .rd-loading{position:absolute;inset:0;z-index:6}
