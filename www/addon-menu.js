@@ -299,7 +299,7 @@
     return { key: keyOf(type, t.tmdbId), tmdbId: t.tmdbId, type: type, title: t.title, poster: t.posterPath || "", backdrop: t.backdropPath || "", s: s, e: e, epName: name || "", src: src };
   }
   function playerTitle(t, s, e) { return t.mediaType === "tv" ? t.title + " · T" + s + "E" + e : t.title; }
-  var webMeta = null, webLast = 0, webResume = 0, webBound = false;
+  var webMeta = null, webLast = 0, webResume = 0, webResumeMin = 30000, webBound = false;
   function bindWeb() {
     var v = $("rdVideo"); if (!v || webBound) return;
     webBound = true;
@@ -312,8 +312,9 @@
       if (webMeta && v.duration && isFinite(v.duration)) { ZCW.progress(webMeta, v.duration * 1000, v.duration * 1000, true); webMeta = null; }
     });
     v.addEventListener("loadedmetadata", function () {
-      if (webResume > 30000 && v.duration && webResume < v.duration * 1000 - 60000) { try { v.currentTime = webResume / 1000; } catch (x) {} }
-      webResume = 0;
+      var rmin = webResumeMin, rend = rmin > 5000 ? 60000 : 5000;
+      if (webResume > rmin && v.duration && webResume < v.duration * 1000 - rend) { try { v.currentTime = webResume / 1000; } catch (x) {} }
+      webResume = 0; webResumeMin = 30000;
     });
   }
   function saveWebNow() {
@@ -328,6 +329,18 @@
     try { refreshRow(); decorateDetail(); } catch (x) {}
     return r;
   };
+
+  /* cambiar de fuente desde el reproductor web sin perder el minuto (lo usa web-player.js) */
+  function webSwitch(r, startMs) {
+    try { saveWebNow(); } catch (x) {}
+    var meta = r.meta;
+    W.__zplHdr = (meta && meta.hdr) || null;
+    bindWeb(); webMeta = meta; webLast = 0; webResume = Number(startMs) || 0; webResumeMin = 3000;
+    var url = r.url;
+    if (meta && meta.hdr && plg() && plg().mediaUrl) url = plg().mediaUrl(url, meta.hdr);
+    var tt = $("rdPlayerTitle");
+    if (typeof W.rdPlay === "function") W.rdPlay({ download: url }, tt ? tt.textContent : "");
+  }
 
   function launch(url, t, s, e, meta) {
     W.__zplHdr = (meta && meta.hdr) || null;
@@ -832,5 +845,5 @@
     var t = { tmdbId: m.tmdbId, mediaType: type, title: m.title, posterPath: m.poster, backdropPath: m.backdrop };
     return { url: url, meta: metaFor(t, m.s, m.e, nm, snap) };
   }
-  W.ZAM = { open: openMenu, playFlow: playFlow, sources: srcList, resolve: srcResolve };
+  W.ZAM = { open: openMenu, playFlow: playFlow, sources: srcList, resolve: srcResolve, webMeta: function () { return webMeta; }, saveWeb: saveWebNow, webSwitch: webSwitch };
 })();
