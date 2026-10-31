@@ -1,23 +1,34 @@
-/* Zynora · tv.js (modo Android TV)
+/* Zynora · tv.js (modo Android TV) — v2
    Navegación con el control remoto, filas tipo Netflix (el póster se extiende y muestra la sinopsis),
-   botón Atrás, teclado solo con OK y foco elegante. En el celular no cambia nada. */
+   botón Atrás, teclado solo con OK y foco elegante. En el celular no cambia nada.
+
+   Probar sin TV: en el sitio web (PC) abre la consola y escribe
+     localStorage.zynora_tv="1"; location.reload()
+   y usa flechas + Enter como si fuera el control. Para quitarlo: localStorage.removeItem("zynora_tv").
+   Diagnóstico en pantalla: tecla Menú del control (o F2 en PC), o localStorage.zynora_tv_debug="1". */
 (function () {
   "use strict";
   var W = window, D = document, H = D.documentElement;
   function isNative() { try { return !!(W.Capacitor && W.Capacitor.isNativePlatform && W.Capacitor.isNativePlatform()); } catch (e) { return false; } }
-  var FORCE = null; try { FORCE = localStorage.getItem("zynora_tv"); } catch (e) {}
-  if (FORCE === "0") return;
+  var FORCE = null, DEBUG = false;
+  try { FORCE = localStorage.getItem("zynora_tv"); DEBUG = localStorage.getItem("zynora_tv_debug") === "1"; } catch (e) {}
+  if (FORCE === "0") { W.ZTV = { enable: function () {}, isOn: function () { return false; }, back: function () { return false; }, debug: function () {} }; return; }
   var UA = navigator.userAgent || "";
-  var looksTv = /\b(TV|AFT[A-Z]*|BRAVIA|SmartTV|Android TV|AndroidTV|MiBOX|SHIELD|Chromecast|GoogleTV|Hisense|TCL)\b/i.test(UA) || FORCE === "1";
+  var bigNoTouch = (navigator.maxTouchPoints || 0) === 0 && Math.max((W.screen && screen.width) || 0, (W.screen && screen.height) || 0) >= 900;
+  var looksTv = /\b(TV|AFT[A-Z]*|BRAVIA|SmartTV|Android TV|AndroidTV|MiBOX|SHIELD|Chromecast|GoogleTV|Hisense|TCL)\b/i.test(UA) || FORCE === "1" || (isNative() && bigNoTouch);
+  function canTv() { return isNative() || FORCE === "1"; }
   var on = false, lastRect = null, lastKeyT = 0;
   var ROWS = "#trendingGrid,#homeUpcomingGrid";
 
   var CSS =
     'html.tv{cursor:none;--tvw:clamp(128px,12.2vw,215px)}' +
+    'html.tv,html.tv *{scroll-behavior:auto!important}' +
     'html.tv *{-webkit-tap-highlight-color:transparent;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}' +
-    'html.tv .modal-wrap,html.tv .modal-wrap *{transition:none!important;animation:none!important;scroll-behavior:auto!important}' +
+    'html.tv .modal-wrap,html.tv .modal-wrap *{transition:none!important;animation:none!important}' +
     'html.tv ::-webkit-scrollbar{display:none}' +
-    'html.tv :focus{outline:none!important}' +
+    /* anillo de foco por defecto para TODO lo enfocable; se apaga donde hay un resaltado propio */
+    'html.tv :focus{outline:3px solid rgba(255,255,255,.9)!important;outline-offset:2px}' +
+    'html.tv [tabindex="-1"]:focus,html.tv .card:focus,html.tv .zac-card:focus,html.tv .zph-card:focus,html.tv .zcw-card:focus,html.tv input:focus,html.tv textarea:focus{outline:none!important}' +
     'html.tv header{position:relative!important}' +
     'html.tv .avatar{width:46px!important;height:46px!important;min-width:46px!important;max-width:46px!important;flex:none!important;padding:0!important;border-radius:50%!important;aspect-ratio:1/1;display:grid!important;place-items:center;line-height:1}' +
     'html.tv .section-head h2{font-size:clamp(18px,1.7vw,26px)}html.tv .section-head p{font-size:12px}' +
@@ -26,7 +37,7 @@
     'html.tv .card .poster .poster-name{bottom:9px;left:8px;right:8px;font-size:clamp(10px,.95vw,14px);font-weight:800;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}' +
     'html.tv .card .poster:before{background:linear-gradient(0deg,#070910e6,transparent 62%)}' +
     'html.tv .card .up-date{position:absolute;z-index:3;top:8px;left:8px;padding:4px 8px;border-radius:8px;background:#070910d9;border:1px solid #ffffff22;font-size:11px;font-weight:800;color:#ffe7a6}' +
-    'html.tv #trendingGrid,html.tv #homeUpcomingGrid{display:flex!important;gap:14px;overflow-x:auto;overflow-y:hidden;position:relative;z-index:2;padding:20px 56px 118px 10px;margin:0 -10px;grid-template-columns:none}' +
+    'html.tv #trendingGrid,html.tv #homeUpcomingGrid{display:flex!important;gap:14px;overflow-x:auto;overflow-y:hidden;position:relative;z-index:2;padding:20px 56px 118px 10px;margin:0 -10px;grid-template-columns:none;scroll-snap-type:none!important}' +
     'html.tv #trendingGrid .card,html.tv #homeUpcomingGrid .card{flex:0 0 var(--tvw);width:var(--tvw);position:relative}' +
     'html.tv #trendingGrid .poster,html.tv #homeUpcomingGrid .poster{aspect-ratio:auto;height:calc(var(--tvw)*1.5);width:100%}' +
     'html.tv .card.tv-x{flex-basis:calc(var(--tvw)*2.65)!important;width:calc(var(--tvw)*2.65)!important}' +
@@ -38,8 +49,11 @@
     'html.tv .card:focus .poster,html.tv .zac-card:focus .zac-p,html.tv .zph-card:focus .zph-p,html.tv .zcw-card:focus{transform:scale(1.06);position:relative;z-index:4;border-color:rgba(255,255,255,.7)!important;box-shadow:0 0 0 2px rgba(255,255,255,.6),0 10px 22px rgba(0,0,0,.55)}' +
     'html.tv .card.tv-x:focus .poster{transform:none}' +
     'html.tv .card:focus,html.tv .zac-card:focus,html.tv .zph-card:focus{transform:none;box-shadow:none}' +
-    'html.tv .hc-slide:focus:after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 3px rgba(255,255,255,.92),inset 0 0 46px rgba(255,255,255,.16);pointer-events:none;z-index:9}html.tv .hc-slide:focus{border-color:rgba(255,255,255,.9)!important}' +
+    /* póster grande de Inicio: contorno propio (no depende de que el slide tenga position) */
+    'html.tv .hc-slide:focus{outline:4px solid #fff!important;outline-offset:-8px!important;border-color:rgba(255,255,255,.9)!important}' +
+    'html.tv .hc-slide:focus:after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 3px rgba(255,255,255,.92),inset 0 0 46px rgba(255,255,255,.16);pointer-events:none;z-index:9}' +
     'html.tv button:focus,html.tv a:focus,html.tv select:focus,html.tv [role=button]:focus,html.tv .chip:focus,html.tv .tab:focus{background-color:rgba(255,255,255,.17)!important;color:#fff!important;box-shadow:0 0 0 1px rgba(255,255,255,.42),0 6px 22px rgba(255,255,255,.08)!important;transform:none}' +
+    'html.tv .zep-row:focus,html.tv .zam-card:focus{background-color:rgba(255,255,255,.16)!important}' +
     'html.tv .btn.primary:focus,html.tv .zpl-btn.pri:focus,html.tv .zpl-row2 .pri:focus{filter:brightness(1.18);box-shadow:0 0 0 2px rgba(255,255,255,.7),0 8px 26px rgba(0,0,0,.5)!important}' +
     'html.tv header nav button:focus{background:rgba(255,255,255,.18)!important}' +
     'html.tv input:focus,html.tv textarea:focus{box-shadow:0 0 0 1px rgba(255,255,255,.5)!important;border-color:rgba(255,255,255,.55)!important}' +
@@ -50,9 +64,9 @@
     'html.tv #zacWrap .zac-p:after,html.tv #zplHome .zph-p:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,#070910e6,transparent 60%)}' +
     '#tvKb{position:fixed;left:0;right:0;bottom:0;z-index:2000000100;background:rgba(8,11,20,.98);border-top:1px solid rgba(255,255,255,.14);padding:12px 4vw calc(14px + env(safe-area-inset-bottom,0px))}' +
     '#tvKb[hidden]{display:none}#tvKb .tvkb-val{min-height:34px;margin:0 0 10px;padding:8px 14px;border-radius:12px;background:rgba(255,255,255,.08);color:#fff;font-size:20px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
-    '#tvKb .tvkb-r{display:flex;gap:7px;margin-bottom:7px;justify-content:center}#tvKb button{flex:1 1 0;max-width:86px;min-width:0;padding:11px 0;border:0;border-radius:11px;background:rgba(255,255,255,.1);color:#fff;font:700 18px inherit;cursor:pointer}' +
+    '#tvKb .tvkb-r{display:flex;gap:7px;margin-bottom:7px;justify-content:center}#tvKb button{flex:1 1 0;max-width:86px;min-width:0;padding:11px 0;border:0;border-radius:11px;background:rgba(255,255,255,.1);color:#fff;font-weight:700;font-size:18px;font-family:inherit;cursor:pointer}' +
     '#tvKb button.w{max-width:300px;flex:3 1 0}#tvKb button.pri{background:#64f4ff;color:#04121a}#tvKb button.m{max-width:130px;flex:1.4 1 0;font-size:14px}#tvKb.uc button[data-k]{text-transform:uppercase}' +
-    '#tvKb button:focus{background:#fff!important;color:#071018!important;transform:scale(1.08);box-shadow:0 4px 16px rgba(0,0,0,.5)!important}' +
+    '#tvKb button:focus{background:#fff!important;color:#071018!important;transform:scale(1.08);box-shadow:0 4px 16px rgba(0,0,0,.5)!important;outline:none!important}' +
     'html.tv .split{gap:12px!important;align-items:start!important}' +
     'html.tv .split .panel{padding:14px 18px!important;min-height:0!important;border-radius:16px!important}' +
     'html.tv .split .panel h2{font-size:17px!important;margin:4px 0!important}' +
@@ -61,32 +75,67 @@
     'html.tv .recommend-form select,html.tv .recommend-form button,html.tv .recommend-form input{padding-top:9px!important;padding-bottom:9px!important;font-size:13px!important;min-height:0!important}' +
     'html.tv .feature-line{padding:6px 0!important}html.tv .feature-line small{font-size:11px}html.tv .iconbox{width:30px!important;height:30px!important;font-size:14px!important}';
 
+  /* ---------- visibilidad ---------- */
+  function sized(el) {
+    if (!el || el.hidden) return false;
+    var r = el.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8) return false;
+    return getComputedStyle(el).display !== "none";
+  }
   function visible(el) {
     if (!el || el.disabled || el.hidden) return false;
     var r = el.getBoundingClientRect();
     if (r.width < 8 || r.height < 8) return false;
     var cs = getComputedStyle(el);
-    return cs.visibility !== "hidden" && cs.display !== "none" && cs.pointerEvents !== "none";
+    return cs.visibility !== "hidden" && cs.display !== "none" && cs.pointerEvents !== "none" && parseFloat(cs.opacity) > 0.05;
   }
+  /* visible Y dentro de la pantalla (para capas: ventanas, hojas, reproductor) */
+  function onScreen(el) {
+    if (!visible(el)) return false;
+    var r = el.getBoundingClientRect();
+    return r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
+  }
+  /* igual, pero revisando también a los padres (el reproductor oculta los controles con opacity) */
+  function shown(el, stop) {
+    for (var n = el; n && n.nodeType === 1; n = n.parentElement) {
+      var cs = getComputedStyle(n);
+      if (cs.display === "none" || cs.visibility === "hidden" || parseFloat(cs.opacity) < 0.05) return false;
+      if (n === stop) break;
+    }
+    var r = el.getBoundingClientRect();
+    return r.width >= 8 && r.height >= 8 && r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
+  }
+
   var SEL = 'a[href],button,input:not([type=hidden]),select,textarea,[tabindex]:not([tabindex="-1"]),.card,.hc-slide,.zam-card,.zcw-card,.zph-card,.zac-card,.zep-row,[role=button]';
   var LAYERS = ["#tvKb", "#znpRoot", ".zpl-sh", ".zy-dlg", "#zplRoot", "#zamRoot", "#rdPlayer", "#pfRail.open", ".modal-wrap.open", ".modal-wrap.show", ".modal-wrap:not(.hidden):not([hidden])"];
+
+  /* Capa activa. Una capa solo cuenta si está de verdad en pantalla Y tiene algo enfocable:
+     antes una ventana cerrada (opacity:0 o fuera de pantalla) o un aviso sin botones "secuestraba" el foco. */
+  var scopeC = null;
   function scope() {
+    if (scopeC) return scopeC;
+    var res = D;
+    outer:
     for (var i = 0; i < LAYERS.length; i++) {
       var list = D.querySelectorAll(LAYERS[i]);
       for (var j = list.length - 1; j >= 0; j--) {
-        var el = list[j], pos = getComputedStyle(el).position;
-        if (!el.hidden && visible(el) && (pos === "fixed" || pos === "absolute")) return el;
+        var el = list[j];
+        if (el.hidden) continue;
+        var pos = getComputedStyle(el).position;
+        if ((pos === "fixed" || pos === "absolute") && onScreen(el) && items(el).length) { res = el; break outer; }
       }
     }
-    return D;
+    scopeC = res; setTimeout(function () { scopeC = null; }, 0);
+    return res;
   }
   function items(root) {
     var out = [], all = root.querySelectorAll(SEL);
     for (var i = 0; i < all.length; i++) {
       var el = all[i];
-      if (!visible(el) || (el.closest && el.closest("[inert]"))) continue;
+      if (el.closest && el.closest("[inert]")) continue;
       if (el.matches && el.matches(".hc-dot,.hc-nav")) continue;
       if (el.tagName === "BUTTON" && el.closest && el.closest(".card,.zcw-card")) continue;
+      if (!visible(el)) continue;
       out.push(el);
     }
     return out;
@@ -116,22 +165,26 @@
     use.forEach(function (c) { var s = c.main * 3 + c.cross; if (s < bs) { bs = s; best = c.el; } });
     return best;
   }
+  /* izquierda/derecha dentro de una fila o del carrusel: siguiente/anterior hermano.
+     Solo si el foco está en el póster/slide mismo (no en un botón dentro del slide). */
   function seqNav(from, dir) {
     if (dir !== "ArrowLeft" && dir !== "ArrowRight") return undefined;
     var c = from.closest && from.closest("#trendingGrid,#homeUpcomingGrid,#heroTrack"); if (!c) return undefined;
-    var it = from.matches(".card,.hc-slide") ? from : from.closest(".card,.hc-slide");
-    if (!it || it.parentNode !== c) return undefined;
-    var n = it;
-    do { n = dir === "ArrowRight" ? n.nextElementSibling : n.previousElementSibling; } while (n && !(n.matches(".card,.hc-slide") && visible(n)));
+    if (!from.matches(".card,.hc-slide") || from.parentNode !== c) return undefined;
+    var n = from;
+    do { n = dir === "ArrowRight" ? n.nextElementSibling : n.previousElementSibling; } while (n && !(n.matches(".card,.hc-slide") && sized(n)));
     return n || null;
   }
+  /* desplazamiento horizontal por posiciones reales (no por offsetLeft, que falla si el contenedor no tiene position) */
+  function hscroll(c, el, lead) { var cr = c.getBoundingClientRect(), er = el.getBoundingClientRect(); c.scrollLeft += er.left - cr.left - lead; }
   function reveal(el) {
     var row = el.closest && el.closest(ROWS);
-    if (row) row.scrollLeft = Math.max(0, el.offsetLeft - 56);
+    if (row) hscroll(row, el, 56);
     if (scope() !== D) { try { el.scrollIntoView({ block: "center", inline: "nearest" }); } catch (e) {} return; }
     var r = boxOf(el), vh = innerHeight;
     if (el.matches && el.matches(".hc-slide")) {
-      var tr = el.parentNode; if (tr) tr.scrollLeft = el.offsetLeft - (tr.clientWidth - el.offsetWidth) / 2;
+      var tr = el.parentNode;
+      if (tr && tr.scrollWidth > tr.clientWidth + 2) hscroll(tr, el, (tr.clientWidth - el.offsetWidth) / 2);
       r = el.getBoundingClientRect();
       if (r.top < 10 || r.bottom > vh) W.scrollTo(0, Math.max(0, W.scrollY + r.top - 14));
       return;
@@ -141,7 +194,7 @@
   function focusEl(el) {
     if (!el) return;
     if (!el.hasAttribute("tabindex") && !/^(A|BUTTON|INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) el.setAttribute("tabindex", "0");
-    try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
+    try { el.focus({ preventScroll: true }); } catch (e) { try { el.focus(); } catch (x) {} }
     lastRect = copyRect(boxOf(el));
     reveal(el);
   }
@@ -157,6 +210,10 @@
     list.forEach(function (el) { var r = boxOf(el), d = Math.pow(r.left + r.width / 2 - (rc.left + rc.width / 2), 2) + Math.pow(r.top + r.height / 2 - (rc.top + rc.height / 2), 2); if (d < bs) { bs = d; best = el; } });
     return best;
   }
+
+  /* ---------- globales de la app (pueden ser let/const del index.html) ---------- */
+  function gTitles() { return typeof titles !== "undefined" ? titles : (W.titles || null); }
+  function gUpcoming() { return typeof upcomingCache !== "undefined" ? upcomingCache : (W.upcomingCache || null); }
 
   var EPS = {}, expEl = null, expT = 0, expT2 = 0, navT = 0;
   function titleOf(card) { var m = /openDetail\('([^']+)'/.exec(card.getAttribute("onclick") || ""); try { return m && typeof W.findTitle === "function" ? W.findTitle(m[1]) : null; } catch (e) { return null; } }
@@ -199,20 +256,32 @@
     clearTimeout(expT2);
     if (expEl && expEl !== card) { collapse(expEl); expEl = null; }
     if (row && card && card === t) expT2 = setTimeout(function () { if (D.activeElement === card) expand(card); }, 130);
+    /* al detenerse en una pestaña de la barra, se abre esa página; si la página redibuja la barra y el foco se pierde, se recupera */
     if (t.matches && t.matches("header nav button") && !t.classList.contains("active")) {
-      clearTimeout(navT); navT = setTimeout(function () { if (D.activeElement === t && !t.classList.contains("active")) t.click(); }, 230);
+      clearTimeout(navT);
+      navT = setTimeout(function () {
+        if (D.activeElement !== t || t.classList.contains("active")) return;
+        var label = (t.textContent || "").trim();
+        t.click();
+        setTimeout(function () {
+          var a = D.activeElement; if (a && a !== D.body) return;
+          var bs = D.querySelectorAll("header nav button");
+          for (var i = 0; i < bs.length; i++) if ((bs[i].textContent || "").trim() === label) { focusEl(bs[i]); return; }
+        }, 120);
+      }, 300);
     }
   }, true);
 
   var moreDone = false;
   async function moreTrending() {
-    if (moreDone || typeof W.tmdb !== "function") return; moreDone = true;
+    var T = gTitles();
+    if (moreDone || typeof W.tmdb !== "function" || !T) return; moreDone = true;
     try {
       for (var pg = 2; pg <= 4; pg++) {
         var d = await W.tmdb("/trending/all/week", { page: pg });
         (d.results || []).filter(function (x) { return x.media_type === "movie" || x.media_type === "tv"; }).forEach(function (x) {
           var n = W.normalize ? W.normalize(x) : null;
-          if (n && !titles.some(function (t) { return t.id === n.id; })) titles.push(n);
+          if (n && !T.some(function (t) { return t.id === n.id; })) T.push(n);
         });
       }
       redrawTrending();
@@ -234,7 +303,7 @@
       if (typeof or === "function" && !or.__tv) {
         var g = function () {
           var r = or.apply(this, arguments);
-          try { var hg = D.getElementById("homeUpcomingGrid"); if (on && hg && upcomingCache && upcomingCache.list && upcomingCache.list.length) hg.innerHTML = upcomingCache.list.slice(0, 40).map(W.cardUp).join(""); } catch (e) {}
+          try { var hg = D.getElementById("homeUpcomingGrid"), uc = gUpcoming(); if (on && hg && uc && uc.list && uc.list.length) hg.innerHTML = uc.list.slice(0, 40).map(W.cardUp).join(""); } catch (e) {}
           return r;
         };
         g.__tv = true; W.renderUpcoming = g;
@@ -244,7 +313,7 @@
     var od = W.draw;
     if (typeof od === "function" && !od.__tv) {
       var d2 = function (id, arr) {
-        if (on && id === "trendingGrid") { try { arr = titles.slice().sort(function (a, b) { return b.rating - a.rating; }).slice(0, 60); } catch (e) {} }
+        if (on && id === "trendingGrid") { try { var T = gTitles(); if (T) arr = T.slice().sort(function (a, b) { return b.rating - a.rating; }).slice(0, 60); } catch (e) {} }
         return od(id, arr);
       };
       d2.__tv = true; W.draw = d2;
@@ -262,6 +331,39 @@
     }
   }
   function player() { var c = W.Capacitor; return c && c.Plugins && c.Plugins.ZinePlayer; }
+
+  /* ---------- diagnóstico en pantalla ---------- */
+  var hud = null, hudOn = false, hudT = 0;
+  function hudEl() {
+    if (!hud) {
+      hud = D.createElement("div"); hud.id = "tvHud";
+      hud.style.cssText = "position:fixed;left:8px;top:8px;z-index:2147483647;max-width:48vw;padding:6px 10px;border-radius:10px;background:rgba(0,0,0,.85);color:#9ff;font:12px/1.4 monospace;pointer-events:none;white-space:pre-wrap;display:none";
+      D.body.appendChild(hud);
+    }
+    return hud;
+  }
+  function say(t, ms) {
+    try { var h = hudEl(); h.textContent = t; h.style.display = "block"; clearTimeout(hudT); if (!hudOn) hudT = setTimeout(function () { if (!hudOn) h.style.display = "none"; }, ms || 3000); } catch (e) {}
+  }
+  function describe(el) {
+    if (!el || el === D.body || el === H) return "(ninguno)";
+    var s = el.tagName.toLowerCase(); if (el.id) s += "#" + el.id;
+    var c = typeof el.className === "string" ? el.className.trim().split(/\s+/).filter(Boolean).slice(0, 2).join(".") : ""; if (c) s += "." + c;
+    return s;
+  }
+  function hudInfo(e) {
+    var r = scope();
+    return "TV v2 · tecla: " + (e ? e.key + " [" + e.keyCode + "]" : "-") +
+      "\nfoco: " + describe(D.activeElement) +
+      "\nzona: " + (r === D ? "página" : describe(r)) + " · items: " + items(r).length +
+      "\npantalla: " + innerWidth + "x" + innerHeight + " @" + (W.devicePixelRatio || 1) +
+      "\nnativa: " + isNative() + " · player: " + !!player();
+  }
+  function toggleHud() {
+    hudOn = !hudOn; var h = hudEl();
+    h.style.display = hudOn ? "block" : "none";
+    if (hudOn) h.textContent = hudInfo(null);
+  }
 
   /* teclado propio para el control remoto */
   var kb = null, kbT = null, kbUc = false;
@@ -303,18 +405,26 @@
     return true;
   }
 
-  function playerKeys(e) {
+  function playerKeys(e, dir) {
     var root = D.getElementById("znpRoot"); if (!root || root.hidden || !H.classList.contains("znp-on")) return false;
     var p = player(); if (!p) return false;
-    var inUi = D.activeElement && root.contains(D.activeElement) && D.activeElement !== root, k = e.key;
+    var k = dir || e.key, ae = D.activeElement;
+    /* "en los controles" solo si el botón enfocado se ve de verdad (si los controles se ocultaron, las flechas adelantan/atrasan) */
+    var inUi = !!(ae && ae !== root && root.contains(ae) && shown(ae, root));
+    function call(name, arg) {
+      try {
+        if (typeof p[name] !== "function") { say("player." + name + " no existe"); return; }
+        var r = p[name](arg); if (r && typeof r.catch === "function") r.catch(function () {});
+      } catch (x) { say("player." + name + ": " + (x && x.message)); }
+    }
     function showUi() { var t = root.querySelector(".znp-tap"); if (t) { try { t.click(); } catch (x) {} } }
-    if (k === "MediaPlayPause" || k === "MediaPlay" || k === "MediaPause" || (k === " " && !inUi)) { p.togglePlay(); showUi(); return true; }
-    if (k === "MediaFastForward" || k === "MediaTrackNext") { p.seekBy({ ms: 30000 }); showUi(); return true; }
-    if (k === "MediaRewind" || k === "MediaTrackPrevious") { p.seekBy({ ms: -30000 }); showUi(); return true; }
+    if (k === "MediaPlayPause" || k === "MediaPlay" || k === "MediaPause" || (k === " " && !inUi)) { call("togglePlay"); showUi(); return true; }
+    if (k === "MediaFastForward" || k === "MediaTrackNext") { call("seekBy", { ms: 30000 }); showUi(); return true; }
+    if (k === "MediaRewind" || k === "MediaTrackPrevious") { call("seekBy", { ms: -30000 }); showUi(); return true; }
     if (inUi) return false;
-    if (k === "ArrowRight") { p.seekBy({ ms: 10000 }); showUi(); return true; }
-    if (k === "ArrowLeft") { p.seekBy({ ms: -10000 }); showUi(); return true; }
-    if (k === "Enter") { p.togglePlay(); showUi(); return true; }
+    if (k === "ArrowRight") { call("seekBy", { ms: 10000 }); showUi(); return true; }
+    if (k === "ArrowLeft") { call("seekBy", { ms: -10000 }); showUi(); return true; }
+    if (isOK(e)) { call("togglePlay"); showUi(); return true; }
     if (k === "ArrowUp" || k === "ArrowDown") { showUi(); setTimeout(function () { var bs = items(root); if (bs.length) focusEl(bs[0]); }, 60); return true; }
     return false;
   }
@@ -338,33 +448,72 @@
     H.classList.add("tv");
     var st = D.createElement("style"); st.textContent = CSS; D.head.appendChild(st);
     lockInputs(); patches();
-    try { new MutationObserver(function () { lockInputs(); patches(); }).observe(D.body, { childList: true, subtree: true }); } catch (e) {}
+    var moT = 0;
+    try { new MutationObserver(function () { if (moT) return; moT = setTimeout(function () { moT = 0; lockInputs(); patches(); }, 150); }).observe(D.body, { childList: true, subtree: true }); } catch (e) {}
     setTimeout(moreTrending, 2500);
-    setInterval(function () { try { if (heroTimer) { clearInterval(heroTimer); heroTimer = null; } } catch (e) {} }, 1500);
+    setInterval(function () { try { if (typeof heroTimer !== "undefined" && heroTimer) { clearInterval(heroTimer); heroTimer = null; } } catch (e) {} }, 1500);
     setTimeout(function () { if (!D.activeElement || D.activeElement === D.body) firstFocus(); }, 600);
+    if (DEBUG) toggleHud(); else say("Modo TV activo · botón Menú = diagnóstico", 4000);
+  }
+
+  /* ---------- teclas ---------- */
+  function dirOf(e) {
+    var k = e.key;
+    if (k === "ArrowUp" || k === "ArrowDown" || k === "ArrowLeft" || k === "ArrowRight") return k;
+    var c = e.keyCode; /* respaldo por si el control manda key vacío */
+    return c === 19 ? "ArrowUp" : c === 20 ? "ArrowDown" : c === 21 ? "ArrowLeft" : c === 22 ? "ArrowRight" : null;
+  }
+  function isOK(e) { var k = e.key, c = e.keyCode; return k === "Enter" || k === "NumpadEnter" || k === "Select" || c === 13 || c === 23 || c === 66; }
+  function isMenu(e) { return e.key === "ContextMenu" || e.key === "F2" || (e.keyCode === 82 && e.key !== "r" && e.key !== "R"); }
+
+  function navigate(dir) {
+    var a = D.activeElement;
+    var root = scope(), list = items(root), valid = a && a !== D.body && root.contains(a) && visible(a), nxt = null;
+    if (valid) {
+      var host = a.closest && a.closest(".hc-slide");
+      if (host && host === a && dir === "ArrowDown") { var inner = items(a); if (inner.length) nxt = inner[0]; }       /* del póster grande a sus botones */
+      else if (host && host !== a && dir === "ArrowUp") nxt = host;                                                       /* de sus botones al póster */
+      if (!nxt) { var sq = seqNav(a, dir); nxt = sq !== undefined ? sq : pick(a, boxOf(a), dir, list); }
+    } else if (lastRect) {
+      nxt = pick(null, lastRect, dir, list);
+      if (!nxt && !/Left|Right/.test(dir)) nxt = nearest(list, lastRect);
+    }
+    if (!valid && !nxt) { if (lastRect) nxt = nearest(list, lastRect); else { firstFocus(); return; } }
+    if (nxt) focusEl(nxt);
   }
 
   D.addEventListener("keydown", function (e) {
-    var dpad = e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight";
-    if (!on) { if (dpad && isNative()) { enable(); firstFocus(); e.preventDefault(); } return; }
+    var dir = dirOf(e);
+    if (!on) { if (dir && canTv()) { enable(); firstFocus(); e.preventDefault(); } return; }
     if (e.altKey || e.ctrlKey || e.metaKey) return;
-    if (playerKeys(e)) { e.preventDefault(); return; }
-    var a = D.activeElement, isInput = a && /^(INPUT|TEXTAREA)$/.test(a.tagName) && (a.tagName === "TEXTAREA" || TEXTY.test(a.type || "text"));
-    if ((e.key === "Enter" || e.keyCode === 23 || e.keyCode === 13) && isInput) { e.preventDefault(); kbOpen(a); return; }
-    if (dpad) {
-      var now = Date.now(); if (now - lastKeyT < 60) { e.preventDefault(); return; } lastKeyT = now;
-      if (a && a.tagName === "INPUT" && a.type === "range" && (e.key === "ArrowLeft" || e.key === "ArrowRight")) return;
-      var root = scope(), list = items(root), valid = a && a !== D.body && root.contains(a) && visible(a), nxt = null;
-      if (valid) { var sq = seqNav(a, e.key); nxt = sq !== undefined ? sq : pick(a, boxOf(a), e.key, list); }
-      else if (lastRect) { nxt = pick(null, lastRect, e.key, list); if (!nxt && !/Left|Right/.test(e.key)) nxt = nearest(list, lastRect); }
-      if (!valid && !nxt) { if (lastRect) nxt = nearest(list, lastRect); else { firstFocus(); e.preventDefault(); return; } }
-      if (nxt) focusEl(nxt);
-      e.preventDefault();
-    } else if (e.key === "Enter" && a && a !== D.body && !/^(A|BUTTON|INPUT|SELECT|TEXTAREA)$/.test(a.tagName)) {
-      e.preventDefault(); a.click();
+    try {
+      if (isMenu(e)) { toggleHud(); e.preventDefault(); return; }
+      if (e.key === "Escape" || e.key === "GoBack" || e.key === "BrowserBack") { if (back()) { e.preventDefault(); e.stopPropagation(); } return; }
+      if (playerKeys(e, dir)) { e.preventDefault(); e.stopPropagation(); return; }
+      var a = D.activeElement, tag = a ? a.tagName : "";
+      var isInput = a && /^(INPUT|TEXTAREA)$/.test(tag) && (tag === "TEXTAREA" || TEXTY.test(a.type || "text"));
+      if (isOK(e) && isInput) { e.preventDefault(); if (!e.repeat) kbOpen(a); return; }
+      if (dir) {
+        if (tag === "INPUT" && a.type === "range" && (dir === "ArrowLeft" || dir === "ArrowRight")) return;
+        /* se cancela SIEMPRE y primero: si no, el WebView mueve el foco por su cuenta y se "saltan" botones */
+        e.preventDefault(); e.stopPropagation();
+        var now = Date.now(); if (now - lastKeyT < (e.repeat ? 110 : 30)) return; lastKeyT = now;
+        navigate(dir);
+        return;
+      }
+      if (isOK(e) && a && a !== D.body) {
+        if (tag === "SELECT" || (tag === "INPUT" && a.type === "range")) return;   /* el WebView abre su selector */
+        e.preventDefault();                                                          /* OK siempre hace click, también en botones y enlaces */
+        if (!e.repeat) a.click();
+      }
+    } catch (err) {
+      if (dir || isOK(e)) e.preventDefault();
+      say("ERROR tv.js: " + (err && err.message), 6000);
+    } finally {
+      if (hudOn) setTimeout(function () { try { hudEl().textContent = hudInfo(e); } catch (x) {} }, 0);
     }
   }, true);
 
-  if (looksTv && isNative()) { if (D.readyState === "loading") D.addEventListener("DOMContentLoaded", enable); else enable(); }
-  W.ZTV = { enable: enable, isOn: function () { return on; }, back: back };
+  if (looksTv && canTv()) { if (D.readyState === "loading") D.addEventListener("DOMContentLoaded", enable); else enable(); }
+  W.ZTV = { enable: enable, isOn: function () { return on; }, back: back, debug: toggleHud };
 })();
