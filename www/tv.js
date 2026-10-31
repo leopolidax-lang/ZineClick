@@ -1,4 +1,4 @@
-/* Zynora · tv.js (modo Android TV) — v2
+/* Zynora · tv.js (modo Android TV) — v3
    Navegación con el control remoto, filas tipo Netflix (el póster se extiende y muestra la sinopsis),
    botón Atrás, teclado solo con OK y foco elegante. En el celular no cambia nada.
 
@@ -17,7 +17,7 @@
   var bigNoTouch = (navigator.maxTouchPoints || 0) === 0 && Math.max((W.screen && screen.width) || 0, (W.screen && screen.height) || 0) >= 900;
   var looksTv = /\b(TV|AFT[A-Z]*|BRAVIA|SmartTV|Android TV|AndroidTV|MiBOX|SHIELD|Chromecast|GoogleTV|Hisense|TCL)\b/i.test(UA) || FORCE === "1" || (isNative() && bigNoTouch);
   function canTv() { return isNative() || FORCE === "1"; }
-  var on = false, lastRect = null, lastKeyT = 0;
+  var on = false, lastRect = null, lastKeyT = 0, sysEl = null, filt = null, exDone = false;
   var ROWS = "#trendingGrid,#homeUpcomingGrid";
 
   var CSS =
@@ -75,6 +75,74 @@
     'html.tv .recommend-form select,html.tv .recommend-form button,html.tv .recommend-form input{padding-top:9px!important;padding-bottom:9px!important;font-size:13px!important;min-height:0!important}' +
     'html.tv .feature-line{padding:6px 0!important}html.tv .feature-line small{font-size:11px}html.tv .iconbox{width:30px!important;height:30px!important;font-size:14px!important}';
 
+
+  var CSS2 = `
+/* foco: sin outline (en WebViews viejos sale cuadrado); anillo con box-shadow que respeta el radio */
+html.tv :focus{outline:none!important}
+html.tv button:focus,html.tv a:focus,html.tv select:focus,html.tv [role=button]:focus,html.tv .chip:focus,html.tv .tab:focus,html.tv .text-btn:focus{background-color:rgba(255,255,255,.17)!important;color:#fff!important;box-shadow:0 0 0 3px rgba(255,255,255,.92)!important;transform:none}
+html.tv .text-btn{border-radius:12px;padding:6px 12px}
+html.tv .hc-slide:focus{outline:none!important;border-color:transparent!important}
+html.tv .hc-slide:focus:after{box-shadow:inset 0 0 0 4px rgba(255,255,255,.95),inset 0 0 40px rgba(255,255,255,.10);border-radius:inherit}
+/* barra superior: el acento azul sigue al foco, no se queda en la pestaña anterior */
+html.tv header nav:focus-within button.active:not(:focus){background:none!important;box-shadow:none!important;color:var(--muted)!important}
+html.tv header nav:focus-within button.active:not(:focus)::after{display:none}
+html.tv header nav button.tv-pend{color:#fff!important;background:linear-gradient(135deg,rgba(var(--acc-rgb),.28),rgba(var(--acc-rgb),.10))!important}
+html.tv header nav button.tv-pend::after{content:"";position:absolute;left:50%;bottom:4px;width:16px;height:2px;border-radius:2px;background:var(--cyan);transform:translateX(-50%)}
+/* teclado en pantalla: compacto, centrado abajo */
+#tvKb{left:50%;right:auto;transform:translateX(-50%);width:min(64vw,720px);bottom:2.5vh;border:1px solid rgba(255,255,255,.16);border-radius:18px;padding:10px 14px 8px;box-shadow:0 18px 50px rgba(0,0,0,.65)}
+#tvKb .tvkb-val{min-height:0;margin:0 0 8px;padding:6px 12px;font-size:clamp(14px,1.6vw,18px);border-radius:10px}
+#tvKb .tvkb-r{gap:5px;margin-bottom:5px}
+#tvKb button{max-width:56px;padding:clamp(4px,.9vh,8px) 0;border-radius:9px;font-size:clamp(12px,1.45vw,16px)}
+#tvKb button.w{max-width:240px}#tvKb button.m{max-width:96px;font-size:clamp(10px,1.1vw,13px)}
+#tvKb button:focus{transform:scale(1.06)}
+/* Explorar: los filtros viven en un panel lateral */
+html.tv .ex-bar{display:none!important}
+html.tv .ex-title h1{font-size:clamp(24px,2.6vw,34px)}
+html.tv .ex-title p{font-size:13px}
+.tv-exbar{display:flex;align-items:center;gap:14px;margin:6px 0 12px}
+.tv-exbar .chip{padding:9px 18px;font-size:13px;font-weight:700}
+#tvExSum{color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tvFilt{position:fixed;left:0;top:0;bottom:0;z-index:2000000050;width:min(430px,46vw);display:flex;flex-direction:column;background:rgba(8,11,22,.975);border-right:1px solid rgba(255,255,255,.14);box-shadow:14px 0 44px rgba(0,0,0,.65)}
+#tvFilt[hidden]{display:none}
+#tvFilt .tvf-h{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.1)}
+#tvFilt .tvf-h b{flex:1;font-size:17px}
+#tvFilt .tvf-h button{flex:none;min-height:0;padding:7px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);color:#fff;font-size:12px;font-weight:700}
+#tvFilt .tvf-h .tvf-ok{background:var(--cyan);color:#04121a;border-color:transparent}
+#tvFilt .tvf-b{flex:1;overflow-y:auto;padding:6px 14px 60px}
+#tvFilt .tvf-t,#tvFilt .ex-head h2{margin:12px 0 6px;font-size:13px;font-weight:800;color:#dfe7f8;letter-spacing:0}
+#tvFilt .ex-sec{margin:0}#tvFilt .ex-head{margin-bottom:0}
+#tvFilt .chips{display:flex;flex-wrap:wrap!important;overflow:visible!important;gap:6px;margin:0 0 4px!important;padding:0!important}
+#tvFilt .chip{flex:0 0 auto;padding:6px 12px!important;font-size:12px!important;min-height:0}
+#tvFilt .prov-card{padding:4px 12px 4px 4px;min-height:0;font-size:12px}#tvFilt .prov-card img{width:22px;height:22px}
+#tvFilt .ex-region{margin:0 0 8px}#tvFilt .ex-region select{min-height:36px;font-size:13px}
+#tvFilt .ex-time{margin:12px 0 0!important;padding:10px 12px!important}
+#tvFilt .ex-head .text-btn{font-size:12px;padding:4px 10px}
+/* Ajustes: compactos y con foco discreto */
+html.tv #settingsPage{max-width:none}
+html.tv #settingsPage h1{font-size:clamp(22px,2.2vw,30px)}
+html.tv #settingsPage .st-back{min-height:34px;margin-top:4px}
+html.tv #settingsPage .st-grid{gap:10px}
+html.tv #settingsPage .st-card{padding:10px 16px 2px;border-radius:16px;margin-top:0!important}
+html.tv #settingsPage .st-card h2{font-size:15px}
+html.tv #settingsPage .st-row{padding:8px 0}
+html.tv #settingsPage .st-row.st-first{padding-top:6px}
+html.tv #settingsPage .st-lab b{font-size:13px}
+html.tv #settingsPage .st-lab small{font-size:10.5px;line-height:1.35;margin-top:1px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+html.tv #settingsPage .st-seg{margin-top:6px;padding:3px;border-radius:12px;gap:3px}
+html.tv #settingsPage .st-seg button{min-height:30px;font-size:11.5px;padding:3px 4px;border-radius:9px}
+html.tv #settingsPage .st-sw{width:42px;height:24px}
+html.tv #settingsPage .st-sw::after{width:18px;height:18px;top:2px;left:2px}
+html.tv #settingsPage .st-sw[aria-checked="true"]::after{transform:translateX(18px)}
+html.tv #settingsPage .st-gchips{gap:6px;margin-top:8px}
+html.tv #settingsPage .st-gchip{min-height:28px;padding:4px 11px;font-size:11.5px}
+html.tv #settingsPage .st-kv{margin-top:8px}html.tv #settingsPage .st-kv>div{padding:6px 10px}
+html.tv #settingsPage .st-kv dt,html.tv #settingsPage .st-kv dd,html.tv #settingsPage .st-list{font-size:11px}
+html.tv #settingsPage input{font-size:12.5px!important;padding-top:8px!important;padding-bottom:8px!important;min-height:0!important}
+html.tv #settingsPage .btn{padding:8px 16px!important;font-size:12.5px!important;min-height:0!important}
+html.tv #settingsPage button:focus{background-color:rgba(255,255,255,.08)!important;box-shadow:0 0 0 2px rgba(255,255,255,.9)!important}
+html.tv #settingsPage button[aria-checked="true"]:focus{background-color:var(--acc-soft)!important}
+`;
+
   /* ---------- visibilidad ---------- */
   function sized(el) {
     if (!el || el.hidden) return false;
@@ -107,7 +175,7 @@
   }
 
   var SEL = 'a[href],button,input:not([type=hidden]),select,textarea,[tabindex]:not([tabindex="-1"]),.card,.hc-slide,.zam-card,.zcw-card,.zph-card,.zac-card,.zep-row,[role=button]';
-  var LAYERS = ["#tvKb", "#znpRoot", ".zpl-sh", ".zy-dlg", "#zplRoot", "#zamRoot", "#rdPlayer", "#pfRail.open", ".modal-wrap.open", ".modal-wrap.show", ".modal-wrap:not(.hidden):not([hidden])"];
+  var LAYERS = ["#tvKb", "#tvFilt", "#znpRoot", ".zpl-sh", ".zy-dlg", "#zplRoot", "#zamRoot", "#rdPlayer", "#pfRail.open", ".modal-wrap.open", ".modal-wrap.show", ".modal-wrap:not(.hidden):not([hidden])"];
 
   /* Capa activa. Una capa solo cuenta si está de verdad en pantalla Y tiene algo enfocable:
      antes una ventana cerrada (opacity:0 o fuera de pantalla) o un aviso sin botones "secuestraba" el foco. */
@@ -135,6 +203,8 @@
       if (el.closest && el.closest("[inert]")) continue;
       if (el.matches && el.matches(".hc-dot,.hc-nav")) continue;
       if (el.tagName === "BUTTON" && el.closest && el.closest(".card,.zcw-card")) continue;
+      /* en Ajustes cada grupo de opciones es UNA sola parada (la opción marcada); izquierda/derecha cambia dentro del grupo */
+      if (el.getAttribute && el.getAttribute("role") === "radio" && el.getAttribute("aria-checked") !== "true" && !(D.activeElement && D.activeElement.parentNode === el.parentNode)) continue;
       if (!visible(el)) continue;
       out.push(el);
     }
@@ -240,6 +310,7 @@
     function paint() { info.innerHTML = '<div class="tv-meta"></div><p class="tv-syn"></p>'; info.firstChild.textContent = metaLine(t); info.lastChild.textContent = t.desc || ""; }
     paint();
     card.classList.add("tv-x");
+    var xrow = card.closest && card.closest(ROWS); if (xrow) hscroll(xrow, card, 56);   /* al ensancharse, que no quede cortado a la izquierda */
     var im = card.querySelector(".poster img");
     if (im && t.backdropPath && !im.getAttribute("data-o")) { im.setAttribute("data-o", im.src); im.src = "https://image.tmdb.org/t/p/w500" + t.backdropPath; }
     if (t.mediaType === "tv" && t.tmdbId && !EPS[t.tmdbId] && typeof W.tmdb === "function") {
@@ -254,12 +325,16 @@
     if (t && t.getBoundingClientRect) lastRect = copyRect(boxOf(t));
     var row = t.closest && t.closest(ROWS), card = t.closest && t.closest(".card");
     clearTimeout(expT2);
-    if (expEl && expEl !== card) { collapse(expEl); expEl = null; }
+    if (expEl && expEl !== card) { collapse(expEl); expEl = null; if (row && card === t) hscroll(row, card, 56); }   /* al encoger la anterior, la fila se corre: se recoloca */
     if (row && card && card === t) expT2 = setTimeout(function () { if (D.activeElement === card) expand(card); }, 130);
-    /* al detenerse en una pestaña de la barra, se abre esa página; si la página redibuja la barra y el foco se pierde, se recupera */
-    if (t.matches && t.matches("header nav button") && !t.classList.contains("active")) {
+    /* barra superior: el acento sigue al foco; solo las pestañas principales abren su página al detenerse (Más y su menú NO: se eligen con OK) */
+    var pend = D.querySelectorAll("header nav button.tv-pend");
+    for (var pi = 0; pi < pend.length; pi++) if (pend[pi] !== t) pend[pi].classList.remove("tv-pend");
+    if (!(t.closest && t.closest("#navMore"))) closeMore();
+    if (t.matches && t.matches("header nav > button[data-page]")) {
+      t.classList.add("tv-pend");
       clearTimeout(navT);
-      navT = setTimeout(function () {
+      if (!t.classList.contains("active")) navT = setTimeout(function () {
         if (D.activeElement !== t || t.classList.contains("active")) return;
         var label = (t.textContent || "").trim();
         t.click();
@@ -268,9 +343,56 @@
           var bs = D.querySelectorAll("header nav button");
           for (var i = 0; i < bs.length; i++) if ((bs[i].textContent || "").trim() === label) { focusEl(bs[i]); return; }
         }, 120);
-      }, 300);
+      }, 180);
     }
   }, true);
+
+
+  function closeMore() { var m = D.getElementById("navMoreMenu"), b = D.getElementById("navMoreBtn"); if (m && b && !m.hidden) b.click(); }
+  function navTarget() { return D.querySelector("header nav > button.active") || D.querySelector("header nav .nav-more-btn.active"); }
+
+  /* ---------- Explorar: filtros en panel lateral ---------- */
+  function filtSummary() {
+    var el = D.getElementById("tvExSum"); if (!el) return;
+    var p = [], t = D.querySelector("#typeChips .chip.active"), g = D.querySelector("#genreChips .chip.active"), pv = D.querySelector("#providerChips .active");
+    if (t && t.getAttribute("data-kind") !== "Todo") p.push(t.textContent.trim());
+    if (g && g.getAttribute("data-genre") !== "Todo") p.push(g.textContent.trim());
+    if (pv && !/^todas$/i.test(pv.textContent.trim())) p.push(pv.textContent.trim());
+    el.textContent = p.length ? p.join(" · ") : "Sin filtros";
+  }
+  function filtOpen() {
+    if (!filt) return; filt.hidden = false;
+    setTimeout(function () { focusEl(filt.querySelector("#typeChips .chip.active") || filt.querySelector(".chip") || filt.querySelector("button")); }, 30);
+  }
+  function filtClose() {
+    if (!filt || filt.hidden) return false;
+    filt.hidden = true; filtSummary();
+    var b = D.getElementById("tvExBtn"); if (b) setTimeout(function () { focusEl(b); }, 30);
+    return true;
+  }
+  function setupExplore() {
+    if (exDone) return;
+    var page = D.getElementById("explorePage"), types = D.getElementById("typeChips"), tf = D.getElementById("timeFilter");
+    var title = page && page.querySelector(".ex-title"), secs = page && page.querySelectorAll(".ex-sec");
+    if (!page || !types || !tf || !title || !secs.length) return;
+    exDone = true;
+    filt = D.createElement("aside"); filt.id = "tvFilt"; filt.hidden = true; filt.setAttribute("aria-label", "Filtros");
+    filt.innerHTML = '<div class="tvf-h"><b>Filtros</b><span id="tvfClr"></span><button type="button" class="tvf-ok">Listo</button></div><div class="tvf-b"><div class="tvf-t">Tipo</div></div>';
+    var body = filt.querySelector(".tvf-b");
+    body.appendChild(types);
+    [].forEach.call(secs, function (x) { body.appendChild(x); });
+    body.appendChild(tf);
+    var clr = D.getElementById("exFilterClear"), slot = filt.querySelector("#tvfClr");
+    if (clr) { slot.parentNode.insertBefore(clr, slot); slot.remove(); clr.hidden = false; }
+    D.body.appendChild(filt);
+    var bar = D.createElement("div"); bar.className = "tv-exbar";
+    bar.innerHTML = '<button type="button" class="chip" id="tvExBtn">☰ Filtros</button><span id="tvExSum"></span>';
+    title.insertAdjacentElement("afterend", bar);
+    bar.firstChild.addEventListener("click", filtOpen);
+    filt.querySelector(".tvf-ok").addEventListener("click", filtClose);
+    filt.addEventListener("click", function () { setTimeout(filtSummary, 80); });
+    filtSummary();
+  }
 
   var moreDone = false;
   async function moreTrending() {
@@ -327,6 +449,7 @@
     for (var i = 0; i < l.length; i++) {
       var el = l[i];
       if (el.tagName === "INPUT" && !TEXTY.test(el.type || "text")) continue;
+      if (el === sysEl) continue;
       if (!el.hasAttribute("readonly")) el.setAttribute("readonly", "");
     }
   }
@@ -372,7 +495,7 @@
     kb = D.createElement("div"); kb.id = "tvKb"; kb.hidden = true;
     var h = '<div class="tvkb-val" id="tvkbVal"></div>';
     KROWS.forEach(function (r) { h += '<div class="tvkb-r">' + r.split("").map(function (c) { return '<button type="button" data-k="' + c + '">' + c + "</button>"; }).join("") + "</div>"; });
-    h += '<div class="tvkb-r"><button type="button" class="m" data-a="shift">Mayús</button><button type="button" class="w" data-k=" ">Espacio</button><button type="button" class="m" data-a="del">Borrar</button><button type="button" class="m" data-a="clr">Limpiar</button><button type="button" class="m pri" data-a="done">Listo</button></div>';
+    h += '<div class="tvkb-r"><button type="button" class="m" data-a="shift">Mayús</button><button type="button" class="w" data-k=" ">Espacio</button><button type="button" class="m" data-a="del">Borrar</button><button type="button" class="m" data-a="clr">Limpiar</button><button type="button" class="m" data-a="paste">Pegar</button><button type="button" class="m" data-a="sys">Sistema</button><button type="button" class="m pri" data-a="done">Listo</button></div>';
     kb.innerHTML = h; D.body.appendChild(kb);
     kb.addEventListener("click", function (ev) {
       var b = ev.target.closest && ev.target.closest("button"); if (!b || !kbT) return;
@@ -381,6 +504,8 @@
       else if (a === "del") kbSet(kbT.value.slice(0, -1));
       else if (a === "clr") kbSet("");
       else if (a === "shift") { kbUc = !kbUc; kb.classList.toggle("uc", kbUc); }
+      else if (a === "paste") kbPaste();
+      else if (a === "sys") kbSystem();
       else if (a === "done") kbClose();
     });
   }
@@ -396,6 +521,23 @@
     var o = D.getElementById("tvkbVal"); o.textContent = (el.type === "password" ? el.value.replace(/./g, "•") : el.value) || (el.placeholder || "");
     setTimeout(function () { var q = kb.querySelector('button[data-k="g"]'); focusEl(q || kb.querySelector("button")); }, 30);
   }
+  function note(m) { try { if (typeof W.toast === "function") W.toast(m); else say(m, 3000); } catch (e) { say(m, 3000); } }
+  /* pegar: lee el portapapeles del TV (si el WebView lo permite) */
+  function kbPaste() {
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.readText) { note("Este TV no permite pegar desde el portapapeles"); return; }
+      navigator.clipboard.readText().then(function (t) { if (t && kbT) kbSet(kbT.value + t); else note("El portapapeles está vacío"); }).catch(function () { note("No se pudo leer el portapapeles"); });
+    } catch (e) { note("No se pudo pegar"); }
+  }
+  /* teclado del sistema: quita el bloqueo del campo y lo enfoca para que Android TV muestre su propio teclado
+     (es lo que usan las apps de control remoto del celular, como la de TCL, para enviar texto) */
+  function kbSystem() {
+    var el = kbT; if (!el) return;
+    kbClose();
+    sysEl = el; el.removeAttribute("readonly");
+    setTimeout(function () { try { el.focus({ preventScroll: true }); } catch (x) {} try { el.click(); } catch (x) {} }, 80);
+  }
+  D.addEventListener("focusout", function (e) { if (sysEl && e.target === sysEl) { var t = sysEl; sysEl = null; t.setAttribute("readonly", ""); } }, true);
   function kbClose() {
     if (!kb || kb.hidden) return false;
     kb.hidden = true;
@@ -432,6 +574,10 @@
   function back() {
     if (!on) return false;
     if (kbClose()) return true;
+    if (sysEl) { var se = sysEl; try { se.blur(); } catch (e) {} return true; }
+    if (filtClose()) return true;
+    var mm0 = D.getElementById("navMoreMenu");
+    if (mm0 && !mm0.hidden) { var mb = D.getElementById("navMoreBtn"); closeMore(); if (mb) focusEl(mb); return true; }
     var rail = D.getElementById("pfRail");
     if (rail && rail.classList.contains("open")) { try { W.closeRail(); } catch (e) {} setTimeout(firstFocus, 120); return true; }
     var mw = [].slice.call(D.querySelectorAll(".modal-wrap.open")).filter(function (m) { return m.id !== "detailModal"; });
@@ -446,10 +592,10 @@
   function enable() {
     if (on) return; on = true;
     H.classList.add("tv");
-    var st = D.createElement("style"); st.textContent = CSS; D.head.appendChild(st);
-    lockInputs(); patches();
+    var st = D.createElement("style"); st.textContent = CSS + CSS2; D.head.appendChild(st);
+    lockInputs(); patches(); setupExplore();
     var moT = 0;
-    try { new MutationObserver(function () { if (moT) return; moT = setTimeout(function () { moT = 0; lockInputs(); patches(); }, 150); }).observe(D.body, { childList: true, subtree: true }); } catch (e) {}
+    try { new MutationObserver(function () { if (moT) return; moT = setTimeout(function () { moT = 0; lockInputs(); patches(); setupExplore(); }, 150); }).observe(D.body, { childList: true, subtree: true }); } catch (e) {}
     setTimeout(moreTrending, 2500);
     setInterval(function () { try { if (typeof heroTimer !== "undefined" && heroTimer) { clearInterval(heroTimer); heroTimer = null; } } catch (e) {} }, 1500);
     setTimeout(function () { if (!D.activeElement || D.activeElement === D.body) firstFocus(); }, 600);
@@ -466,6 +612,22 @@
   function isOK(e) { var k = e.key, c = e.keyCode; return k === "Enter" || k === "NumpadEnter" || k === "Select" || c === 13 || c === 23 || c === 66; }
   function isMenu(e) { return e.key === "ContextMenu" || e.key === "F2" || (e.keyCode === 82 && e.key !== "r" && e.key !== "R"); }
 
+  /* CH+/CH- o AvPág/RePág: salta una pantalla (útil en Ajustes y listas largas) */
+  function pageKey(e) {
+    var k = e.key, c = e.keyCode;
+    if (k === "PageDown" || k === "ChannelDown" || c === 34 || c === 167) return 1;
+    if (k === "PageUp" || k === "ChannelUp" || c === 33 || c === 166) return -1;
+    return 0;
+  }
+  function pageJump(down) {
+    var root = scope(); if (root !== D) return;
+    W.scrollBy(0, (down ? 1 : -1) * Math.round(innerHeight * 0.75));
+    setTimeout(function () {
+      var l = items(D).filter(function (el) { if (el.closest && el.closest("header")) return false; var r = el.getBoundingClientRect(); return r.top >= 40 && r.top < innerHeight - 60; });
+      l.sort(function (x, y) { var A = x.getBoundingClientRect(), B = y.getBoundingClientRect(); return (A.top - B.top) || (A.left - B.left); });
+      if (l[0]) focusEl(l[0]);
+    }, 60);
+  }
   function navigate(dir) {
     var a = D.activeElement;
     var root = scope(), list = items(root), valid = a && a !== D.body && root.contains(a) && visible(a), nxt = null;
@@ -477,6 +639,9 @@
     } else if (lastRect) {
       nxt = pick(null, lastRect, dir, list);
       if (!nxt && !/Left|Right/.test(dir)) nxt = nearest(list, lastRect);
+    }
+    if (nxt && dir === "ArrowUp" && root === D && nxt.closest && nxt.closest("header nav") && !(a && a.closest && a.closest("header"))) {
+      var tg = navTarget(); if (tg && visible(tg)) nxt = tg;   /* desde el contenido se sube a la pestaña de la página actual (o a Más) */
     }
     if (!valid && !nxt) { if (lastRect) nxt = nearest(list, lastRect); else { firstFocus(); return; } }
     if (nxt) focusEl(nxt);
@@ -492,7 +657,18 @@
       if (playerKeys(e, dir)) { e.preventDefault(); e.stopPropagation(); return; }
       var a = D.activeElement, tag = a ? a.tagName : "";
       var isInput = a && /^(INPUT|TEXTAREA)$/.test(tag) && (tag === "TEXTAREA" || TEXTY.test(a.type || "text"));
-      if (isOK(e) && isInput) { e.preventDefault(); if (!e.repeat) kbOpen(a); return; }
+      if (a === sysEl && sysEl && !dir && !isOK(e)) return;
+      if (isOK(e) && isInput && a !== sysEl) { e.preventDefault(); if (!e.repeat) kbOpen(a); return; }
+      if (isOK(e) && a === sysEl && sysEl) return;
+      var more = D.getElementById("navMoreBtn"), mm = D.getElementById("navMoreMenu");
+      if (more && a === more && mm && (isOK(e) || (dir === "ArrowDown" && !mm.hidden))) {
+        e.preventDefault(); e.stopPropagation(); if (e.repeat) return;
+        if (mm.hidden) more.click();
+        setTimeout(function () { var f = mm.querySelector("button"); if (f && !mm.hidden) focusEl(f); }, 30);
+        return;
+      }
+      var pj = pageKey(e);
+      if (pj) { e.preventDefault(); e.stopPropagation(); pageJump(pj > 0); return; }
       if (dir) {
         if (tag === "INPUT" && a.type === "range" && (dir === "ArrowLeft" || dir === "ArrowRight")) return;
         /* se cancela SIEMPRE y primero: si no, el WebView mueve el foco por su cuenta y se "saltan" botones */
@@ -504,7 +680,11 @@
       if (isOK(e) && a && a !== D.body) {
         if (tag === "SELECT" || (tag === "INPUT" && a.type === "range")) return;   /* el WebView abre su selector */
         e.preventDefault();                                                          /* OK siempre hace click, también en botones y enlaces */
-        if (!e.repeat) a.click();
+        if (!e.repeat) {
+          var inMenu = a.closest && a.closest("#navMoreMenu");
+          a.click();
+          if (inMenu) setTimeout(function () { var mb2 = D.getElementById("navMoreBtn"); if (mb2) focusEl(mb2); }, 160);   /* tras elegir, el foco queda en Más (ya activo) */
+        }
       }
     } catch (err) {
       if (dir || isOK(e)) e.preventDefault();
