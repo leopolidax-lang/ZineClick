@@ -12,7 +12,7 @@
 
   /* ---------- qué se sincroniza y qué NUNCA ---------- */
   var LISTS = { cc_v2_watchlist: "watchlist", cc_v2_favorites: "favorites", cc_v2_watched: "watched" };
-  var KV = { cineclick_taste_v1: "taste", zy_settings_v1: "settings", zc_profile_v1: "profile", cc_region: "region", zynora_external_addons: "addons" };
+  var KV = { cineclick_taste_v1: "taste", zy_settings_v1: "settings", zc_profile_v1: "profile", cc_region: "region", zynora_external_addons: "addons", zynora_cw_v1: "progress", zynora_eps_v1: "episodes", zynora_plugins_v1: "plugins" };
   var KV_BY_NAME = {}; Object.keys(KV).forEach(function (k) { KV_BY_NAME[KV[k]] = k; });
   var LIST_KEY = {}; Object.keys(LISTS).forEach(function (k) { LIST_KEY[LISTS[k]] = k; });
   /* Credenciales de servicios externos: separadas por cuenta, pero JAMÁS se suben a la nube. */
@@ -48,7 +48,7 @@
       var m = loadMeta(); m.kvts[KV[k]] = now; saveMeta(m);
     } else return;
     saveOb(ob);
-    emit(); schedulePush();
+    emit(); schedulePush(KV[k] === "progress" || KV[k] === "episodes" ? 15000 : 0);
   }
 
   /* ---------- redirección de localStorage ---------- */
@@ -80,6 +80,8 @@
   function refreshApp() {
     try { if (typeof window.ZS_REFRESH === "function") window.ZS_REFRESH(); } catch (e) {}
     try { if (typeof addonRenderList === "function") addonRenderList(); if (typeof addonChanged === "function") addonChanged(); } catch (e) {}
+    try { if (window.ZCW && window.ZCW.refresh) window.ZCW.refresh(); } catch (e) {}
+    try { if (window.ZPL && window.ZPL.reload) window.ZPL.reload(); } catch (e) {}
   }
 
   var SCHEME = "com.zineclick.app", NATIVE_REDIRECT = SCHEME + "://auth-callback";
@@ -151,7 +153,7 @@
     finally { pushing = false; }
   }
 
-  function schedulePush() { clearTimeout(pushTimer); pushTimer = setTimeout(function () { push(); }, 1500); }
+  function schedulePush(d) { clearTimeout(pushTimer); pushTimer = setTimeout(function () { push(); }, d || 1500); }
 
   /* ---------- PULL ---------- */
   function overlap(c) { return c ? new Date(Math.max(0, Date.parse(c) - 10000)).toISOString() : "1970-01-01T00:00:00Z"; }
@@ -272,12 +274,26 @@
       var leg = rawGet.call(LS, k);
       if (leg && !rawGet.call(LS, real(k))) rawSet.call(LS, real(k), leg);
     });
-    migrateAddons();
+    migrateAddons(); migrateLocal();
     rawSet.call(LS, "zs_legacy_owner", scope);
     return added;
   }
 
   /* ---------- addons que ya existían en el dispositivo: los hereda UNA sola cuenta ---------- */
+  /* ---------- progreso y plugins que ya existían en el dispositivo: los hereda UNA sola cuenta ---------- */
+  function migrateLocal() {
+    if (scope === "guest") return;
+    var own = rawGet.call(LS, "zs_local_owner");
+    if (own && own !== scope) return;
+    var did = false;
+    ["zynora_cw_v1", "zynora_eps_v1", "zynora_plugins_v1"].forEach(function (k) {
+      var leg = rawGet.call(LS, k);
+      if (!leg || leg === "{}" || leg === "[]") return;
+      var cur = rawGet.call(LS, real(k));
+      if (cur == null || cur === "{}" || cur === "[]") { LS.setItem(k, leg); did = true; }
+    });
+    if (did) rawSet.call(LS, "zs_local_owner", scope);
+  }
   function migrateAddons() {
     if (scope === "guest") return;
     var own = rawGet.call(LS, "zs_addons_owner");
@@ -552,11 +568,11 @@
   }
 
   function start() {
-    migrateAddons();
+    migrateAddons(); migrateLocal();
     initSupabase(); buildUI(); webReturn();
     window.addEventListener("online", function () { syncNow(); renderCard(); });
     window.addEventListener("offline", renderCard);
-    document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") syncNow(); });
+    document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") syncNow(); else if (scope !== "guest") push(); });
     setInterval(function () { if (document.visibilityState === "visible" && scope !== "guest") syncNow(); }, 90000);
     setInterval(function () { if ($("profilePage") && !$("profilePage").classList.contains("hidden")) renderCard(); }, 15000);
     var mb = $("modalBody"); if (mb && window.MutationObserver) new MutationObserver(injectStars).observe(mb, { childList: true });

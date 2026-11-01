@@ -635,6 +635,32 @@
     changed();
   }
   function setEnabled(id, on) { patch(id, { enabled: on, noresp: undefined }); if (!on) dispose(id); else { var r = RT[id]; if (r) r.tmo = 0; } changed(); }
+  /* Plugins que llegan desde la cuenta (instalados en otro dispositivo): se descarga su código aquí.
+     Ya fueron aprobados en el otro dispositivo; siguen limitados a los mismos sitios aprobados. */
+  var restoring = false;
+  async function restoreCode() {
+    if (restoring) return; restoring = true;
+    var got = false;
+    try {
+      var a = all();
+      for (var i = 0; i < a.length; i++) {
+        var p = a[i];
+        if (codeOf(p.id)) continue;
+        try {
+          var f = await fetchRepo(p.spec || parseSpec(p.repo));
+          var code = await f.getCode();
+          localStorage.setItem(CODE + p.id, code); dispose(p.id); got = true;
+        } catch (e) {}
+      }
+    } finally { restoring = false; }
+    if (got) changed();
+  }
+  function reloadFromAccount() {
+    try { Object.keys(RT).forEach(function (id) { if (!byId(id)) dispose(id); }); } catch (e) {}
+    changed();
+    restoreCode().catch(noop);
+  }
+
   function changed() { try { W.dispatchEvent(new Event("zy-plugins-changed")); } catch (e) {} try { sum(); paintAll(); renderHome(); } catch (e) {} }
 
   /* =============== Pantalla de plugins =============== */
@@ -903,10 +929,11 @@
     setTimeout(function () { all().forEach(function (p) { if (Date.now() - (p.checked || 0) > 86400000) checkUpdate(p.id, false).catch(noop); }); }, 8000);
   }
   if (D.readyState === "loading") D.addEventListener("DOMContentLoaded", boot); else boot();
+  setTimeout(function () { restoreCode().catch(noop); }, 4000);
 
   W.ZPL = {
     count: function () { return sources().length; },
-    list: all, find: find, resolveFor: resolveFor, open: open, install: install, uninstall: uninstall, mediaUrl: mediaUrl, showTab: showTab,
+    reload: reloadFromAccount, list: all, find: find, resolveFor: resolveFor, open: open, install: install, uninstall: uninstall, mediaUrl: mediaUrl, showTab: showTab,
     _t: { checkManifest: checkManifest, parseSpec: parseSpec, validHostName: validHostName, hostMatches: hostMatches, checkUrl: checkUrl, cleanItem: cleanItem, cleanStream: cleanStream, cmpVer: cmpVer, buildDoc: buildDoc, pluginFetch: pluginFetch, zplBoot: zplBoot }
   };
 })();

@@ -65,6 +65,7 @@
 
   var ZCW = {
     get: function (k) { return cwAll()[k] || null; },
+    refresh: function () { try { refreshRow(); } catch (e) {} },
     remove: function (k) { var m = cwAll(); delete m[k]; cwSave(m); refreshRow(); },
     list: function () {
       var m = cwAll();
