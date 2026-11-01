@@ -103,21 +103,7 @@
 <main id="explorePage" class="hidden">
  <div class="page-title ex-title"><h1>Explorar <span class="acc">cine</span></h1><p>Encuentra tu próxima historia.</p></div>
  <div class="chips ex-types" id="typeChips"><button class="chip active" data-kind="Todo">Todo</button><button class="chip" data-kind="Película">Películas</button><button class="chip" data-kind="Serie">Series</button><button class="chip" data-kind="Anime">Anime</button><button class="chip" data-kind="Documental">Documentales</button></div>
- <section class="ex-sec" aria-labelledby="exGenTitle">
-  <div class="ex-head"><h2 id="exGenTitle">Géneros</h2><button class="text-btn" id="genreToggle" aria-expanded="false" aria-controls="genreChips">Ver todos ›</button></div>
- <div class="chips ex-genres" id="genreChips"><button class="chip active" data-genre="Todo">Todos los géneros</button><button class="chip" data-genre="Ciencia ficción">Ciencia ficción</button><button class="chip" data-genre="Drama">Drama</button><button class="chip" data-genre="Misterio">Misterio</button><button class="chip" data-genre="Acción">Acción</button><button class="chip" data-genre="Animación">Animación</button></div>
- </section>
- <section class="ex-sec" aria-labelledby="exWhereTitle">
-  <div class="ex-head"><h2 id="exWhereTitle">Dónde ver</h2></div>
-  <label class="ex-region"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-5.6-7-11a7 7 0 0 1 14 0c0 5.4-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><select id="regionSelect" aria-label="País"></select><svg class="ex-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></label>
-  <div class="chips ex-prov" id="providerChips"></div>
- </section>
- <div class="panel ex-time" id="timeFilter" style="margin:10px 0 14px;padding:14px">
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><strong>⏱ ¿Cuánto tiempo tienes?</strong><span id="timeLabel" style="color:var(--cyan);font-weight:700">Sin límite</span></div>
-  <input id="timeRange" type="range" min="30" max="180" step="10" value="120" style="width:100%;margin:10px 0 4px;accent-color:#64f4ff">
-  <div style="display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px"><span>30 min</span><button class="text-btn" id="timeClear" style="display:none">Quitar filtro</button><span>3 h</span></div>
- </div>
- <div class="section-head"><div><h2 id="exploreHeading">Catálogo</h2><p id="exploreSub">Conecta TMDB desde P → API para activar el catálogo real.</p></div><select id="sortSelect" class="chip" style="background:#111625;color:white"><option value="year">Más recientes</option><option value="rating">Mejor puntuados</option><option value="az">A–Z</option></select></div>
+ <div class="section-head"><div><h2 id="exploreHeading">Catálogo</h2><p id="exploreSub">Conecta TMDB desde P → API para activar el catálogo real.</p></div><div class="ex-tools"><button type="button" class="chip ex-open" id="exOpen" aria-haspopup="dialog" aria-controls="exSheet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="16" height="16"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Filtros<span class="ex-n" id="exOpenN" hidden>0</span></button><select id="sortSelect" class="chip" style="background:#111625;color:white"><option value="year">Más recientes</option><option value="rating">Mejor puntuados</option><option value="az">A–Z</option></select></div></div>
  <div class="grid" id="exploreGrid"></div>
  <div class="actions ex-more" id="exMoreWrap" hidden><button class="btn" id="exMore" type="button">Cargar más</button></div>
  <div class="ex-bar" id="exFilterBar" role="group" aria-label="Filtros activos" hidden><button type="button" id="exFilterGo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="20" height="20"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Filtros <span class="ex-n" id="exFilterN">0</span></button><button type="button" id="exFilterClear">Limpiar</button></div>
@@ -284,6 +270,28 @@
  </div></div>
 </div>
 
+<div class="ex-sheet-back" id="exSheetBack"></div>
+<aside class="ex-sheet" id="exSheet" role="dialog" aria-modal="true" aria-labelledby="exSheetTitle" aria-hidden="true">
+ <div class="ex-sheet-grab" aria-hidden="true"></div>
+ <div class="ex-sheet-head"><h2 id="exSheetTitle">Filtros</h2><button type="button" id="exSheetClose" aria-label="Cerrar filtros"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" width="20" height="20"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+ <div class="ex-sheet-body">
+<section class="ex-sec" aria-labelledby="exGenTitle">
+  <div class="ex-head"><h2 id="exGenTitle">Géneros</h2><button class="text-btn" id="genreToggle" aria-expanded="false" aria-controls="genreChips">Ver todos ›</button></div>
+ <div class="chips ex-genres" id="genreChips"><button class="chip active" data-genre="Todo">Todos los géneros</button><button class="chip" data-genre="Ciencia ficción">Ciencia ficción</button><button class="chip" data-genre="Drama">Drama</button><button class="chip" data-genre="Misterio">Misterio</button><button class="chip" data-genre="Acción">Acción</button><button class="chip" data-genre="Animación">Animación</button></div>
+ </section>
+ <section class="ex-sec" aria-labelledby="exWhereTitle">
+  <div class="ex-head"><h2 id="exWhereTitle">Dónde ver</h2></div>
+  <label class="ex-region"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-5.6-7-11a7 7 0 0 1 14 0c0 5.4-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><select id="regionSelect" aria-label="País"></select><svg class="ex-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></label>
+  <div class="chips ex-prov" id="providerChips"></div>
+ </section>
+ <div class="panel ex-time" id="timeFilter" style="margin:10px 0 14px;padding:14px">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><strong>⏱ ¿Cuánto tiempo tienes?</strong><span id="timeLabel" style="color:var(--cyan);font-weight:700">Sin límite</span></div>
+  <input id="timeRange" type="range" min="30" max="180" step="10" value="120" style="width:100%;margin:10px 0 4px;accent-color:#64f4ff">
+  <div style="display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px"><span>30 min</span><button class="text-btn" id="timeClear" style="display:none">Quitar filtro</button><span>3 h</span></div>
+ </div>
+  </div>
+ <div class="ex-sheet-foot"><button type="button" class="btn" id="exSheetClear">Limpiar</button><button type="button" class="btn primary" id="exSheetDone">Ver resultados</button></div>
+</aside>
 <div class="modal-wrap" id="detailModal" role="dialog" aria-modal="true" aria-label="Detalle del título">
  <div class="modal"><div class="det-bar"><button class="close glass-ic" onclick="modalBack()" aria-label="Volver"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button><button class="glass-ic fav" id="modalFav" onclick="detailFav()" aria-label="Favorito" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21.2l7.8-7.7 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg></button></div><div class="modal-top"><h2 id="modalTitle">Título</h2></div><div class="modal-body" id="modalBody"></div></div>
 </div>
@@ -758,10 +766,11 @@ async function modalBack(){
  A.addListener("backButton",ev=>{
   const z=document.getElementById("zamRoot");
   if((z&&!z.hidden)||document.documentElement.classList.contains("znp-on"))return;
+  const xs=document.getElementById("exSheet");if(xs&&xs.classList.contains("open")){zyCloseExSheet();return}
   if(document.getElementById("detailModal").classList.contains("open")){modalBack();return}
   if(ev&&ev.canGoBack)history.back();else if(A.exitApp)A.exitApp()})}catch(e){}})();
 document.getElementById("detailModal").addEventListener("click",e=>{if(e.target.id==="detailModal")closeModal()});
-document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeApiModal()}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){zyCloseExSheet();closeModal();closeApiModal()}});
 function toggleList(k,id){let a=getList(k).map(String);if(a.includes(String(id))){a=a.filter(x=>x!==String(id));toast("Quitado de "+({watchlist:"Quiero ver",favorites:"Favoritos",watched:"Ya vi"}[k]))}else{a.push(String(id));{const t0=findTitle(id);if(t0){const c0=getCache();c0[String(id)]=snap(t0);setCache(c0)}}toast("Guardado en "+({watchlist:"Quiero ver",favorites:"Favoritos",watched:"Ya vi"}[k]))}setList(k,a);renderLists();syncDetail()}
 function youtubeSearch(q){window.open("https://www.youtube.com/results?search_query="+q,"_blank","noopener")}
 function openApiModal(sec){
@@ -1224,7 +1233,12 @@ function zyUpdateFilterBar(){
   const bar=document.getElementById("exFilterBar"),pg=document.getElementById("explorePage");if(!bar||!pg)return;
   const n=zyFilterCount(),show=n>0&&!pg.classList.contains("hidden");
   bar.hidden=!show;document.body.classList.toggle("ex-bar-on",show);pg.classList.toggle("has-bar",show);
-  const c=document.getElementById("exFilterN");if(c)c.textContent=String(n)}
+  const c=document.getElementById("exFilterN");if(c)c.textContent=String(n);
+  const o=document.getElementById("exOpenN");if(o){o.textContent=String(n);o.hidden=n===0}}
+function zyOpenExSheet(){const s=document.getElementById("exSheet"),b=document.getElementById("exSheetBack");if(!s||!b)return;
+  s.classList.add("open");b.classList.add("open");s.setAttribute("aria-hidden","false");document.body.classList.add("ex-sheet-open")}
+function zyCloseExSheet(){const s=document.getElementById("exSheet"),b=document.getElementById("exSheetBack");if(!s||!b)return;
+  s.classList.remove("open");b.classList.remove("open");s.setAttribute("aria-hidden","true");document.body.classList.remove("ex-sheet-open")}
 function zyClearFilters(){
   currentKind="Todo";currentGenre="Todo";currentProvider=null;currentMaxRuntime=null;
   document.querySelectorAll("#typeChips .chip").forEach(x=>x.classList.toggle("active",x.dataset.kind==="Todo"));
@@ -1246,6 +1260,7 @@ function closeSettings(){
   try{if(history.state&&history.state.zy==="settings"){history.back();return}}catch(e){}
   goPage(zyPrev||"home")}
 function zyAfterNav(p){
+  if(p!=="explore")zyCloseExSheet();
   zyUpdateFilterBar();
   if(p==="profile")prRender();
   if(p==="settings")zyRenderSettings()}
@@ -1328,7 +1343,14 @@ function zyBind(){
   const ex=document.getElementById("explorePage");
   ["click","input"].forEach(ev=>ex.addEventListener(ev,()=>setTimeout(zyUpdateFilterBar,0)));
   document.getElementById("exFilterClear").addEventListener("click",zyClearFilters);
-  document.getElementById("exFilterGo").addEventListener("click",()=>{const t=document.getElementById("typeChips");if(t)t.scrollIntoView({behavior:zyReduceMotion()?"auto":"smooth",block:"start"})});
+  document.getElementById("exFilterGo").addEventListener("click",zyOpenExSheet);
+  document.getElementById("exOpen").addEventListener("click",zyOpenExSheet);
+  document.getElementById("exSheetClose").addEventListener("click",zyCloseExSheet);
+  document.getElementById("exSheetDone").addEventListener("click",zyCloseExSheet);
+  document.getElementById("exSheetBack").addEventListener("click",zyCloseExSheet);
+  document.getElementById("exSheetClear").addEventListener("click",zyClearFilters);
+  const sh=document.getElementById("exSheet");
+  ["click","input"].forEach(ev=>sh.addEventListener(ev,()=>setTimeout(zyUpdateFilterBar,0)));
   const gt=document.getElementById("genreToggle");
   gt.addEventListener("click",()=>{const box=document.getElementById("genreChips"),open=!box.classList.contains("open");box.classList.toggle("open",open);gt.setAttribute("aria-expanded",String(open));gt.textContent=open?"Ver menos ‹":"Ver todos ›"});
   try{const mq=window.matchMedia("(prefers-reduced-motion: reduce)");const on=()=>{zyApply();if(!P.classList.contains("hidden"))zyRenderSettings()};if(mq.addEventListener)mq.addEventListener("change",on);else if(mq.addListener)mq.addListener(on)}catch(e){}
