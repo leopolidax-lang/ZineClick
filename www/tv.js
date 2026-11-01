@@ -1,4 +1,4 @@
-/* Zynora · tv.js (modo Android TV) — v3
+/* Zynora · tv.js (modo Android TV) — v4
    Navegación con el control remoto, filas tipo Netflix (el póster se extiende y muestra la sinopsis),
    botón Atrás, teclado solo con OK y foco elegante. En el celular no cambia nada.
 
@@ -17,7 +17,7 @@
   var bigNoTouch = (navigator.maxTouchPoints || 0) === 0 && Math.max((W.screen && screen.width) || 0, (W.screen && screen.height) || 0) >= 900;
   var looksTv = /\b(TV|AFT[A-Z]*|BRAVIA|SmartTV|Android TV|AndroidTV|MiBOX|SHIELD|Chromecast|GoogleTV|Hisense|TCL)\b/i.test(UA) || FORCE === "1" || (isNative() && bigNoTouch);
   function canTv() { return isNative() || FORCE === "1"; }
-  var on = false, lastRect = null, lastKeyT = 0, sysEl = null, filt = null, exDone = false;
+  var on = false, lastRect = null, lastKeyT = 0, sysEl = null, filt = null, exDone = false, pageStack = [], backing = false, lastBackT = 0, exitT = 0;
   var ROWS = "#trendingGrid,#homeUpcomingGrid";
 
   var CSS =
@@ -83,6 +83,7 @@ html.tv button:focus,html.tv a:focus,html.tv select:focus,html.tv [role=button]:
 html.tv .text-btn{border-radius:12px;padding:6px 12px}
 html.tv .hc-slide:focus{outline:none!important;border-color:transparent!important}
 html.tv .hc-slide:focus:after{box-shadow:inset 0 0 0 4px rgba(255,255,255,.95),inset 0 0 40px rgba(255,255,255,.10);border-radius:inherit}
+html.tv .hc-slide:focus .hc-open{filter:brightness(1.2);box-shadow:0 0 0 3px rgba(255,255,255,.95)}
 /* barra superior: el acento azul sigue al foco, no se queda en la pestaña anterior */
 html.tv header nav:focus-within button.active:not(:focus){background:none!important;box-shadow:none!important;color:var(--muted)!important}
 html.tv header nav:focus-within button.active:not(:focus)::after{display:none}
@@ -202,6 +203,8 @@ html.tv #settingsPage button[aria-checked="true"]:focus{background-color:var(--a
       var el = all[i];
       if (el.closest && el.closest("[inert]")) continue;
       if (el.matches && el.matches(".hc-dot,.hc-nav")) continue;
+      if (el.id === "heroTrack") continue;   /* el foco va en cada diapositiva, no en el contenedor (si no, no se ve resaltado ni avanza) */
+      if (el.matches && el.matches(".hc-slide") && el !== D.activeElement) { var hr = el.getBoundingClientRect(); if (hr.right <= 2 || hr.left >= innerWidth - 2) continue; }
       if (el.tagName === "BUTTON" && el.closest && el.closest(".card,.zcw-card")) continue;
       /* en Ajustes cada grupo de opciones es UNA sola parada (la opción marcada); izquierda/derecha cambia dentro del grupo */
       if (el.getAttribute && el.getAttribute("role") === "radio" && el.getAttribute("aria-checked") !== "true" && !(D.activeElement && D.activeElement.parentNode === el.parentNode)) continue;
@@ -348,6 +351,27 @@ html.tv #settingsPage button[aria-checked="true"]:focus{background-color:var(--a
   }, true);
 
 
+  function curPage() { var pg = D.querySelector('main[id$="Page"]:not(.hidden)'); return pg ? pg.id.replace(/Page$/, "") : null; }
+  function doExit() { var A = W.Capacitor && W.Capacitor.Plugins && W.Capacitor.Plugins.App; try { if (A && A.exitApp) A.exitApp(); } catch (e) {} }
+  /* ¿hay otra capa (reproductor, plugins, ficha...) que ya maneja Atrás por su cuenta? */
+  function extLayer() {
+    var z = D.getElementById("zamRoot"); if (z && !z.hidden) return true;
+    if (H.classList.contains("znp-on")) return true;
+    var dm = D.getElementById("detailModal"); if (dm && dm.classList.contains("open")) return true;
+    var r = scope();
+    return r !== D && r.id !== "tvKb" && r.id !== "tvFilt" && r.id !== "pfRail" && !(r.classList && r.classList.contains("modal-wrap"));
+  }
+  function tvBack() { var n = Date.now(); if (n - lastBackT < 300) return true; lastBackT = n; return back(); }
+  /* Atrás nativo del control: la app lo resolvía con exitApp() cuando no hay historial. Se deja siempre una entrada
+     "centinela" en el historial para que la app llame history.back() en vez de salirse, y aquí se decide qué hacer. */
+  function bindNativeBack() {
+    if (!isNative()) return;
+    try { history.pushState({ ztv: 1 }, ""); } catch (e) {}
+    W.addEventListener("popstate", function (e) { if (e.state == null) { try { history.pushState({ ztv: 1 }, ""); } catch (x) {} } });
+    var A = W.Capacitor && W.Capacitor.Plugins && W.Capacitor.Plugins.App;
+    if (!A || !A.addListener) return;
+    try { A.addListener("backButton", function () { if (!on) return; if (extLayer()) return; tvBack(); }); } catch (e) {}
+  }
   function closeMore() { var m = D.getElementById("navMoreMenu"), b = D.getElementById("navMoreBtn"); if (m && b && !m.hidden) b.click(); }
   function navTarget() { return D.querySelector("header nav > button.active") || D.querySelector("header nav .nav-more-btn.active"); }
 
@@ -431,6 +455,14 @@ html.tv #settingsPage button[aria-checked="true"]:focus{background-color:var(--a
         g.__tv = true; W.renderUpcoming = g;
       }
       try { W.renderUpcoming(); } catch (e) {}
+    }
+    var og = W.goPage;
+    if (typeof og === "function" && !og.__tv) {
+      var g3 = function (p) {
+        try { var cur = curPage(); if (cur && p && cur !== p && !backing && cur !== "settings" && cur !== "profile") { pageStack.push(cur); if (pageStack.length > 20) pageStack.shift(); } } catch (e) {}
+        return og.apply(this, arguments);
+      };
+      g3.__tv = true; W.goPage = g3;
     }
     var od = W.draw;
     if (typeof od === "function" && !od.__tv) {
@@ -583,17 +615,33 @@ html.tv #settingsPage button[aria-checked="true"]:focus{background-color:var(--a
     var mw = [].slice.call(D.querySelectorAll(".modal-wrap.open")).filter(function (m) { return m.id !== "detailModal"; });
     if (mw.length) { var m = mw[mw.length - 1], c = m.querySelector(".close"); if (c) c.click(); else m.classList.remove("open"); return true; }
     var dm = D.getElementById("detailModal"); if (dm && dm.classList.contains("open")) return false;
-    var pg = D.querySelector('main[id$="Page"]:not(.hidden)');
-    if (pg && pg.id !== "homePage") { try { W.goPage("home"); } catch (e) {} W.scrollTo(0, 0); setTimeout(firstFocus, 200); return true; }
-    if (W.scrollY > 200) { W.scrollTo({ top: 0, behavior: "smooth" }); setTimeout(firstFocus, 350); return true; }
-    return false;
+    var cur = curPage();
+    if (cur === "settings" || cur === "profile") return false;       /* las maneja la app con su propio historial */
+    var ae = D.activeElement, inBar = !!(ae && ae.closest && ae.closest("header"));
+    if (!inBar) {                                                    /* 1) desde el contenido: sube a la barra, a la pestaña de esta página */
+      W.scrollTo(0, 0);
+      var tg = navTarget();
+      if (tg && visible(tg)) focusEl(tg); else firstFocus();
+      return true;
+    }
+    if (cur && cur !== "home") {                                     /* 2) en la barra de otra página: vuelve a la página anterior */
+      var prev; do { prev = pageStack.pop(); } while (prev && prev === cur);
+      backing = true; try { W.goPage(prev || "home"); } catch (e) {} backing = false;
+      W.scrollTo(0, 0);
+      setTimeout(function () { var t = navTarget() || D.querySelector("header nav > button[data-page]"); if (t) focusEl(t); }, 220);
+      return true;
+    }
+    var now = Date.now();                                            /* 3) en Inicio, en la barra: salir con doble pulsación */
+    if (now - exitT < 2500) { doExit(); return true; }
+    exitT = now; note("Presiona Atrás otra vez para salir");
+    return true;
   }
 
   function enable() {
     if (on) return; on = true;
     H.classList.add("tv");
     var st = D.createElement("style"); st.textContent = CSS + CSS2; D.head.appendChild(st);
-    lockInputs(); patches(); setupExplore();
+    lockInputs(); patches(); setupExplore(); bindNativeBack();
     var moT = 0;
     try { new MutationObserver(function () { if (moT) return; moT = setTimeout(function () { moT = 0; lockInputs(); patches(); setupExplore(); }, 150); }).observe(D.body, { childList: true, subtree: true }); } catch (e) {}
     setTimeout(moreTrending, 2500);
@@ -653,7 +701,7 @@ html.tv #settingsPage button[aria-checked="true"]:focus{background-color:var(--a
     if (e.altKey || e.ctrlKey || e.metaKey) return;
     try {
       if (isMenu(e)) { toggleHud(); e.preventDefault(); return; }
-      if (e.key === "Escape" || e.key === "GoBack" || e.key === "BrowserBack") { if (back()) { e.preventDefault(); e.stopPropagation(); } return; }
+      if (e.key === "Escape" || e.key === "GoBack" || e.key === "BrowserBack") { if (tvBack()) { e.preventDefault(); e.stopPropagation(); } return; }
       if (playerKeys(e, dir)) { e.preventDefault(); e.stopPropagation(); return; }
       var a = D.activeElement, tag = a ? a.tagName : "";
       var isInput = a && /^(INPUT|TEXTAREA)$/.test(tag) && (tag === "TEXTAREA" || TEXTY.test(a.type || "text"));
