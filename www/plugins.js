@@ -13,12 +13,12 @@
   var API_MAX = 4, APP_VER = "1.1.0";
   /* Compatibilidad con plugins hechos antes de Zynora (formato antiguo): nombres que se siguen leyendo */
   var LEGACY = String.fromCharCode(107, 105, 110, 111);
-  var LEGACY_MF = LEGACY + "-plugin.json", LEGACY_TOPIC = LEGACY + "-plugin", LEGACY_SKIP = new RegExp("^" + LEGACY + "tvapp\\/(" + LEGACY + "-plugins|" + LEGACY + "-light)$", "i");
+  var LEGACY_MF = LEGACY + "-plugin.json", LEGACY_TOPIC = LEGACY + "-plugin", LEGACY_SKIP = new RegExp("^" + LEGACY + "tvapp\\/(" + LEGACY + "-plugins|" + LEGACY + "-light)$", "i"), HIDE = new RegExp("^" + LEGACY + "tvapp\\/" + LEGACY + "-plugin-archive$", "i");
   var KEY = "zynora_plugins_v1", CODE = "zynora_plugin_code_", STORE = "zynora_plugin_store_", HOMEC = "zynora_plugin_home_", COMM = "zynora_plugin_comm_v1";
 
   /* Plugins recomendados (puedes añadir más líneas con el mismo formato) */
   var RECOMMENDED = [
-    { repo: "kinotvapp/kino-plugin-archive", name: "Internet Archive", desc: "Películas de dominio público y televisión clásica de archive.org", color: "#E0A030", cats: ["movies", "series"] }
+    { repo: "leopolidax-lang/mi-plugin", name: "Mi plugin", desc: "Plugin de leopolidax-lang para Zynora", color: "#64f4ff", cats: ["movies", "series"] }
   ];
   /* Temas de GitHub donde se buscan plugins de la comunidad */
   var TOPICS = ["zynora-plugin", LEGACY_TOPIC];
@@ -827,7 +827,7 @@
 
   async function loadComm(force) {
     var c = J(localStorage.getItem(COMM), null);
-    if (!force && c && Date.now() - c.t < 3600000) { comm = c.v; paintGrid(); return; }
+    if (!force && c && Date.now() - c.t < 3600000) { comm = (c.v || []).filter(function (x) { return !HIDE.test(x.repo || ""); }); paintGrid(); return; }
     commErr = ""; comm = null; paintGrid();
     try {
       var out = {};
@@ -836,7 +836,7 @@
         if (r.status === 403 || r.status === 429) throw new Error("GitHub limitó las búsquedas por ahora. Intenta de nuevo en unos minutos.");
         if (r.status !== 200) throw new Error("GitHub respondió " + r.status + ".");
         (J(r.text, {}).items || []).forEach(function (it) {
-          if (it && it.full_name && !it.fork && !LEGACY_SKIP.test(it.full_name)) out[it.full_name.toLowerCase()] = { repo: it.full_name.toLowerCase(), name: it.name, desc: it.description || "" };
+          if (it && it.full_name && !it.fork && !LEGACY_SKIP.test(it.full_name) && !HIDE.test(it.full_name)) out[it.full_name.toLowerCase()] = { repo: it.full_name.toLowerCase(), name: it.name, desc: it.description || "" };
         });
       }
       comm = Object.keys(out).map(function (k) { return out[k]; });
