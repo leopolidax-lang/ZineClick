@@ -373,6 +373,22 @@
       }
     } catch (e) { toast(friendly(e)); }
   }
+  /* Versión web: al volver de Google (o de un correo de confirmación) la dirección trae ?code=... y hay que canjearlo. */
+  async function webReturn() {
+    if (isNative() || !sb) return;
+    try {
+      var u = new URL(location.href), code = u.searchParams.get("code");
+      var hash = new URLSearchParams((u.hash || "").replace(/^#/, ""));
+      var err = u.searchParams.get("error_description") || hash.get("error_description");
+      if (!code && !err) return;
+      ["code", "error", "error_code", "error_description"].forEach(function (k) { u.searchParams.delete(k); });
+      try { history.replaceState(null, "", u.pathname + u.search); } catch (e) {}
+      if (err) { toast(err); return; }
+      var r = await sb.auth.exchangeCodeForSession(code);
+      if (r.error) throw r.error;
+      if (r.data && /recovery/i.test(String(r.data.redirectType || ""))) setTimeout(recoveryPrompt, 300);
+    } catch (e) { toast(friendly(e)); }
+  }
   var recoveryShown = false;
   async function recoveryPrompt() {
     if (recoveryShown) return; recoveryShown = true;
@@ -537,7 +553,7 @@
 
   function start() {
     migrateAddons();
-    initSupabase(); buildUI();
+    initSupabase(); buildUI(); webReturn();
     window.addEventListener("online", function () { syncNow(); renderCard(); });
     window.addEventListener("offline", renderCard);
     document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") syncNow(); });
