@@ -215,6 +215,7 @@
    <div class="st-row"><div class="st-lab"><b>Color de acento</b><small>Botones, filtros y detalles activos.</small></div>
     <div class="st-seg" role="radiogroup" aria-label="Color de acento" data-key="accent"><button type="button" role="radio" aria-checked="false" data-val="cyan"><i class="st-dot" style="background:#64f4ff"></i>Cian</button><button type="button" role="radio" aria-checked="false" data-val="violet"><i class="st-dot" style="background:#b69cff"></i>Violeta</button><button type="button" role="radio" aria-checked="false" data-val="neutral"><i class="st-dot" style="background:#dfe5f2"></i>Neutro</button><button type="button" role="radio" aria-checked="false" data-val="rose"><i class="st-dot" style="background:#ff8fd0"></i>Rosa</button><button type="button" role="radio" aria-checked="false" data-val="amber"><i class="st-dot" style="background:#ffc861"></i>Ámbar</button></div></div>
    <div class="st-row"><div class="st-line"><div class="st-lab"><b id="stL2">Reducir animaciones</b><small id="stMotionNote">Quita transiciones, el desplazamiento suave y el avance automático de la portada.</small></div><button class="st-sw" type="button" role="switch" aria-checked="false" aria-labelledby="stL2" data-key="reduceMotion"></button></div></div>
+   <div class="st-row"><div class="st-line"><div class="st-lab"><b id="stL9">Tráiler de fondo en la ficha</b><small>Reproduce sin sonido el tráiler arriba de la ficha. Gasta algo de datos y batería.</small></div><button class="st-sw" type="button" role="switch" aria-checked="true" aria-labelledby="stL9" data-key="bgTrailer"></button></div></div>
    <div class="st-row"><div class="st-lab"><b>Tamaño de las tarjetas</b><small>Cuántos títulos caben en cada fila del catálogo y de tus listas.</small></div>
     <div class="st-seg" role="radiogroup" aria-label="Tamaño de las tarjetas" data-key="cards"><button type="button" role="radio" aria-checked="false" data-val="compact">Compactas</button><button type="button" role="radio" aria-checked="false" data-val="normal">Normales</button><button type="button" role="radio" aria-checked="false" data-val="large">Grandes</button></div></div>
    <div class="st-row"><div class="st-lab"><b>Estilo de carga del reproductor</b><small>Animación que aparece mientras carga el video.</small></div>
@@ -506,7 +507,46 @@ function zyGlow(id){
   if(zyGlowCur===key)zyGlowSet(rgb)
  }catch(e){}};
  img.src="https://image.tmdb.org/t/p/w92"+t.posterPath}
-{const _od=openDetail;openDetail=function(id){try{zyGlow(id)}catch(e){}return _od.apply(this,arguments)}}
+/* Ficha: tráiler de fondo sin sonido (se detiene al cerrar, al salir de la app o al abrir el tráiler normal) */
+let zyBgTok=0,zyBgFrame=null,zyBgTimer=null,zyBgFail=null,zyBgEnd=null;
+function zyBgStop(){
+ clearTimeout(zyBgTimer);clearTimeout(zyBgFail);clearTimeout(zyBgEnd);
+ const f=zyBgFrame;zyBgFrame=null;
+ if(f){try{f.src="about:blank"}catch(e){}if(f.parentNode){f.parentNode.classList.remove("zy-playing");f.parentNode.removeChild(f)}}}
+function zyBgStart(tok){
+ if(tok!==zyBgTok)return;
+ try{
+  const s=zySettings;if(!s||s.bgTrailer===false)return;
+  if(document.documentElement.classList.contains("reduce-motion")||document.hidden)return;
+  const cn=navigator.connection;if(cn&&cn.saveData)return;
+  const m=document.getElementById("detailModal");if(!m||!m.classList.contains("open"))return;
+  const b=m.querySelector('#modalBody [onclick^="openTrailer("]');if(!b)return;
+  const mm=/openTrailer\('([^']+)'\)/.exec(b.getAttribute("onclick")||"");if(!mm)return;
+  const key=decodeURIComponent(mm[1]);if(!/^[\w-]{6,20}$/.test(key))return;
+  zyBgTimer=setTimeout(()=>zyBgPlay(tok,key),1200)
+ }catch(e){}}
+function zyBgPlay(tok,key){
+ if(tok!==zyBgTok)return;
+ const m=document.getElementById("detailModal"),top=m&&m.querySelector(".modal-top");
+ if(!top||!m.classList.contains("open")||document.hidden)return;
+ zyBgStop();
+ const f=document.createElement("iframe");f.className="zy-bgt";f.setAttribute("aria-hidden","true");f.tabIndex=-1;f.allow="autoplay; encrypted-media";f.setAttribute("referrerpolicy","strict-origin-when-cross-origin");
+ const w=top.clientWidth||360,hg=top.clientHeight||260,fw=Math.ceil(Math.max(w,hg*16/9)*1.04);f.style.width=fw+"px";f.style.height=Math.ceil(fw*9/16)+"px";
+ const org=/^https?:/.test(location.protocol)?"&origin="+encodeURIComponent(location.origin):"";
+ f.src="https://www.youtube-nocookie.com/embed/"+encodeURIComponent(key)+"?autoplay=1&mute=1&controls=0&loop=1&playlist="+encodeURIComponent(key)+"&playsinline=1&modestbranding=1&rel=0&disablekb=1&fs=0&iv_load_policy=3&enablejsapi=1"+org;
+ top.insertBefore(f,top.firstChild);zyBgFrame=f;
+ f.addEventListener("load",()=>{try{f.contentWindow.postMessage(JSON.stringify({event:"listening",id:1}),"*")}catch(e){}});
+ zyBgFail=setTimeout(()=>{if(zyBgFrame===f&&!f.classList.contains("on"))zyBgStop()},9000)}
+window.addEventListener("message",e=>{
+ const f=zyBgFrame;if(!f||e.source!==f.contentWindow)return;
+ let d=e.data;if(typeof d==="string"){try{d=JSON.parse(d)}catch(_){return}}if(!d)return;
+ if(d.event==="onError"){zyBgStop();return}
+ const st=d.event==="onStateChange"?d.info:(d.event==="infoDelivery"&&d.info&&typeof d.info.playerState==="number"?d.info.playerState:null);
+ if(st===1&&!f.classList.contains("on")){f.classList.add("on");if(f.parentNode)f.parentNode.classList.add("zy-playing");clearTimeout(zyBgFail);zyBgEnd=setTimeout(zyBgStop,60000)}});
+document.addEventListener("visibilitychange",()=>{if(document.hidden)zyBgStop()});
+{const dm=document.getElementById("detailModal");if(dm)new MutationObserver(()=>{if(!dm.classList.contains("open"))zyBgStop()}).observe(dm,{attributes:true,attributeFilter:["class"]})}
+{const _ot=openTrailer;openTrailer=function(){try{zyBgStop()}catch(e){}return _ot.apply(this,arguments)}}
+{const _od=openDetail;openDetail=function(id){try{zyGlow(id)}catch(e){}try{zyBgStop()}catch(e){}const tok=++zyBgTok,p=_od.apply(this,arguments);try{Promise.resolve(p).then(()=>zyBgStart(tok),()=>{})}catch(e){}return p}}
 
 /* ===== Panel lateral de perfil y ajustes ===== */
 function railEls(){return {rail:document.getElementById("pfRail"),scrim:document.getElementById("pfScrim"),btn:document.getElementById("accountBtn")}}
@@ -1262,7 +1302,7 @@ function toggleRouSound(){rouSound=!rouSound;try{localStorage.setItem("cc_rou_so
    Usa su propia clave "zy_settings_v1". No lee ni modifica ninguna clave existente
    (listas, caché, gustos, credenciales, región...). Restablecer solo borra esa clave. */
 var ZY_VERSION="1.0",zyKey="zy_settings_v1",zySettings=null,zyGenreList=[],zyResetTimer=null,zyPrev="home";
-var zyDefaults={amoled:false,style:"vivid",accent:"cyan",reduceMotion:false,cards:"normal",loader:"pulse",kind:"both",genres:[],sort:"year",prioritize:true};
+var zyDefaults={amoled:false,style:"vivid",accent:"cyan",reduceMotion:false,bgTrailer:true,cards:"normal",loader:"pulse",kind:"both",genres:[],sort:"year",prioritize:true};
 function zySystemReduce(){try{return window.matchMedia("(prefers-reduced-motion: reduce)").matches}catch(e){return false}}
 function zyReduceMotion(){return document.documentElement.classList.contains("reduce-motion")}
 function zySanitize(r){
@@ -1271,6 +1311,7 @@ function zySanitize(r){
   d.style=["elegant","vivid"].includes(r.style)?r.style:"vivid";
   d.accent=["cyan","violet","neutral","rose","amber"].includes(r.accent)?r.accent:"cyan";
   d.reduceMotion=r.reduceMotion===true;
+  d.bgTrailer=r.bgTrailer!==false;
   d.cards=["compact","normal","large"].includes(r.cards)?r.cards:"normal";
   d.loader=["trace","pulse","build","edge"].includes(r.loader)?r.loader:"pulse";
   d.kind=["movies","series","both"].includes(r.kind)?r.kind:"both";
