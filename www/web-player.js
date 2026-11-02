@@ -133,6 +133,61 @@
     '#zwpRoot.zwp-s .zwp-acts{gap:2px}' +
     '#zwpRoot.zwp-s .zwp-sheet{width:min(300px,72%);top:6px;bottom:6px}' +
     '#zwpRoot.zwp-s .zwp-msg{bottom:76px}';
+  /* base: los elementos del modo Elegante no se ven en el modo colorido */
+  CSS += '#zwpRoot .zwp-intro,#zwpRoot .zwp-nx{display:none}';
+
+  CSS += [
+    "html[data-style=elegant] #zwpRoot .zwp-ui{transition:opacity .5s cubic-bezier(.4,0,.2,1)}",
+    "html[data-style=elegant] #zwpRoot .zwp-top,html[data-style=elegant] #zwpRoot .zwp-bot{transition:transform .5s cubic-bezier(.4,0,.2,1)}",
+    "html[data-style=elegant] #zwpRoot.zwp-hide .zwp-top{transform:translateY(-8px)}",
+    "html[data-style=elegant] #zwpRoot.zwp-hide .zwp-bot{transform:translateY(8px)}",
+    "html[data-style=elegant] #zwpRoot .zwp-ui::before{height:30%;background:linear-gradient(rgba(0,0,0,.6),rgba(0,0,0,.22) 60%,transparent)}",
+    "html[data-style=elegant] #zwpRoot .zwp-ui::after{height:44%;background:linear-gradient(transparent,rgba(0,0,0,.34) 38%,rgba(0,0,0,.8))}",
+    "html[data-style=elegant] #zwpRoot .zwp-ttl b{font-size:19px;font-weight:600;letter-spacing:-.01em}",
+    "html[data-style=elegant] #zwpRoot .zwp-ttl small{color:rgba(255,255,255,.62);font-weight:500;font-size:14px}",
+    "html[data-style=elegant] #zwpRoot .zwp-round{background:rgba(255,255,255,.14);border:0;-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}",
+    "html[data-style=elegant] #zwpRoot .zwp-big{width:88px;height:88px;background:rgba(255,255,255,.16);color:#fff;-webkit-backdrop-filter:blur(22px) saturate(1.4);backdrop-filter:blur(22px) saturate(1.4);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}",
+    "html[data-style=elegant] #zwpRoot .zwp-big svg{width:42px;height:42px}",
+    "html[data-style=elegant] #zwpRoot.zwp-s .zwp-big{width:60px;height:60px}",
+    "html[data-style=elegant] #zwpRoot.zwp-s .zwp-big svg{width:32px;height:32px}",
+    "html[data-style=elegant] #zwpRoot .zwp-skip svg{stroke-width:1.2}",
+    "html[data-style=elegant] #zwpRoot .zwp-ic svg{stroke-width:1.4}",
+    "html[data-style=elegant] #zwpRoot .zwp-bar{height:30px}",
+    "html[data-style=elegant] #zwpRoot .zwp-trk,html[data-style=elegant] #zwpRoot .zwp-fill{height:3px;border-radius:3px;transition:height .18s ease}",
+    "html[data-style=elegant] #zwpRoot .zwp-buf{height:3px;border-radius:3px;transition:height .18s ease}",
+    "html[data-style=elegant] #zwpRoot .zwp-bar:active .zwp-trk,html[data-style=elegant] #zwpRoot .zwp-bar:active .zwp-fill,html[data-style=elegant] #zwpRoot .zwp-bar:active .zwp-buf,html[data-style=elegant] #zwpRoot .zwp-bar:hover .zwp-trk,html[data-style=elegant] #zwpRoot .zwp-bar:hover .zwp-fill,html[data-style=elegant] #zwpRoot .zwp-bar:hover .zwp-buf{height:7px}",
+    "html[data-style=elegant] #zwpRoot .zwp-fill{box-shadow:none}",
+    "html[data-style=elegant] #zwpRoot .zwp-knob{width:14px;height:14px;margin-left:-7px;background:#fff;box-shadow:0 0 10px rgba(0,0,0,.45);transform:scale(0);transition:transform .18s}",
+    "html[data-style=elegant] #zwpRoot .zwp-bar:active .zwp-knob,html[data-style=elegant] #zwpRoot .zwp-bar:hover .zwp-knob{transform:scale(1)}",
+    "html[data-style=elegant] #zwpRoot .zwp-row{font-size:13px;font-weight:500;color:rgba(255,255,255,.62);font-variant-numeric:tabular-nums;margin-top:0}",
+    "html[data-style=elegant] #zwpRoot .zwp-intro,html[data-style=elegant] #zwpRoot .zwp-nx{position:absolute;z-index:3;right:max(env(safe-area-inset-right),24px);bottom:128px;opacity:0;transform:translateY(10px);pointer-events:none;transition:opacity .4s,transform .4s,bottom .5s cubic-bezier(.4,0,.2,1)}",
+    "html[data-style=elegant] #zwpRoot .zwp-intro{display:block;padding:12px 22px;border-radius:12px;background:rgba(32,32,36,.62);box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);-webkit-backdrop-filter:blur(22px) saturate(1.3);backdrop-filter:blur(22px) saturate(1.3);font-size:15px;font-weight:600;color:#fff}",
+    "html[data-style=elegant] #zwpRoot .zwp-intro:active{background:rgba(70,70,76,.78)}",
+    "html[data-style=elegant] #zwpRoot .zwp-intro.on,html[data-style=elegant] #zwpRoot .zwp-nx.on{opacity:1;transform:none;pointer-events:auto}",
+    "html[data-style=elegant] #zwpRoot.zwp-hide .zwp-intro,html[data-style=elegant] #zwpRoot.zwp-hide .zwp-nx{bottom:32px}",
+    "html[data-style=elegant] #zwpRoot .zwp-nx{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:18px;background:rgba(28,28,30,.74);-webkit-backdrop-filter:blur(26px) saturate(1.4);backdrop-filter:blur(26px) saturate(1.4);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1),0 12px 40px rgba(0,0,0,.45);color:#fff}",
+    "html[data-style=elegant] #zwpRoot .zwp-nxr{position:relative;width:46px;height:46px;flex:none}",
+    "html[data-style=elegant] #zwpRoot .zwp-nxr svg{width:46px;height:46px;fill:none;display:block}",
+    "html[data-style=elegant] #zwpRoot .zwp-nxr svg:first-child{transform:rotate(-90deg)}",
+    "html[data-style=elegant] #zwpRoot .zwp-nxr circle{fill:none;stroke-width:2.5}",
+    "html[data-style=elegant] #zwpRoot .zwp-nxr .bg{stroke:rgba(255,255,255,.2)}",
+    "html[data-style=elegant] #zwpRoot .zwp-nxr .fg{stroke:#fff;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:0}",
+    "html[data-style=elegant] #zwpRoot .zwp-nxr.run .fg{animation:zwp-ring var(--cd,5s) linear forwards}",
+    "@keyframes zwp-ring{to{stroke-dashoffset:100}}",
+    "html[data-style=elegant] #zwpRoot .zwp-nxr .zwp-nxg{position:absolute;left:13px;top:13px;width:20px;height:20px;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}",
+    "html[data-style=elegant] #zwpRoot .zwp-nxb b{display:block;font-size:15px;font-weight:600;white-space:nowrap}",
+    "html[data-style=elegant] #zwpRoot .zwp-nxb b span{display:inline-block;min-width:.7em;text-align:center;font-variant-numeric:tabular-nums}",
+    "html[data-style=elegant] #zwpRoot .zwp-nxa{display:flex;gap:8px;margin-top:9px}",
+    "html[data-style=elegant] #zwpRoot .zwp-nxa button{padding:7px 14px;border-radius:9px;background:rgba(255,255,255,.16);font-size:13px;font-weight:600;color:#fff}",
+    "html[data-style=elegant] #zwpRoot .zwp-nxa button.go{background:#fff;color:#000}",
+    "html[data-style=elegant] #zwpRoot .zwp-nxa button:active{opacity:.7}",
+    "#zwpRoot.zwp-pip .zwp-intro,#zwpRoot.zwp-pip .zwp-nx{display:none!important}",
+    "html[data-style=elegant] #zwpRoot.zwp-s .zwp-intro,html[data-style=elegant] #zwpRoot.zwp-s .zwp-nx{right:12px;bottom:98px}",
+    "html[data-style=elegant] #zwpRoot.zwp-hide.zwp-s .zwp-intro,html[data-style=elegant] #zwpRoot.zwp-hide.zwp-s .zwp-nx{bottom:20px}",
+    "html[data-style=elegant] #zwpRoot .zwp-sh-h{padding:12px 14px 4px;font-size:12px;font-weight:600;color:rgba(255,255,255,.5)}",
+    "html.reduce-motion html[data-style=elegant] #zwpRoot .zwp-ui,html.reduce-motion html[data-style=elegant] #zwpRoot .zwp-top,html.reduce-motion html[data-style=elegant] #zwpRoot .zwp-bot,html.reduce-motion html[data-style=elegant] #zwpRoot .zwp-intro,html.reduce-motion html[data-style=elegant] #zwpRoot .zwp-nx{transition-duration:.01s!important}"
+  ].join("");
+
 
   var ZR = null, ui = {}, v = null, host = null, bound = false, fsBound = false;
   var sheetOpen = false, sheetKind = "", dragging = false, dragT = 0;
@@ -142,12 +197,16 @@
   /* ---------- construcción ---------- */
   function build() {
     if (ZR) return;
+    subSt = subLoad();
     var st = D.createElement("style"); st.textContent = CSS; D.head.appendChild(st);
     ZR = D.createElement("div"); ZR.id = "zwpRoot";
     ZR.innerHTML =
       '<div class="zwp-tap" id="zwpTap"></div>' +
       '<div class="zwp-flash l" id="zwpFl"></div><div class="zwp-flash r" id="zwpFr"></div>' +
       '<div class="zwp-msg" id="zwpMsg"></div>' +
+      '<button class="zwp-intro" id="zwpIntro">Saltar intro</button>' +
+      '<div class="zwp-nx" id="zwpNx"><div class="zwp-nxr" id="zwpNxR"><svg viewBox="0 0 46 46"><circle class="bg" cx="23" cy="23" r="20"/><circle class="fg" cx="23" cy="23" r="20" pathLength="100"/></svg><svg class="zwp-nxg" viewBox="0 0 24 24"><path d="M6.5 5.5v13l9.5-6.5z"/><path d="M19 5.5v13"/></svg></div>' +
+        '<div class="zwp-nxb"><b>Siguiente episodio en <span id="zwpNxN">5</span>…</b><div class="zwp-nxa"><button class="go" id="zwpNxGo">Ver ya</button><button id="zwpNxNo">Cancelar</button></div></div></div>' +
       '<div class="zwp-ui" id="zwpUi">' +
         '<div class="zwp-top"><button class="zwp-round" id="zwpBack" aria-label="Volver">' + ICON.back + '</button>' +
           '<div class="zwp-ttl"><b id="zwpTitle"></b><small id="zwpSub"></small></div>' +
@@ -172,7 +231,7 @@
           '</div></div>' +
       '</div>' +
       '<div class="zwp-sheet" id="zwpSheet" hidden><div class="zwp-sh-t" id="zwpShT"></div><div class="zwp-sh-l" id="zwpShL"></div></div>';
-    ["Tap", "Ui", "Back", "Title", "Sub", "Rew", "Play", "Fwd", "Bar", "Fill", "Buf", "Knob", "Cur", "Dur", "Pv", "PvT", "Speed", "SpeedB", "Src", "Cast", "Next", "Sheet", "ShT", "ShL", "Fl", "Fr", "Msg", "Q", "Mute", "Vol", "Pip", "Fs"]
+    ["Tap", "Ui", "Back", "Title", "Sub", "Rew", "Play", "Fwd", "Bar", "Fill", "Buf", "Knob", "Cur", "Dur", "Pv", "PvT", "Speed", "SpeedB", "Src", "Cast", "Next", "Sheet", "ShT", "ShL", "Fl", "Fr", "Msg", "Intro", "Nx", "NxR", "NxN", "NxGo", "NxNo", "Q", "Mute", "Vol", "Pip", "Fs"]
       .forEach(function (k) { ui[k.charAt(0).toLowerCase() + k.slice(1)] = ZR.querySelector("#zwp" + k); });
 
     ui.back.onclick = function () {
@@ -197,6 +256,9 @@
     ui.mute.onclick = function () { v.muted = !v.muted; };
     ui.vol.oninput = function () { v.muted = false; v.volume = Number(ui.vol.value); };
     ui.pip.onclick = togglePip;
+    ui.intro.onclick = function () { if (!curSeg) return; var e = curSeg.e; curSeg = null; ui.intro.classList.remove("on"); try { v.currentTime = e / 1000; } catch (x) {} paint(); };
+    ui.nxGo.onclick = function () { goNext(); };
+    ui.nxNo.onclick = function () { stopCd(); };
     ui.fs.onclick = toggleFs;
     ZR.querySelectorAll(".zwp-acts [data-p]").forEach(function (b) { b.onclick = function () { toggleSheet(b.getAttribute("data-p")); }; });
     /* para que la barra espaciadora siga pausando después de pulsar un botón */
@@ -285,7 +347,8 @@
         new MutationObserver(sync).observe(L, { attributes: true, attributeFilter: ["hidden"] });
         sync();
       }
-      if (W.ResizeObserver) new ResizeObserver(function () { ZR.classList.toggle("zwp-s", host.clientWidth < 560); applyAspect(); }).observe(host);
+      if (W.ResizeObserver) new ResizeObserver(function () { ZR.classList.toggle("zwp-s", host.clientWidth < 560); applyAspect(); subApply(); }).observe(host);
+      if (W.MutationObserver) new MutationObserver(function () { subApply(); updateSeg(); }).observe(D.documentElement, { attributes: true, attributeFilter: ["data-style"] });
       ZR.classList.toggle("zwp-s", host.clientWidth < 560);
       try { pl.on("enterfullscreen", function () { setTimeout(fsIcon, 50); }); pl.on("exitfullscreen", function () { setTimeout(fsIcon, 50); }); } catch (e) {}
     }
@@ -300,11 +363,12 @@
     v.addEventListener("volumechange", volPaint);
     v.addEventListener("ended", function () {
       /* al terminar un episodio pasa al siguiente (igual que en la app) */
-      setTimeout(function () {
-        var c = W._addonCtx;
-        if (c && c.type === "tv" && typeof W.addonStep === "function") W.addonStep(1);
-      }, 0);
+      var c = W._addonCtx;
+      if (!(c && c.type === "tv" && typeof W.addonStep === "function")) return;
+      if (eleg()) { startCd(); showUi(); return; }   /* modo Elegante: cuenta regresiva */
+      setTimeout(function () { W.addonStep(1); }, 0);
     });
+    v.addEventListener("play", function () { stopCd(); });
     v.addEventListener("enterpictureinpicture", function () { ui.pip.classList.add("on"); });
     v.addEventListener("leavepictureinpicture", function () { ui.pip.classList.remove("on"); });
     if (v.remote && v.remote.addEventListener) {
@@ -336,6 +400,7 @@
     ui.dur.textContent = len ? "-" + fmt(len - t) : "";
     var playing = !(v.paused || v.ended);
     if (playing !== shownPlay) { shownPlay = playing; ui.play.innerHTML = playing ? ICON.pause : ICON.play; if (playing) showUi(); }
+    updateSeg();
   }
   function volPaint() {
     if (!ZR || !v) return;
@@ -420,13 +485,14 @@
     ui.shT.textContent = title; ui.shL.innerHTML = "";
     if (!items.length) { var e = D.createElement("div"); e.className = "zwp-sh-e"; e.textContent = empty || "Nada disponible"; ui.shL.appendChild(e); return; }
     items.forEach(function (it) {
+      if (it.head) { var h = D.createElement("div"); h.className = "zwp-sh-h"; h.textContent = it.head; ui.shL.appendChild(h); return; }
       var b = D.createElement("button"); b.type = "button";
       var tx = D.createElement("span"); tx.className = "zwp-tx";
       var l = D.createElement("span"); l.textContent = it.label; tx.appendChild(l);
       if (it.sub) { var sm = D.createElement("small"); sm.textContent = it.sub; tx.appendChild(sm); }
       b.appendChild(tx);
       if (it.on) { b.className = "on"; b.insertAdjacentHTML("beforeend", ICON.check); }
-      b.onclick = function () { it.fn(); closeSheet(); };
+      b.onclick = function () { it.fn(); if (it.keep) openSheet(sheetKind); else closeSheet(); };
       ui.shL.appendChild(b);
     });
   }
@@ -485,7 +551,21 @@
     } else if (kind === "audio") {
       fillSheet("Audio", audioItems(), "Este video no trae otras pistas de audio. El navegador solo puede cambiarlas en listas HLS; con «Abrir con VLC» puedes elegir el idioma.");
     } else if (kind === "subs") {
-      fillSheet("Subtítulos", subItems(), "Este video no trae subtítulos que el navegador pueda mostrar. Con «Abrir con VLC» puedes cargar los del archivo.");
+      var sit = subItems();
+      if (sit.length && eleg()) sit.push({ label: "Estilo de los subtítulos", sub: "Tamaño y fondo", keep: true, fn: function () { sheetKind = "substyle"; } });
+      fillSheet("Subtítulos", sit, "Este video no trae subtítulos que el navegador pueda mostrar. Con «Abrir con VLC» puedes cargar los del archivo.");
+    } else if (kind === "substyle") {
+      var cs = subSt || { size: "m", bg: "normal" };
+      var setS = function (k, val) { subSt = { size: cs.size, bg: cs.bg }; subSt[k] = val; try { localStorage.setItem(SUBK, JSON.stringify(subSt)); } catch (e) {} subApply(); };
+      var sty = [{ label: "‹  Subtítulos", keep: true, fn: function () { sheetKind = "subs"; } }, { head: "Tamaño" }];
+      [["s", "Pequeño"], ["m", "Mediano"], ["l", "Grande"], ["xl", "Muy grande"]].forEach(function (a) {
+        sty.push({ label: a[1], on: cs.size === a[0], keep: true, fn: function () { setS("size", a[0]); } });
+      });
+      sty.push({ head: "Fondo" });
+      [["shadow", "Solo sombra"], ["light", "Translúcido"], ["normal", "Normal"], ["solid", "Negro sólido"]].forEach(function (a) {
+        sty.push({ label: a[1], on: cs.bg === a[0], keep: true, fn: function () { setS("bg", a[0]); } });
+      });
+      fillSheet("Estilo de subtítulos", sty);
     } else if (kind === "src") {
       var Z = W.ZAM, m = Z && Z.webMeta && Z.webMeta();
       if (!m || !Z.sources) { fillSheet("Fuentes", [], "No hay fuentes disponibles"); return; }
@@ -502,6 +582,97 @@
     msg("Cambiando de fuente…");
     Z.resolve(m, x.snap).then(function (r) { Z.webSwitch(r, t); })
       .catch(function (e) { msg((e && (e.userMessage || e.message)) || "No se pudo abrir esa fuente"); });
+  }
+
+
+  /* ---------- modo Elegante: saltar intro y siguiente episodio con cuenta regresiva ---------- */
+  function eleg() { return D.documentElement.getAttribute("data-style") === "elegant"; }
+  var segs = [], curSeg = null, segKey = "", segCache = {}, cdT = 0, cdLeft = 0;
+  /* busca el id de TMDB / IMDb en el contexto del episodio (los nombres de campo se pueden ajustar aquí) */
+  function segIds() {
+    var out = { tmdb: "", imdb: "" }, c = W._addonCtx || {}, m = (function () { try { var Z = W.ZAM; return Z && Z.webMeta && Z.webMeta(); } catch (e) { return null; } })();
+    [c, m].forEach(function (o) {
+      if (!o || typeof o !== "object") return;
+      Object.keys(o).forEach(function (k) {
+        var x = o[k], s, mm;
+        if (typeof x !== "string" && typeof x !== "number") return;
+        s = String(x);
+        if (/tmdb/i.test(k) && /^\d+$/.test(s)) out.tmdb = out.tmdb || s;
+        else if (/imdb/i.test(k) && /^tt\d+$/.test(s)) out.imdb = out.imdb || s;
+        else if ((mm = s.match(/^(?:tv|movie)_(\d+)$/))) out.tmdb = out.tmdb || mm[1];
+        else if (/^tt\d{6,}$/.test(s)) out.imdb = out.imdb || s;
+      });
+    });
+    return out;
+  }
+  /* marcas de intro/resumen de la comunidad (TheIntroDB); si no hay datos, el botón simplemente no aparece */
+  function loadSegs() {
+    segs = []; curSeg = null; segKey = "";
+    if (ui.intro) ui.intro.classList.remove("on");
+    var c = W._addonCtx;
+    if (!eleg() || !c || c.type !== "tv" || !W.fetch) return;
+    var id = segIds(), q = id.tmdb ? "tmdb_id=" + id.tmdb : (id.imdb ? "imdb_id=" + id.imdb : "");
+    if (!q) return;
+    var key = q + "|" + c.season + "|" + c.episode; segKey = key;
+    if (segCache[key]) { segs = segCache[key]; updateSeg(); return; }
+    fetch("https://api.theintrodb.org/v2/media?" + q + "&season=" + encodeURIComponent(c.season) + "&episode=" + encodeURIComponent(c.episode))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j) return;
+        var out = [];
+        [["intro", "Saltar intro"], ["recap", "Saltar resumen"]].forEach(function (t) {
+          var arr = j[t[0]]; if (!arr) return;
+          if (!Array.isArray(arr)) arr = [arr];
+          arr.forEach(function (s) {
+            if (!s || s.end_ms == null) return;
+            var a = Number(s.start_ms) || 0, b = Number(s.end_ms);
+            if (b > a + 3000) out.push({ s: a, e: b, label: t[1] });
+          });
+        });
+        segCache[key] = out;
+        if (segKey === key) { segs = out; updateSeg(); }
+      }).catch(noop);
+  }
+  function updateSeg() {
+    if (!ui.intro) return;
+    var t = (v ? (v.currentTime || 0) * 1000 : 0), hit = null, i;
+    if (eleg() && ZR) for (i = 0; i < segs.length; i++) if (t >= segs[i].s && t < segs[i].e - 1000) { hit = segs[i]; break; }
+    if (hit !== curSeg) {
+      curSeg = hit;
+      if (hit) ui.intro.textContent = hit.label;
+      ui.intro.classList.toggle("on", !!hit);
+    }
+  }
+  function stopCd() {
+    clearInterval(cdT); cdT = 0;
+    if (ui.nx) { ui.nx.classList.remove("on"); ui.nxR.classList.remove("run"); }
+    
+  }
+  function startCd() {
+    if (cdT || !ui.nx) return;
+    var N = 5; cdLeft = N; ui.nxN.textContent = N;
+    ui.nxR.style.setProperty("--cd", N + "s"); void ui.nxR.offsetWidth; ui.nxR.classList.add("run");
+    ui.nx.classList.add("on");
+    cdT = setInterval(function () { cdLeft--; ui.nxN.textContent = Math.max(cdLeft, 0); if (cdLeft <= 0) goNext(); }, 1000);
+  }
+  function goNext() {
+    stopCd();
+    if (typeof W.addonStep === "function") W.addonStep(1);
+  }
+
+  /* estilo de los subtítulos (tamaño y fondo) — solo en modo Elegante; se guarda en el dispositivo */
+  var SUBK = "zy_sub", SUBSZ = { s: 0.8, m: 1, l: 1.35, xl: 1.8 };
+  var SUBBG = { shadow: ["transparent", "0 0 3px #000,0 0 6px #000,0 1px 8px #000"], light: ["rgba(0,0,0,.45)", "none"], normal: ["rgba(0,0,0,.75)", "none"], solid: ["#000", "none"] };
+  var subSt = null, subCss = null;
+  function subLoad() {
+    try { var o = JSON.parse(localStorage.getItem(SUBK) || "null"); if (o && SUBSZ[o.size] && SUBBG[o.bg]) return o; } catch (e) {}
+    return null;
+  }
+  function subApply() {
+    if (!subCss) { subCss = D.createElement("style"); D.head.appendChild(subCss); }
+    if (!subSt || !eleg() || !host) { subCss.textContent = ""; return; }
+    var px = Math.max(12, Math.round((host.clientHeight || 400) * 0.048 * SUBSZ[subSt.size])), b = SUBBG[subSt.bg];
+    subCss.textContent = "#rdVideo::cue{font-size:" + px + "px;color:#fff;background-color:" + b[0] + ";text-shadow:" + b[1] + "}";
   }
 
   /* ---------- teclado ---------- */
@@ -533,7 +704,7 @@
     try { v.playbackRate = 1; } catch (e) {}
     ui.speedB.textContent = "";
     sheetOpen = false; ui.sheet.hidden = true;
-    shownPlay = null; avail(); volPaint(); fsIcon(); paint(); showUi();
+    shownPlay = null; avail(); volPaint(); fsIcon(); stopCd(); loadSegs(); subApply(); paint(); showUi();
   }
   var origPlay = typeof W.rdPlay === "function" ? W.rdPlay : null;
   if (origPlay) W.rdPlay = function () {
@@ -545,6 +716,7 @@
   if (origClose) W.rdClosePlayer = function () {
     try {
       if (ZR) {
+        stopCd();
         closeSheet();
         if (D.pictureInPictureElement) D.exitPictureInPicture().catch(noop);
         var pl = plyr(); if (pl && pl.fullscreen && pl.fullscreen.active) pl.fullscreen.exit();

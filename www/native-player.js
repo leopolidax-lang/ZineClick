@@ -109,6 +109,57 @@
     '.znp-flash.on{opacity:1}.znp-flash.l{left:14%}.znp-flash.r{right:14%}' +
     '.znp-msg{position:absolute;z-index:2;left:50%;bottom:92px;transform:translateX(-50%);padding:9px 16px;border-radius:999px;background:rgba(0,0,0,.72);opacity:0;pointer-events:none;transition:opacity .2s;white-space:nowrap;max-width:80vw;overflow:hidden;text-overflow:ellipsis}' +
     '.znp-msg.on{opacity:1}';
+  /* base: los elementos del modo Elegante no se ven en el modo colorido */
+  CSS += '#znpRoot .znp-intro,#znpRoot .znp-nx{display:none}';
+
+  CSS += [
+    "html[data-style=elegant] #znpRoot .znp-ui{transition:opacity .5s cubic-bezier(.4,0,.2,1)}",
+    "html[data-style=elegant] #znpRoot .znp-top,html[data-style=elegant] #znpRoot .znp-bot{transition:transform .5s cubic-bezier(.4,0,.2,1)}",
+    "html[data-style=elegant] #znpRoot.znp-hide .znp-top{transform:translateY(-8px)}",
+    "html[data-style=elegant] #znpRoot.znp-hide .znp-bot{transform:translateY(8px)}",
+    "html[data-style=elegant] #znpRoot .znp-ui::before{height:30%;background:linear-gradient(rgba(0,0,0,.6),rgba(0,0,0,.22) 60%,transparent)}",
+    "html[data-style=elegant] #znpRoot .znp-ui::after{height:44%;background:linear-gradient(transparent,rgba(0,0,0,.34) 38%,rgba(0,0,0,.8))}",
+    "html[data-style=elegant] #znpRoot .znp-ttl b{font-size:19px;font-weight:600;letter-spacing:-.01em}",
+    "html[data-style=elegant] #znpRoot .znp-ttl small{color:rgba(255,255,255,.62);font-weight:500;font-size:14px}",
+    "html[data-style=elegant] #znpRoot .znp-round{background:rgba(255,255,255,.14);border:0;-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}",
+    "html[data-style=elegant] #znpRoot .znp-big{width:88px;height:88px;background:rgba(255,255,255,.16);color:#fff;-webkit-backdrop-filter:blur(22px) saturate(1.4);backdrop-filter:blur(22px) saturate(1.4);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}",
+    "html[data-style=elegant] #znpRoot .znp-big svg{width:42px;height:42px}",
+    "html[data-style=elegant] #znpRoot .znp-skip svg{stroke-width:1.2}",
+    "html[data-style=elegant] #znpRoot .znp-ic svg{stroke-width:1.4}",
+    "html[data-style=elegant] #znpRoot .znp-bar{height:30px}",
+    "html[data-style=elegant] #znpRoot .znp-trk,html[data-style=elegant] #znpRoot .znp-fill{height:3px;border-radius:3px;transition:height .18s ease}",
+    "html[data-style=elegant] #znpRoot .znp-bar:active .znp-trk,html[data-style=elegant] #znpRoot .znp-bar:active .znp-fill{height:7px}",
+    "html[data-style=elegant] #znpRoot .znp-fill{box-shadow:none}",
+    "html[data-style=elegant] #znpRoot .znp-knob{width:14px;height:14px;margin-left:-7px;background:#fff;box-shadow:0 0 10px rgba(0,0,0,.45);transform:scale(0);transition:transform .18s}",
+    "html[data-style=elegant] #znpRoot .znp-bar:active .znp-knob{transform:scale(1)}",
+    "html[data-style=elegant] #znpRoot .znp-row{font-size:13px;font-weight:500;color:rgba(255,255,255,.62);font-variant-numeric:tabular-nums;margin-top:0}",
+    "html[data-style=elegant] #znpRoot .znp-intro,html[data-style=elegant] #znpRoot .znp-nx{position:absolute;z-index:2;right:max(env(safe-area-inset-right),24px);bottom:128px;opacity:0;transform:translateY(10px);pointer-events:none;transition:opacity .4s,transform .4s,bottom .5s cubic-bezier(.4,0,.2,1)}",
+    "html[data-style=elegant] #znpRoot .znp-intro{display:block;padding:12px 22px;border-radius:12px;background:rgba(32,32,36,.62);box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);-webkit-backdrop-filter:blur(22px) saturate(1.3);backdrop-filter:blur(22px) saturate(1.3);font-size:15px;font-weight:600;color:#fff}",
+    "html[data-style=elegant] #znpRoot .znp-intro:active{background:rgba(70,70,76,.78)}",
+    "html[data-style=elegant] #znpRoot .znp-intro.on,html[data-style=elegant] #znpRoot .znp-nx.on{opacity:1;transform:none;pointer-events:auto}",
+    "html[data-style=elegant] #znpRoot.znp-hide .znp-intro,html[data-style=elegant] #znpRoot.znp-hide .znp-nx{bottom:32px}",
+    "html[data-style=elegant] #znpRoot .znp-nx{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:18px;background:rgba(28,28,30,.74);-webkit-backdrop-filter:blur(26px) saturate(1.4);backdrop-filter:blur(26px) saturate(1.4);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1),0 12px 40px rgba(0,0,0,.45);color:#fff}",
+    "html[data-style=elegant] #znpRoot .znp-nxr{position:relative;width:46px;height:46px;flex:none}",
+    "html[data-style=elegant] #znpRoot .znp-nxr svg{width:46px;height:46px;fill:none;display:block}",
+    "html[data-style=elegant] #znpRoot .znp-nxr svg:first-child{transform:rotate(-90deg)}",
+    "html[data-style=elegant] #znpRoot .znp-nxr circle{fill:none;stroke-width:2.5}",
+    "html[data-style=elegant] #znpRoot .znp-nxr .bg{stroke:rgba(255,255,255,.2)}",
+    "html[data-style=elegant] #znpRoot .znp-nxr .fg{stroke:#fff;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:0}",
+    "html[data-style=elegant] #znpRoot .znp-nxr.run .fg{animation:znp-ring var(--cd,5s) linear forwards}",
+    "@keyframes znp-ring{to{stroke-dashoffset:100}}",
+    "html[data-style=elegant] #znpRoot .znp-nxr .znp-nxg{position:absolute;left:13px;top:13px;width:20px;height:20px;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}",
+    "html[data-style=elegant] #znpRoot .znp-nxb b{display:block;font-size:15px;font-weight:600;white-space:nowrap}",
+    "html[data-style=elegant] #znpRoot .znp-nxb b span{display:inline-block;min-width:.7em;text-align:center;font-variant-numeric:tabular-nums}",
+    "html[data-style=elegant] #znpRoot .znp-nxa{display:flex;gap:8px;margin-top:9px}",
+    "html[data-style=elegant] #znpRoot .znp-nxa button{padding:7px 14px;border-radius:9px;background:rgba(255,255,255,.16);font-size:13px;font-weight:600;color:#fff}",
+    "html[data-style=elegant] #znpRoot .znp-nxa button.go{background:#fff;color:#000}",
+    "html[data-style=elegant] #znpRoot .znp-nxa button:active{opacity:.7}",
+    "#znpRoot.znp-pip .znp-intro,#znpRoot.znp-pip .znp-nx{display:none!important}",
+    "html[data-style=elegant] #znpRoot.znp-end{background:#000}",
+    "html[data-style=elegant] #znpRoot.znp-end .znp-ui,html[data-style=elegant] #znpRoot.znp-end .znp-spin{display:none!important}",
+    "html.reduce-motion html[data-style=elegant] #znpRoot .znp-ui,html.reduce-motion html[data-style=elegant] #znpRoot .znp-top,html.reduce-motion html[data-style=elegant] #znpRoot .znp-bot,html.reduce-motion html[data-style=elegant] #znpRoot .znp-intro,html.reduce-motion html[data-style=elegant] #znpRoot .znp-nx{transition-duration:.01s!important}"
+  ].join("");
+
 
   var root = null, ui = {};
   var st = { time: 0, length: 0, playing: false, buffering: true };
@@ -181,6 +232,9 @@
       '<div class="znp-tap" id="znpTap"></div><div class="znp-spin"><svg class="zl" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="38"/><circle cx="50" cy="50" r="38"/><g class="zz"><path class="p1" pathLength="100" d="M21 20 L76 33 L22 45 Z"/><path class="p2" pathLength="100" d="M20 69 L54 39 L77 33 L78 36 L60 56 L31 74 Z"/><path class="p3" pathLength="100" d="M60 52 L78 64 L58 80 L32 74 Z"/></g></svg></div><i class="zl-edge"></i>' +
       '<div class="znp-flash l" id="znpFl"></div><div class="znp-flash r" id="znpFr"></div>' +
       '<div class="znp-msg" id="znpMsg"></div>' +
+      '<button class="znp-intro" id="znpIntro">Saltar intro</button>' +
+      '<div class="znp-nx" id="znpNx"><div class="znp-nxr" id="znpNxR"><svg viewBox="0 0 46 46"><circle class="bg" cx="23" cy="23" r="20"/><circle class="fg" cx="23" cy="23" r="20" pathLength="100"/></svg><svg class="znp-nxg" viewBox="0 0 24 24"><path d="M6.5 5.5v13l9.5-6.5z"/><path d="M19 5.5v13"/></svg></div>' +
+        '<div class="znp-nxb"><b>Siguiente episodio en <span id="znpNxN">5</span>…</b><div class="znp-nxa"><button class="go" id="znpNxGo">Ver ya</button><button id="znpNxNo">Cancelar</button></div></div></div>' +
       '<div class="znp-ui" id="znpUi">' +
         '<div class="znp-top"><button class="znp-round" id="znpBack" aria-label="Volver">' + ICON.back + '</button>' +
           '<div class="znp-ttl"><b id="znpTitle"></b><small id="znpSub"></small></div>' +
@@ -202,7 +256,7 @@
       '</div>' +
       '<div class="znp-sheet" id="znpSheet" hidden><div class="znp-sh-t" id="znpShT"></div><div class="znp-sh-l" id="znpShL"></div></div>';
     D.body.appendChild(root);
-    ["Tap", "Ui", "Back", "Title", "Sub", "Rew", "Play", "Fwd", "Bar", "Fill", "Knob", "Cur", "Dur", "Pv", "PvI", "PvT", "Speed", "SpeedB", "Src", "Cast", "Cb", "Next", "Sheet", "ShT", "ShL", "Fl", "Fr", "Msg"]
+    ["Tap", "Ui", "Back", "Title", "Sub", "Rew", "Play", "Fwd", "Bar", "Fill", "Knob", "Cur", "Dur", "Pv", "PvI", "PvT", "Speed", "SpeedB", "Src", "Cast", "Cb", "Next", "Sheet", "ShT", "ShL", "Fl", "Fr", "Msg", "Intro", "Nx", "NxR", "NxN", "NxGo", "NxNo"]
       .forEach(function (k) { ui[k.charAt(0).toLowerCase() + k.slice(1)] = $("znp" + k); });
 
     ui.back.onclick = function () { close(true); };
@@ -212,6 +266,9 @@
     ui.next.onclick = function () { close(true); if (typeof W.addonStep === "function") W.addonStep(1); };
     ui.src.onclick = function () { toggleSheet("src"); };
     ui.cast.onclick = function () { toggleSheet("cast"); };
+    ui.intro.onclick = function () { if (!curSeg) return; var e = curSeg.e; curSeg = null; ui.intro.classList.remove("on"); st.time = e; call("seekTo", { ms: Math.round(e) }).catch(noop); paint(); };
+    ui.nxGo.onclick = function () { goNext(); };
+    ui.nxNo.onclick = function () { stopCd(); close(true); };
     root.querySelectorAll(".znp-acts [data-p]").forEach(function (b) { b.onclick = function () { toggleSheet(b.getAttribute("data-p")); }; });
 
     /* toque en el video: un toque muestra/oculta controles; doble toque a los lados salta 10 s, al centro pausa */
@@ -255,6 +312,7 @@
     ui.dur.textContent = len > 0 ? "-" + fmt(len - t) : "";
     ui.play.innerHTML = st.playing ? ICON.pause : ICON.play;
     root.classList.toggle("znp-busy", !!st.buffering || (!st.playing && st.time === 0 && len === 0));
+    updateSeg();
   }
   function showUi() {
     if (!root) return;
@@ -477,6 +535,87 @@
     }).catch(retry);
   }
 
+
+  /* ---------- modo Elegante: saltar intro y siguiente episodio con cuenta regresiva ---------- */
+  function eleg() { return D.documentElement.getAttribute("data-style") === "elegant"; }
+  var segs = [], curSeg = null, segKey = "", segCache = {}, cdT = 0, cdLeft = 0;
+  /* busca el id de TMDB / IMDb en el contexto del episodio (los nombres de campo se pueden ajustar aquí) */
+  function segIds() {
+    var out = { tmdb: "", imdb: "" }, c = W._addonCtx || {}, m = meta;
+    [c, m].forEach(function (o) {
+      if (!o || typeof o !== "object") return;
+      Object.keys(o).forEach(function (k) {
+        var x = o[k], s, mm;
+        if (typeof x !== "string" && typeof x !== "number") return;
+        s = String(x);
+        if (/tmdb/i.test(k) && /^\d+$/.test(s)) out.tmdb = out.tmdb || s;
+        else if (/imdb/i.test(k) && /^tt\d+$/.test(s)) out.imdb = out.imdb || s;
+        else if ((mm = s.match(/^(?:tv|movie)_(\d+)$/))) out.tmdb = out.tmdb || mm[1];
+        else if (/^tt\d{6,}$/.test(s)) out.imdb = out.imdb || s;
+      });
+    });
+    return out;
+  }
+  /* marcas de intro/resumen de la comunidad (TheIntroDB); si no hay datos, el botón simplemente no aparece */
+  function loadSegs() {
+    segs = []; curSeg = null; segKey = "";
+    if (ui.intro) ui.intro.classList.remove("on");
+    var c = W._addonCtx;
+    if (!eleg() || !c || c.type !== "tv" || !W.fetch) return;
+    var id = segIds(), q = id.tmdb ? "tmdb_id=" + id.tmdb : (id.imdb ? "imdb_id=" + id.imdb : "");
+    if (!q) return;
+    var key = q + "|" + c.season + "|" + c.episode; segKey = key;
+    if (segCache[key]) { segs = segCache[key]; updateSeg(); return; }
+    fetch("https://api.theintrodb.org/v2/media?" + q + "&season=" + encodeURIComponent(c.season) + "&episode=" + encodeURIComponent(c.episode))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j) return;
+        var out = [];
+        [["intro", "Saltar intro"], ["recap", "Saltar resumen"]].forEach(function (t) {
+          var arr = j[t[0]]; if (!arr) return;
+          if (!Array.isArray(arr)) arr = [arr];
+          arr.forEach(function (s) {
+            if (!s || s.end_ms == null) return;
+            var a = Number(s.start_ms) || 0, b = Number(s.end_ms);
+            if (b > a + 3000) out.push({ s: a, e: b, label: t[1] });
+          });
+        });
+        segCache[key] = out;
+        if (segKey === key) { segs = out; updateSeg(); }
+      }).catch(noop);
+  }
+  function updateSeg() {
+    if (!ui.intro) return;
+    var t = st.time, hit = null, i;
+    if (eleg() && isOpen && root && !root.classList.contains("znp-end")) for (i = 0; i < segs.length; i++) if (t >= segs[i].s && t < segs[i].e - 1000) { hit = segs[i]; break; }
+    if (hit !== curSeg) {
+      curSeg = hit;
+      if (hit) ui.intro.textContent = hit.label;
+      ui.intro.classList.toggle("on", !!hit);
+    }
+  }
+  function stopCd() {
+    clearInterval(cdT); cdT = 0;
+    if (ui.nx) { ui.nx.classList.remove("on"); ui.nxR.classList.remove("run"); }
+    if (root) root.classList.remove("znp-end");
+  }
+  function startCd() {
+    if (cdT || !ui.nx) return;
+    var N = 5; cdLeft = N; ui.nxN.textContent = N;
+    ui.nxR.style.setProperty("--cd", N + "s"); void ui.nxR.offsetWidth; ui.nxR.classList.add("run");
+    ui.nx.classList.add("on");
+    cdT = setInterval(function () { cdLeft--; ui.nxN.textContent = Math.max(cdLeft, 0); if (cdLeft <= 0) goNext(); }, 1000);
+  }
+  function goNext() {
+    stopCd(); close(true);
+    if (typeof W.addonStep === "function") W.addonStep(1);
+  }
+  /* al terminar el episodio (modo Elegante): cuenta regresiva en lugar de saltar de golpe */
+  function startEnd() {
+    closeSheet(); root.classList.add("znp-end");
+    startCd();
+  }
+
   /* ---------- botón Atrás del celular ---------- */
   function attachBack() {
     var A = W.Capacitor && W.Capacitor.Plugins && W.Capacitor.Plugins.App;
@@ -511,7 +650,9 @@
     });
     p.addListener("znpEnded", function () {
       if (!isOpen) return;
-      var tv = isTv(); st.time = st.length; try { if (meta && W.ZCW) W.ZCW.progress(meta, st.length, st.length, true); } catch (e) {} meta = null; close(true);
+      var tv = isTv(); st.time = st.length; try { if (meta && W.ZCW) W.ZCW.progress(meta, st.length, st.length, true); } catch (e) {} meta = null;
+      if (tv && eleg() && typeof W.addonStep === "function") { startEnd(); return; }
+      close(true);
       if (tv && typeof W.addonStep === "function") W.addonStep(1);
     });
     p.addListener("znpPip", function (e) {
@@ -548,7 +689,7 @@
     ui.title.textContent = curTitle || "Reproduciendo";
     var c = W._addonCtx;
     ui.sub.textContent = c && c.type === "tv" ? "Temporada " + c.season + " · Episodio " + c.episode : "";
-    ui.next.hidden = !isTv();
+    ui.next.hidden = !isTv(); stopCd(); loadSegs();
     speedBadge(); ui.src.hidden = !(meta && W.ZAM && W.ZAM.sources);
     sheetOpen = false; ui.sheet.hidden = true; dragging = false;
     isOpen = true; root.hidden = false; D.documentElement.classList.add("znp-on");
@@ -563,7 +704,7 @@
   function close(stopNative) {
     if (!isOpen) return;
     savePos(true);
-    isOpen = false; sheetOpen = false;
+    isOpen = false; sheetOpen = false; stopCd(); curSeg = null; segs = [];
     clearTimeout(hideT); clearTimeout(tapT); clearTimeout(applyT); applyT = 0;
     detachBack();
     root.hidden = true;
