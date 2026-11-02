@@ -215,7 +215,7 @@
    <div class="st-row"><div class="st-lab"><b>Color de acento</b><small>Botones, filtros y detalles activos.</small></div>
     <div class="st-seg" role="radiogroup" aria-label="Color de acento" data-key="accent"><button type="button" role="radio" aria-checked="false" data-val="cyan"><i class="st-dot" style="background:#64f4ff"></i>Cian</button><button type="button" role="radio" aria-checked="false" data-val="violet"><i class="st-dot" style="background:#b69cff"></i>Violeta</button><button type="button" role="radio" aria-checked="false" data-val="neutral"><i class="st-dot" style="background:#dfe5f2"></i>Neutro</button><button type="button" role="radio" aria-checked="false" data-val="rose"><i class="st-dot" style="background:#ff8fd0"></i>Rosa</button><button type="button" role="radio" aria-checked="false" data-val="amber"><i class="st-dot" style="background:#ffc861"></i>Ámbar</button></div></div>
    <div class="st-row"><div class="st-line"><div class="st-lab"><b id="stL2">Reducir animaciones</b><small id="stMotionNote">Quita transiciones, el desplazamiento suave y el avance automático de la portada.</small></div><button class="st-sw" type="button" role="switch" aria-checked="false" aria-labelledby="stL2" data-key="reduceMotion"></button></div></div>
-   <div class="st-row"><div class="st-line"><div class="st-lab"><b id="stL9">Tráiler de fondo en la ficha</b><small>Reproduce sin sonido el tráiler arriba de la ficha. Gasta algo de datos y batería.</small></div><button class="st-sw" type="button" role="switch" aria-checked="true" aria-labelledby="stL9" data-key="bgTrailer"></button></div></div>
+   <div class="st-row"><div class="st-line"><div class="st-lab"><b id="stL9">Tráiler de fondo en la ficha (experimental)</b><small>Reproduce sin sonido el tráiler arriba de la ficha. Puede mostrar los controles de YouTube y gasta datos y batería.</small></div><button class="st-sw" type="button" role="switch" aria-checked="false" aria-labelledby="stL9" data-key="bgTrailer"></button></div></div>
    <div class="st-row"><div class="st-lab"><b>Tamaño de las tarjetas</b><small>Cuántos títulos caben en cada fila del catálogo y de tus listas.</small></div>
     <div class="st-seg" role="radiogroup" aria-label="Tamaño de las tarjetas" data-key="cards"><button type="button" role="radio" aria-checked="false" data-val="compact">Compactas</button><button type="button" role="radio" aria-checked="false" data-val="normal">Normales</button><button type="button" role="radio" aria-checked="false" data-val="large">Grandes</button></div></div>
    <div class="st-row"><div class="st-lab"><b>Estilo de carga del reproductor</b><small>Animación que aparece mientras carga el video.</small></div>
@@ -403,6 +403,7 @@ function guessMood(gs){let a=[];if(gs.includes("Misterio")||gs.includes("Crimen"
 function poster(t){const img=t.posterPath?`<img src="https://image.tmdb.org/t/p/w500${t.posterPath}" alt="" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;z-index:0">`:"";return `<div class="poster" style="--c1:${(t.colors||[])[0]||"#3b3f6b"};--c2:${(t.colors||[])[1]||"#12142b"}">${img}${t.posterPath?"":`<span class="symbol">${t.emoji}</span>`}<span class="rating">★ ${Number(t.rating||0).toFixed(1)}</span><span class="type">${t.kind}</span><span class="poster-name">${esc(t.title)}</span></div>`}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function card(t){return `<article class="card" onclick="openDetail('${String(t.id).replace(/'/g,"")}')">${poster(t)}<h3>${esc(t.title)}</h3><div class="sub">${t.year||"Año desconocido"} · ${(t.genre||[]).slice(0,2).map(esc).join(" / ")||t.kind}</div></article>`}
+function skelCards(n){return Array.from({length:n},()=>'<article class="card sk-card" aria-hidden="true"><div class="sk-poster"></div><div class="sk-line"></div><div class="sk-line sk-s"></div></article>').join("")}
 function draw(id,arr){const el=document.getElementById(id);if(!el)return;el.innerHTML=arr.length?arr.map(card).join(""):`<div class="empty">No encontramos títulos con esos filtros. Prueba con otra búsqueda.</div>`}
 // CineVerse: mapa progresivo de conexiones reales de TMDB
 let verseNodes=[],verseEdges=[],verseCounter=0,verseSelectedId=null,verseDrag=null,verseListVisible=false,verseJustDragged=false;
@@ -516,7 +517,7 @@ function zyBgStop(){
 function zyBgStart(tok){
  if(tok!==zyBgTok)return;
  try{
-  const s=zySettings;if(!s||s.bgTrailer===false)return;
+  const s=zySettings;if(!s||!s.bgTrailer)return;
   if(document.documentElement.classList.contains("reduce-motion")||document.hidden)return;
   const cn=navigator.connection;if(cn&&cn.saveData)return;
   const m=document.getElementById("detailModal");if(!m||!m.classList.contains("open"))return;
@@ -660,7 +661,7 @@ async function liveSearch(q){
  if(hit&&Date.now()-hit.t>300000){searchCache.delete(key);hit=null}
  let results=hit&&hit.r,totalPages=hit?(hit.tp||1):1;
  if(!results){
-  el.innerHTML='<div class="empty">Buscando en TMDB…</div>';
+  el.innerHTML=skelCards(12);
   const ctrl=new AbortController();searchCtrl=ctrl;
   try{
    const data=await tmdb("/search/multi",{query:q,include_adult:"false",page:1},{signal:ctrl.signal});
@@ -687,7 +688,7 @@ async function liveSearch(q){
  }
  if(seq!==searchSeq)return;
  liveQ=q.toLowerCase();titles=results.slice();sourceMode="live";exMoreState=totalPages>1?{q,page:1,total:totalPages}:null;renderExplore();exMoreUpdate()}
-async function loadTrending(){if(!getCredential()){renderHome();return}try{const data=await tmdb("/trending/all/week");titles=data.results.filter(x=>["movie","tv"].includes(x.media_type)).map(x=>normalize(x));heroPool=titles.slice();sourceMode="live";renderHome();document.getElementById("trendStatus").textContent="Tendencias reales de TMDB · semana actual";document.getElementById("exploreSub").textContent="Datos conectados a TMDB."}catch(e){document.getElementById("trendStatus").textContent=errMsg(e,"No se pudieron cargar las tendencias.");renderHome()}}
+async function loadTrending(){if(!getCredential()){renderHome();return}try{const tg=document.getElementById("trendingGrid");if(tg)tg.innerHTML=skelCards(6);const data=await tmdb("/trending/all/week");titles=data.results.filter(x=>["movie","tv"].includes(x.media_type)).map(x=>normalize(x));heroPool=titles.slice();sourceMode="live";renderHome();document.getElementById("trendStatus").textContent="Tendencias reales de TMDB · semana actual";document.getElementById("exploreSub").textContent="Datos conectados a TMDB."}catch(e){document.getElementById("trendStatus").textContent=errMsg(e,"No se pudieron cargar las tendencias.");renderHome()}}
 
 /* ===== Cargar más resultados (búsqueda y catálogo) ===== */
 function exMoreUpdate(){const w=document.getElementById("exMoreWrap");if(w)w.hidden=!(exMoreState&&(exMoreState.cat||exMoreState.page<exMoreState.total))}
@@ -715,7 +716,7 @@ async function exMoreLoad(){
 }
 document.getElementById("exMore").addEventListener("click",exMoreLoad);
 let currentMaxRuntime=null;
-async function loadExploreCatalog(){if(!getCredential())return;exMoreState=null;exMoreUpdate();const el=document.getElementById("exploreGrid");el.innerHTML='<div class="empty">Cargando películas y series de TMDB…</div>';try{const pf=currentProvider?{with_watch_providers:currentProvider,watch_region:getRegion(),with_watch_monetization_types:"flatrate"}:{};const base={sort_by:"popularity.desc",include_adult:"false",...pf};if(currentMaxRuntime){base["with_runtime.lte"]=currentMaxRuntime;base["with_runtime.gte"]=1}const pages=(currentProvider||currentMaxRuntime)?[1,2]:[1];const reqs=[];pages.forEach(pg=>{reqs.push(tmdb("/discover/movie",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"movie"}))));if(!currentMaxRuntime)reqs.push(tmdb("/discover/tv",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"tv"}))))});const combined=(await Promise.all(reqs)).flat();if(searchTerm.trim().length>=2)return;const seen=new Set();titles=combined.filter(x=>{if(seen.has(x.id))return false;seen.add(x.id);return true});sourceMode="live";exCatBase=base;exMoreState={cat:true,page:pages[pages.length-1]};renderExplore();exMoreUpdate();if(currentMaxRuntime)document.getElementById("exploreSub").textContent="Películas de hasta "+currentMaxRuntime+" min · "+titles.length+" resultados (datos de TMDB)";if(currentProvider){const pv=providerList.find(q=>String(q.id)===String(currentProvider));document.getElementById("exploreSub").textContent="Disponible en "+(pv?pv.name:"la plataforma")+" · "+regionName(getRegion())+" (datos de TMDB)"}}catch(e){if(searchTerm.trim().length>=2)return;if(!titles.length||sourceMode!=="live"){document.getElementById("exploreGrid").innerHTML=errBox(e,"loadExploreCatalog()")}else renderExplore();document.getElementById("exploreSub").textContent=errMsg(e,"No se pudo cargar el catálogo completo.")}}
+async function loadExploreCatalog(){if(!getCredential())return;exMoreState=null;exMoreUpdate();const el=document.getElementById("exploreGrid");el.innerHTML=skelCards(12);try{const pf=currentProvider?{with_watch_providers:currentProvider,watch_region:getRegion(),with_watch_monetization_types:"flatrate"}:{};const base={sort_by:"popularity.desc",include_adult:"false",...pf};if(currentMaxRuntime){base["with_runtime.lte"]=currentMaxRuntime;base["with_runtime.gte"]=1}const pages=(currentProvider||currentMaxRuntime)?[1,2]:[1];const reqs=[];pages.forEach(pg=>{reqs.push(tmdb("/discover/movie",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"movie"}))));if(!currentMaxRuntime)reqs.push(tmdb("/discover/tv",{...base,page:pg}).then(d=>(d.results||[]).map(x=>normalize({...x,media_type:"tv"}))))});const combined=(await Promise.all(reqs)).flat();if(searchTerm.trim().length>=2)return;const seen=new Set();titles=combined.filter(x=>{if(seen.has(x.id))return false;seen.add(x.id);return true});sourceMode="live";exCatBase=base;exMoreState={cat:true,page:pages[pages.length-1]};renderExplore();exMoreUpdate();if(currentMaxRuntime)document.getElementById("exploreSub").textContent="Películas de hasta "+currentMaxRuntime+" min · "+titles.length+" resultados (datos de TMDB)";if(currentProvider){const pv=providerList.find(q=>String(q.id)===String(currentProvider));document.getElementById("exploreSub").textContent="Disponible en "+(pv?pv.name:"la plataforma")+" · "+regionName(getRegion())+" (datos de TMDB)"}}catch(e){if(searchTerm.trim().length>=2)return;if(!titles.length||sourceMode!=="live"){document.getElementById("exploreGrid").innerHTML=errBox(e,"loadExploreCatalog()")}else renderExplore();document.getElementById("exploreSub").textContent=errMsg(e,"No se pudo cargar el catálogo completo.")}}
 const moodGenreIds={
   mystery:{movie:"9648,53",tv:"9648,80"},
   action:{movie:"28,12",tv:"10759"},
@@ -1302,7 +1303,7 @@ function toggleRouSound(){rouSound=!rouSound;try{localStorage.setItem("cc_rou_so
    Usa su propia clave "zy_settings_v1". No lee ni modifica ninguna clave existente
    (listas, caché, gustos, credenciales, región...). Restablecer solo borra esa clave. */
 var ZY_VERSION="1.0",zyKey="zy_settings_v1",zySettings=null,zyGenreList=[],zyResetTimer=null,zyPrev="home";
-var zyDefaults={amoled:false,style:"vivid",accent:"cyan",reduceMotion:false,bgTrailer:true,cards:"normal",loader:"pulse",kind:"both",genres:[],sort:"year",prioritize:true};
+var zyDefaults={amoled:false,style:"vivid",accent:"cyan",reduceMotion:false,bgTrailer:false,cards:"normal",loader:"pulse",kind:"both",genres:[],sort:"year",prioritize:true};
 function zySystemReduce(){try{return window.matchMedia("(prefers-reduced-motion: reduce)").matches}catch(e){return false}}
 function zyReduceMotion(){return document.documentElement.classList.contains("reduce-motion")}
 function zySanitize(r){
@@ -1311,7 +1312,7 @@ function zySanitize(r){
   d.style=["elegant","vivid"].includes(r.style)?r.style:"vivid";
   d.accent=["cyan","violet","neutral","rose","amber"].includes(r.accent)?r.accent:"cyan";
   d.reduceMotion=r.reduceMotion===true;
-  d.bgTrailer=r.bgTrailer!==false;
+  d.bgTrailer=r.bgTrailer===true;
   d.cards=["compact","normal","large"].includes(r.cards)?r.cards:"normal";
   d.loader=["trace","pulse","build","edge"].includes(r.loader)?r.loader:"pulse";
   d.kind=["movies","series","both"].includes(r.kind)?r.kind:"both";
