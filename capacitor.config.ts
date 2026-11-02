@@ -8,7 +8,11 @@ const config: CapacitorConfig = {
     androidScheme: 'https'
   },
   plugins: {
-    CapacitorHttp: { enabled: true }
+    CapacitorHttp: { enabled: true },
+    LocalNotifications: {
+      smallIcon: 'ic_stat_zynora',
+      iconColor: '#8B5CF6'
+    }
   }
 };
 
