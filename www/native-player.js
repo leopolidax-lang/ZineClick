@@ -112,7 +112,38 @@
   /* base: los elementos del modo Elegante no se ven en el modo colorido */
   CSS += '#znpRoot .znp-intro,#znpRoot .znp-nx{display:none}';
 
+  /* base: la píldora "Seguir viendo" solo se ve en el modo Elegante */
+  CSS += '#znpRoot .znp-pill{display:none}' +
+    '#znpRoot .znp-cw{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;padding:calc(max(env(safe-area-inset-top),14px) + 62px) 0 max(env(safe-area-inset-bottom),14px);background:linear-gradient(rgba(0,0,0,.8),rgba(0,0,0,.62));animation:znpCw .28s ease}' +
+    '#znpRoot .znp-cw[hidden]{display:none}' +
+    '@keyframes znpCw{from{opacity:0}to{opacity:1}}' +
+    '#znpRoot .znp-cw-h{display:flex;gap:10px;padding:0 max(env(safe-area-inset-right),22px) 14px max(env(safe-area-inset-left),22px)}' +
+    '#znpRoot .znp-cwp{display:inline-flex;align-items:center;height:36px;padding:0 18px;border-radius:999px;background:#fff;color:#000;font-size:15px;font-weight:600}' +
+    '#znpRoot .znp-cwp:active{opacity:.75}' +
+    '#znpRoot .znp-cw-r{display:flex;gap:14px;overflow-x:auto;padding:2px max(env(safe-area-inset-right),22px) 10px max(env(safe-area-inset-left),22px);scrollbar-width:none;-webkit-overflow-scrolling:touch}' +
+    '#znpRoot .znp-cw-r::-webkit-scrollbar{display:none}' +
+    '#znpRoot .znp-cwc{flex:none;width:min(260px,38vw);display:flex;flex-direction:column;gap:8px;text-align:left}' +
+    '#znpRoot .znp-cwc:active{opacity:.75}' +
+    '#znpRoot .znp-cwt{position:relative;display:block;aspect-ratio:16/9;border-radius:16px;overflow:hidden;background:#15181f;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}' +
+    '#znpRoot .znp-cwt img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}' +
+    '#znpRoot .znp-cwt::after{content:"";position:absolute;inset:0;background:linear-gradient(transparent 55%,rgba(0,0,0,.55))}' +
+    '#znpRoot .znp-cwg{position:absolute;z-index:1;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.3)}' +
+    '#znpRoot .znp-cwg u{display:block;height:100%;background:#fff;text-decoration:none}' +
+    '#znpRoot .znp-cwx{display:flex;flex-direction:column;gap:1px;min-width:0;padding:0 4px}' +
+    '#znpRoot .znp-cwx b{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '#znpRoot .znp-cwx small{font-size:13px;font-weight:500;color:rgba(255,255,255,.62);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    /* con el panel abierto: se ocultan los controles centrales e inferiores, la barra de arriba queda */
+    '#znpRoot.znp-cwo .znp-ui{z-index:4}' +
+    '#znpRoot.znp-cwo .znp-ui::after{display:none}' +
+    '#znpRoot.znp-cwo .znp-mid,#znpRoot.znp-cwo .znp-bot,#znpRoot.znp-cwo .znp-ttl{visibility:hidden}' +
+    '#znpRoot.znp-cwo .znp-intro,#znpRoot.znp-cwo .znp-nx{display:none!important}' +
+    '#znpRoot .znp-sh-h{padding:12px 14px 4px;font-size:12px;font-weight:600;color:rgba(255,255,255,.5)}';
+
   CSS += [
+    "html[data-style=elegant] #znpRoot .znp-pill{display:inline-flex;align-items:center;flex:none;height:36px;padding:0 18px;margin-left:auto;border-radius:999px;background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);font-size:15px;font-weight:600;color:#fff;white-space:nowrap}",
+    "html[data-style=elegant] #znpRoot .znp-pill:active{opacity:.7}",
+    "#znpRoot .znp-pill[hidden]{display:none!important}",
+    "html[data-style=elegant] #znpRoot .znp-pill:not([hidden]) + .znp-nx{margin-left:6px}",
     "html[data-style=elegant] #znpRoot .znp-ui{transition:opacity .5s cubic-bezier(.4,0,.2,1)}",
     "html[data-style=elegant] #znpRoot .znp-top,html[data-style=elegant] #znpRoot .znp-bot{transition:transform .5s cubic-bezier(.4,0,.2,1)}",
     "html[data-style=elegant] #znpRoot.znp-hide .znp-top{transform:translateY(-8px)}",
@@ -170,6 +201,9 @@
   var origPlay = typeof W.rdPlay === "function" ? W.rdPlay : null;
   var castName = "", castPoll = 0, castSig = "", rate = 1, aspect = "fit", meta = null, sheetKind = "", quality = 0, startAt = 0, applied = false, applyTry = 0, applyT = 0;
   var thumbC = {}, thumbBusy = false, thumbOk = true, thumbFail = 0, thumbWant = -1;
+  var cwOpen = false, curUrl = "", subDirty = false, subSt = null;
+  var TMI = "https://image.tmdb.org/t/p/w500";
+  var SUBK = "zy_sub";
 
   function fmt(ms) {
     var s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
@@ -252,11 +286,13 @@
             '<button class="znp-ic" data-p="quality" aria-label="Calidad" title="Calidad">' + ICON.quality + '</button>' +
             '<button class="znp-ic" data-p="speed" id="znpSpeed" aria-label="Velocidad" title="Velocidad">' + ICON.speed + '<small id="znpSpeedB"></small></button>' +
             '<button class="znp-ic" data-p="aspect" aria-label="Pantalla" title="Pantalla">' + ICON.aspect + '</button>' +
+            '<button class="znp-pill" id="znpCwB" hidden>Seguir viendo</button>' +
             '<button class="znp-ic znp-nx" id="znpNext" aria-label="Siguiente episodio" title="Siguiente episodio" hidden>' + ICON.next + '</button></div></div>' +
       '</div>' +
-      '<div class="znp-sheet" id="znpSheet" hidden><div class="znp-sh-t" id="znpShT"></div><div class="znp-sh-l" id="znpShL"></div></div>';
+      '<div class="znp-sheet" id="znpSheet" hidden><div class="znp-sh-t" id="znpShT"></div><div class="znp-sh-l" id="znpShL"></div></div>' +
+      '<div class="znp-cw" id="znpCw" hidden><div class="znp-cw-h"><button class="znp-cwp" id="znpCwP">Seguir viendo</button></div><div class="znp-cw-r" id="znpCwR"></div></div>';
     D.body.appendChild(root);
-    ["Tap", "Ui", "Back", "Title", "Sub", "Rew", "Play", "Fwd", "Bar", "Fill", "Knob", "Cur", "Dur", "Pv", "PvI", "PvT", "Speed", "SpeedB", "Src", "Cast", "Cb", "Next", "Sheet", "ShT", "ShL", "Fl", "Fr", "Msg", "Intro", "Nx", "NxR", "NxN", "NxGo", "NxNo"]
+    ["Tap", "Ui", "Back", "Title", "Sub", "Rew", "Play", "Fwd", "Bar", "Fill", "Knob", "Cur", "Dur", "Pv", "PvI", "PvT", "Speed", "SpeedB", "Src", "Cast", "Cb", "Next", "Sheet", "ShT", "ShL", "Fl", "Fr", "Msg", "Intro", "Nx", "NxR", "NxN", "NxGo", "NxNo", "CwB", "Cw", "CwP", "CwR"]
       .forEach(function (k) { ui[k.charAt(0).toLowerCase() + k.slice(1)] = $("znp" + k); });
 
     ui.back.onclick = function () { close(true); };
@@ -269,6 +305,13 @@
     ui.intro.onclick = function () { if (!curSeg) return; var e = curSeg.e; curSeg = null; ui.intro.classList.remove("on"); st.time = e; call("seekTo", { ms: Math.round(e) }).catch(noop); paint(); };
     ui.nxGo.onclick = function () { goNext(); };
     ui.nxNo.onclick = function () { stopCd(); close(true); };
+    ui.cwB.onclick = function () { openCw(); };
+    ui.cwP.onclick = function () { closeCw(); };
+    ui.cw.addEventListener("click", function (e) {
+      var c = e.target.closest && e.target.closest("[data-k]");
+      if (c) { playCw(c.getAttribute("data-k")); return; }
+      if (!(e.target.closest && e.target.closest(".znp-cwp"))) closeCw();
+    });
     root.querySelectorAll(".znp-acts [data-p]").forEach(function (b) { b.onclick = function () { toggleSheet(b.getAttribute("data-p")); }; });
 
     /* toque en el video: un toque muestra/oculta controles; doble toque a los lados salta 10 s, al centro pausa */
@@ -318,7 +361,7 @@
     if (!root) return;
     root.classList.remove("znp-hide");
     clearTimeout(hideT);
-    hideT = setTimeout(function () { if (st.playing && !sheetOpen && !dragging) root.classList.add("znp-hide"); }, 3500);
+    hideT = setTimeout(function () { if (st.playing && !sheetOpen && !dragging && !cwOpen) root.classList.add("znp-hide"); }, 3500);
   }
   function msg(t) {
     ui.msg.textContent = t; ui.msg.classList.add("on");
@@ -353,18 +396,22 @@
 
   /* ---------- panel lateral: audio, subtítulos, velocidad, pantalla ---------- */
   function toggleSheet(kind) { if (sheetOpen && sheetKind === kind) { closeSheet(); return; } openSheet(kind); }
-  function closeSheet() { clearInterval(castPoll); sheetOpen = false; if (ui.sheet) ui.sheet.hidden = true; showUi(); }
+  function closeSheet() {
+    clearInterval(castPoll); sheetOpen = false; if (ui.sheet) ui.sheet.hidden = true; showUi();
+    if (subDirty) { subDirty = false; restartForSubs(); }
+  }
   function fillSheet(title, items, empty) {
     ui.shT.textContent = title; ui.shL.innerHTML = "";
     if (!items.length) { var e = D.createElement("div"); e.className = "znp-sh-e"; e.textContent = empty || "Nada disponible"; ui.shL.appendChild(e); return; }
     items.forEach(function (it) {
+      if (it.head) { var h = D.createElement("div"); h.className = "znp-sh-h"; h.textContent = it.head; ui.shL.appendChild(h); return; }
       var b = D.createElement("button"); b.type = "button";
       var tx = D.createElement("span"); tx.className = "znp-tx";
       var l = D.createElement("span"); l.textContent = it.label; tx.appendChild(l);
       if (it.sub) { var sm = D.createElement("small"); sm.textContent = it.sub; tx.appendChild(sm); }
       b.appendChild(tx);
       if (it.on) { b.className = "on"; b.insertAdjacentHTML("beforeend", ICON.check); }
-      b.onclick = function () { it.fn(); closeSheet(); };
+      b.onclick = function () { it.fn(); if (it.keep) openSheet(sheetKind); else closeSheet(); };
       ui.shL.appendChild(b);
     });
   }
@@ -395,6 +442,19 @@
       fillSheet("Pantalla", [["fit", "Ajustar"], ["zoom", "Zoom (recorta los bordes)"], ["fill", "Estirar"], ["16:9", "16:9"], ["4:3", "4:3"]].map(function (a) {
         return { label: a[1], on: a[0] === aspect, fn: function () { aspect = a[0]; call("setAspect", { mode: a[0] }).catch(noop); } };
       }));
+    } else if (kind === "substyle") {
+      var cs = subSt || { size: "m", bg: "normal" };
+      var setS = function (k, val) { subSt = { size: cs.size, bg: cs.bg }; subSt[k] = val; try { localStorage.setItem(SUBK, JSON.stringify(subSt)); } catch (e) {} subDirty = true; };
+      var sty = [{ label: "‹  Subtítulos", keep: true, fn: function () { sheetKind = "subs"; } }, { head: "Tamaño" }];
+      [["s", "Pequeño"], ["m", "Mediano"], ["l", "Grande"], ["xl", "Muy grande"]].forEach(function (a) {
+        sty.push({ label: a[1], on: cs.size === a[0], keep: true, fn: function () { setS("size", a[0]); sheetKind = "substyle"; } });
+      });
+      sty.push({ head: "Fondo" });
+      [["shadow", "Solo sombra"], ["light", "Translúcido"], ["normal", "Normal"], ["solid", "Negro sólido"]].forEach(function (a) {
+        sty.push({ label: a[1], on: cs.bg === a[0], keep: true, fn: function () { setS("bg", a[0]); sheetKind = "substyle"; } });
+      });
+      sty.push({ head: "El video se reinicia un momento al cerrar este panel para aplicar el cambio" });
+      fillSheet("Estilo de subtítulos", sty);
     } else {
       fillSheet(kind === "audio" ? "Audio" : "Subtítulos", [], "Cargando…");
       call("getTracks").then(function (t) {
@@ -408,6 +468,7 @@
             fn: function () { call(kind === "audio" ? "setAudio" : "setSubtitle", { id: Number(x.id) }).catch(noop); remember(kind === "audio" ? "a" : "s", x, list); }
           };
         });
+        if (kind === "subs" && eleg() && items.length) items.push({ label: "Estilo de los subtítulos", sub: "Tamaño y fondo", keep: true, fn: function () { sheetKind = "substyle"; } });
         fillSheet(kind === "audio" ? "Audio" : "Subtítulos", items, kind === "audio" ? "Este video no trae otras pistas de audio" : "Este video no trae subtítulos");
       }).catch(function () { fillSheet(kind === "audio" ? "Audio" : "Subtítulos", [], "No se pudieron leer las pistas"); });
     }
@@ -612,15 +673,65 @@
   }
   /* al terminar el episodio (modo Elegante): cuenta regresiva en lugar de saltar de golpe */
   function startEnd() {
-    closeSheet(); root.classList.add("znp-end");
+    closeSheet(); closeCw(); root.classList.add("znp-end");
     startCd();
+  }
+
+  /* ---------- estilo de subtítulos (tamaño y fondo): se aplica al iniciar VLC, por eso reinicia el video en el mismo minuto ---------- */
+  function subLoad() {
+    try { var o = JSON.parse(localStorage.getItem(SUBK) || "null"); if (o && /^(s|m|l|xl)$/.test(o.size) && /^(shadow|light|normal|solid)$/.test(o.bg)) return o; } catch (e) {}
+    return null;
+  }
+  function restartForSubs() {
+    if (!isOpen || !curUrl) return;
+    var t = st.time, title = curTitle, url = curUrl, mt = meta, fb = fallback;
+    say("Aplicando estilo de subtítulos…");
+    close(true);
+    setTimeout(function () { open(url, title, fb, mt, t); }, 300);
+  }
+
+  /* ---------- Seguir viendo dentro del reproductor (como Apple TV) ---------- */
+  function esc(x) { return String(x == null ? "" : x).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function curKey() { var c = W._addonCtx; return c && c.tmdbId ? (c.type === "tv" ? "tv" : "movie") + ":" + c.tmdbId : ""; }
+  function cwItems() {
+    var k = curKey(), all = [];
+    try { all = (W.ZCW && W.ZCW.list && W.ZCW.list()) || []; } catch (e) {}
+    return all.filter(function (x) { return x && x.key !== k; });
+  }
+  function cwPill() { if (ui.cwB) ui.cwB.hidden = !(eleg() && cwItems().length); }
+  function cwCard(en) {
+    var img = en.backdrop ? TMI + en.backdrop : (en.poster ? TMI + en.poster : "");
+    var nx = !!(en.done && en.ns), s = nx ? en.ns : en.s, e = nx ? en.ne : en.e;
+    var left = (!nx && en.len > 0) ? Math.max(1, Math.round((en.len - en.pos) / 60000)) : 0;
+    var pct = left ? Math.max(1, Math.min(99, Math.round(en.pos / en.len * 100))) : 0;
+    var sub = en.type === "tv" ? (nx ? "Siguiente · " : "") + "T" + s + ", E" + e + (left ? " · " + left + " min" : "") : (left ? left + " min" : "");
+    return '<button type="button" class="znp-cwc" data-k="' + esc(en.key) + '"><span class="znp-cwt">' + (img ? '<img alt="" src="' + esc(img) + '">' : "") +
+      (pct ? '<i class="znp-cwg"><u style="width:' + pct + '%"></u></i>' : "") + '</span>' +
+      '<span class="znp-cwx"><b>' + esc(en.title) + "</b>" + (sub ? "<small>" + esc(sub) + "</small>" : "") + "</span></button>";
+  }
+  function openCw() {
+    var items = cwItems(); if (!items.length) { cwPill(); return; }
+    closeSheet(); cwOpen = true;
+    ui.cwR.innerHTML = items.map(cwCard).join("");
+    ui.cwR.scrollLeft = 0;
+    ui.cw.hidden = false; root.classList.add("znp-cwo");
+    clearTimeout(hideT); root.classList.remove("znp-hide");
+  }
+  function closeCw() {
+    if (!cwOpen) return;
+    cwOpen = false; ui.cw.hidden = true; root.classList.remove("znp-cwo"); showUi();
+  }
+  function playCw(key) {
+    var en = W.ZCW && W.ZCW.get && W.ZCW.get(key), Z = W.ZAM;
+    if (!en || !Z || !Z.resume) return;
+    closeCw(); close(true); Z.resume(en);
   }
 
   /* ---------- botón Atrás del celular ---------- */
   function attachBack() {
     var A = W.Capacitor && W.Capacitor.Plugins && W.Capacitor.Plugins.App;
     if (!A || !A.addListener || backH) return;
-    try { backH = A.addListener("backButton", function () { if (sheetOpen) closeSheet(); else close(true); }); } catch (e) { backH = null; }
+    try { backH = A.addListener("backButton", function () { if (cwOpen) closeCw(); else if (sheetOpen) closeSheet(); else close(true); }); } catch (e) { backH = null; }
   }
   function detachBack() {
     if (!backH) return;
@@ -682,6 +793,7 @@
     var p = plug(); if (!p) return false;
     build(); listen(p);
     meta = mt || null; thumbC = {}; thumbBusy = false; thumbOk = true; thumbFail = 0; thumbWant = -1;
+    curUrl = url; subSt = subLoad(); cwOpen = false; subDirty = false; if (ui.cw) ui.cw.hidden = true; root.classList.remove("znp-cwo");
     curTitle = title || ""; fallback = fb || (origPlay ? function () { origPlay({ download: url }, title); } : null); resumed = false; rate = 1; aspect = "fit"; quality = 0; lastSave = 0;
     castName = ""; castSig = ""; clearInterval(castPoll); if (ui.cast) { ui.cast.classList.remove("on"); } root.classList.remove("znp-casting");
     startAt = Number(startMs) || 0; applied = false; applyTry = 0; clearTimeout(applyT); applyT = 0;
@@ -693,8 +805,8 @@
     speedBadge(); ui.src.hidden = !(meta && W.ZAM && W.ZAM.sources);
     sheetOpen = false; ui.sheet.hidden = true; dragging = false;
     isOpen = true; root.hidden = false; D.documentElement.classList.add("znp-on");
-    paint(); showUi(); attachBack();
-    p.play({ url: url, title: curTitle, referer: (W.__zplHdr && (W.__zplHdr.Referer || W.__zplHdr.referer)) || "", userAgent: (W.__zplHdr && (W.__zplHdr["User-Agent"] || W["__zplHdr"]["user-agent"])) || "" }).catch(function (e) {
+    cwPill(); paint(); showUi(); attachBack();
+    p.play({ subSize: (eleg() && subSt) ? subSt.size : "", subBg: (eleg() && subSt) ? subSt.bg : "", url: url, title: curTitle, referer: (W.__zplHdr && (W.__zplHdr.Referer || W.__zplHdr.referer)) || "", userAgent: (W.__zplHdr && (W.__zplHdr["User-Agent"] || W["__zplHdr"]["user-agent"])) || "" }).catch(function (e) {
       var f = fallback; close(false);
       if (f) { say("No se pudo abrir el reproductor nativo; se usa el interno"); f(); }
       else alert("No se pudo abrir el reproductor: " + ((e && e.message) || e));
@@ -704,7 +816,7 @@
   function close(stopNative) {
     if (!isOpen) return;
     savePos(true);
-    isOpen = false; sheetOpen = false; stopCd(); curSeg = null; segs = [];
+    isOpen = false; sheetOpen = false; cwOpen = false; subDirty = false; ui.cw.hidden = true; root.classList.remove("znp-cwo"); stopCd(); curSeg = null; segs = [];
     clearTimeout(hideT); clearTimeout(tapT); clearTimeout(applyT); applyT = 0;
     detachBack();
     root.hidden = true;

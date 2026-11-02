@@ -83,7 +83,10 @@
         key: meta.key, tmdbId: meta.tmdbId, type: meta.type, title: meta.title, poster: meta.poster, backdrop: meta.backdrop,
         s: meta.s, e: meta.e, epName: meta.epName || "", src: meta.src || (old && old.src) || null, ts: Date.now()
       });
-      delete base.ns; delete base.ne; delete base.nName;
+      /* Mientras sigues en los créditos del mismo episodio se conserva el "siguiente" ya calculado.
+         Antes se borraba en cada guardado (cada 5 s) y la serie desaparecía de Seguir viendo. */
+      var sameEp = !!(old && old.done && String(old.s) === String(meta.s) && String(old.e) === String(meta.e));
+      if (!(finished && sameEp)) { delete base.ns; delete base.ne; delete base.nName; }
       if (finished) {
         if (meta.type !== "tv") { delete m[meta.key]; cwSave(m); return; }
         base.done = true; base.pos = 0; base.len = 0;
@@ -103,8 +106,11 @@
   function fillNext(key, id, s, e) {
     var bk = key + "|" + s + ":" + e;
     if (nextBusy[bk]) return;
+    var c0 = cwAll()[key];
+    if (c0 && c0.done && c0.ns && String(c0.s) === String(s) && String(c0.e) === String(e)) return;   /* ya está calculado */
     nextBusy[bk] = 1;
     function same(c) { return c && c.done && String(c.s) === String(s) && String(c.e) === String(e); }
+    function free() { delete nextBusy[bk]; }
     nextEp(id, Number(s), Number(e), 1).then(function (n) {
       var m = cwAll(), c = m[key];
       if (!same(c)) return;
@@ -115,7 +121,15 @@
         c2.ns = n.s; c2.ne = n.e; c2.nName = nm || "";
         cwSave(m2); refreshRow();
       });
-    }).catch(function () { delete nextBusy[bk]; });
+    }).then(free, free);
+  }
+  /* Si quedó algún episodio terminado sin su "siguiente" (por el error anterior o por falta de internet), se recalcula */
+  function healNext() {
+    var m = cwAll();
+    Object.keys(m).forEach(function (k) {
+      var c = m[k];
+      if (c && c.type === "tv" && c.done && !c.ns) fillNext(k, c.tmdbId, c.s, c.e);
+    });
   }
 
   /* =============== Estilos =============== */
@@ -764,6 +778,7 @@
 
   function refreshRow() {
     var home = $("homePage"); if (!home) return;
+    try { healNext(); } catch (x) {}
     var list = ZCW.list(), sec = $("zcwSection");
     if (!list.length) { if (sec) sec.style.display = "none"; return; }
     if (!sec) {
@@ -851,5 +866,5 @@
     var t = { tmdbId: m.tmdbId, mediaType: type, title: m.title, posterPath: m.poster, backdropPath: m.backdrop };
     return { url: url, meta: metaFor(t, m.s, m.e, nm, snap) };
   }
-  W.ZAM = { open: openMenu, playFlow: playFlow, sources: srcList, resolve: srcResolve, webMeta: function () { return webMeta; }, saveWeb: saveWebNow, webSwitch: webSwitch };
+  W.ZAM = { open: openMenu, playFlow: playFlow, sources: srcList, resolve: srcResolve, webMeta: function () { return webMeta; }, saveWeb: saveWebNow, webSwitch: webSwitch, resume: safeContinue };
 })();

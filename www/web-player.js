@@ -136,7 +136,37 @@
   /* base: los elementos del modo Elegante no se ven en el modo colorido */
   CSS += '#zwpRoot .zwp-intro,#zwpRoot .zwp-nx{display:none}';
 
+  /* base: la píldora "Seguir viendo" solo se ve en el modo Elegante (y no en ventanas muy angostas) */
+  CSS += '#zwpRoot .zwp-pill{display:none}' +
+    '#zwpRoot .zwp-cw{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;padding:calc(max(env(safe-area-inset-top),14px) + 62px) 0 14px;background:linear-gradient(rgba(0,0,0,.8),rgba(0,0,0,.62));animation:zwpCw .28s ease;pointer-events:auto}' +
+    '#zwpRoot .zwp-cw[hidden]{display:none}' +
+    '@keyframes zwpCw{from{opacity:0}to{opacity:1}}' +
+    '#zwpRoot .zwp-cw-h{display:flex;gap:10px;padding:0 max(env(safe-area-inset-right),24px) 14px max(env(safe-area-inset-left),24px)}' +
+    '#zwpRoot .zwp-cwp{display:inline-flex;align-items:center;height:36px;padding:0 18px;border-radius:999px;background:#fff;color:#000;font-size:15px;font-weight:600}' +
+    '#zwpRoot .zwp-cwp:active{opacity:.75}' +
+    '#zwpRoot .zwp-cw-r{display:flex;gap:14px;overflow-x:auto;padding:2px max(env(safe-area-inset-right),24px) 10px max(env(safe-area-inset-left),24px);scrollbar-width:none}' +
+    '#zwpRoot .zwp-cw-r::-webkit-scrollbar{display:none}' +
+    '#zwpRoot .zwp-cwc{flex:none;width:clamp(150px,28%,260px);display:flex;flex-direction:column;gap:8px;text-align:left}' +
+    '#zwpRoot .zwp-cwc:hover{opacity:.9}#zwpRoot .zwp-cwc:active{opacity:.75}' +
+    '#zwpRoot .zwp-cwt{position:relative;display:block;aspect-ratio:16/9;border-radius:16px;overflow:hidden;background:#15181f;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}' +
+    '#zwpRoot .zwp-cwt img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}' +
+    '#zwpRoot .zwp-cwt::after{content:"";position:absolute;inset:0;background:linear-gradient(transparent 55%,rgba(0,0,0,.55))}' +
+    '#zwpRoot .zwp-cwg{position:absolute;z-index:1;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.3)}' +
+    '#zwpRoot .zwp-cwg u{display:block;height:100%;background:#fff;text-decoration:none}' +
+    '#zwpRoot .zwp-cwx{display:flex;flex-direction:column;gap:1px;min-width:0;padding:0 4px}' +
+    '#zwpRoot .zwp-cwx b{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '#zwpRoot .zwp-cwx small{font-size:13px;font-weight:500;color:rgba(255,255,255,.62);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '#zwpRoot.zwp-s .zwp-cw{padding-top:56px}#zwpRoot.zwp-s .zwp-cwc{width:clamp(130px,60%,220px)}#zwpRoot.zwp-s .zwp-pill{display:none!important}' +
+    /* con el panel abierto: se ocultan los controles centrales e inferiores, la barra de arriba queda */
+    '#zwpRoot.zwp-cwo .zwp-ui::after{display:none}' +
+    '#zwpRoot.zwp-cwo .zwp-mid,#zwpRoot.zwp-cwo .zwp-bot,#zwpRoot.zwp-cwo .zwp-ttl{visibility:hidden}' +
+    '#zwpRoot.zwp-cwo .zwp-intro,#zwpRoot.zwp-cwo .zwp-nx{display:none!important}';
+
   CSS += [
+    "html[data-style=elegant] #zwpRoot .zwp-pill{display:inline-flex;align-items:center;flex:none;height:36px;padding:0 18px;border-radius:999px;background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);font-size:15px;font-weight:600;color:#fff;white-space:nowrap}",
+    "html[data-style=elegant] #zwpRoot .zwp-pill:hover{background:rgba(255,255,255,.22)}",
+    "html[data-style=elegant] #zwpRoot .zwp-pill:active{opacity:.7}",
+    "#zwpRoot .zwp-pill[hidden]{display:none!important}",
     "html[data-style=elegant] #zwpRoot .zwp-ui{transition:opacity .5s cubic-bezier(.4,0,.2,1)}",
     "html[data-style=elegant] #zwpRoot .zwp-top,html[data-style=elegant] #zwpRoot .zwp-bot{transition:transform .5s cubic-bezier(.4,0,.2,1)}",
     "html[data-style=elegant] #zwpRoot.zwp-hide .zwp-top{transform:translateY(-8px)}",
@@ -193,6 +223,7 @@
   var sheetOpen = false, sheetKind = "", dragging = false, dragT = 0;
   var hideT = 0, msgT = 0, flashT = 0, tapT = 0, lastTap = 0, lastSide = 0, mvT = 0;
   var aspect = "fit", shownPlay = null, flashAcc = 0, flashDir = 0;
+  var cwOpen = false, TMI = "https://image.tmdb.org/t/p/w500";
 
   /* ---------- construcción ---------- */
   function build() {
@@ -224,14 +255,16 @@
             '<button class="zwp-ic" data-p="speed" id="zwpSpeed" aria-label="Velocidad" title="Velocidad">' + ICON.speed + '<small id="zwpSpeedB"></small></button>' +
             '<button class="zwp-ic" data-p="aspect" aria-label="Pantalla" title="Pantalla">' + ICON.aspect + '</button>' +
             '<span class="zwp-sp"></span>' +
+            '<button class="zwp-pill" id="zwpCwB" hidden>Seguir viendo</button>' +
             '<button class="zwp-ic" id="zwpNext" aria-label="Siguiente episodio" title="Siguiente episodio" hidden>' + ICON.next + '</button>' +
             '<div class="zwp-volw"><input type="range" id="zwpVol" min="0" max="1" step="0.02" aria-label="Volumen"><button class="zwp-ic" id="zwpMute" aria-label="Silenciar" title="Silenciar (M)"></button></div>' +
             '<button class="zwp-ic" id="zwpPip" aria-label="Ventana flotante" title="Ventana flotante" hidden>' + ICON.pip + '</button>' +
             '<button class="zwp-ic" id="zwpFs" aria-label="Pantalla completa" title="Pantalla completa (F)"></button>' +
           '</div></div>' +
       '</div>' +
-      '<div class="zwp-sheet" id="zwpSheet" hidden><div class="zwp-sh-t" id="zwpShT"></div><div class="zwp-sh-l" id="zwpShL"></div></div>';
-    ["Tap", "Ui", "Back", "Title", "Sub", "Rew", "Play", "Fwd", "Bar", "Fill", "Buf", "Knob", "Cur", "Dur", "Pv", "PvT", "Speed", "SpeedB", "Src", "Cast", "Next", "Sheet", "ShT", "ShL", "Fl", "Fr", "Msg", "Intro", "Nx", "NxR", "NxN", "NxGo", "NxNo", "Q", "Mute", "Vol", "Pip", "Fs"]
+      '<div class="zwp-sheet" id="zwpSheet" hidden><div class="zwp-sh-t" id="zwpShT"></div><div class="zwp-sh-l" id="zwpShL"></div></div>' +
+      '<div class="zwp-cw" id="zwpCw" hidden><div class="zwp-cw-h"><button class="zwp-cwp" id="zwpCwP">Seguir viendo</button></div><div class="zwp-cw-r" id="zwpCwR"></div></div>';
+    ["Tap", "Ui", "Back", "Title", "Sub", "Rew", "Play", "Fwd", "Bar", "Fill", "Buf", "Knob", "Cur", "Dur", "Pv", "PvT", "Speed", "SpeedB", "Src", "Cast", "Next", "Sheet", "ShT", "ShL", "Fl", "Fr", "Msg", "Intro", "Nx", "NxR", "NxN", "NxGo", "NxNo", "Q", "Mute", "Vol", "Pip", "Fs", "CwB", "Cw", "CwP", "CwR"]
       .forEach(function (k) { ui[k.charAt(0).toLowerCase() + k.slice(1)] = ZR.querySelector("#zwp" + k); });
 
     ui.back.onclick = function () {
@@ -260,6 +293,13 @@
     ui.nxGo.onclick = function () { goNext(); };
     ui.nxNo.onclick = function () { stopCd(); };
     ui.fs.onclick = toggleFs;
+    ui.cwB.onclick = function () { openCw(); };
+    ui.cwP.onclick = function () { closeCw(); };
+    ui.cw.addEventListener("click", function (e) {
+      var c = e.target.closest && e.target.closest("[data-k]");
+      if (c) { playCw(c.getAttribute("data-k")); return; }
+      if (!(e.target.closest && e.target.closest(".zwp-cwp"))) closeCw();
+    });
     ZR.querySelectorAll(".zwp-acts [data-p]").forEach(function (b) { b.onclick = function () { toggleSheet(b.getAttribute("data-p")); }; });
     /* para que la barra espaciadora siga pausando después de pulsar un botón */
     ZR.addEventListener("click", function (e) {
@@ -385,6 +425,7 @@
     ui.cast.hidden = !(v.remote && v.remote.prompt);
     ui.next.hidden = !(c && c.type === "tv");
     ui.src.hidden = !(Z && Z.sources && Z.webMeta && Z.webMeta());
+    cwPill();
   }
 
   /* ---------- estado ---------- */
@@ -417,7 +458,7 @@
     if (!ZR) return;
     ZR.classList.remove("zwp-hide");
     clearTimeout(hideT);
-    hideT = setTimeout(function () { if (v && !v.paused && !sheetOpen && !dragging) ZR.classList.add("zwp-hide"); }, 3500);
+    hideT = setTimeout(function () { if (v && !v.paused && !sheetOpen && !dragging && !cwOpen) ZR.classList.add("zwp-hide"); }, 3500);
   }
   function msg(t) {
     ui.msg.textContent = t; ui.msg.classList.add("on");
@@ -650,6 +691,7 @@
   }
   function startCd() {
     if (cdT || !ui.nx) return;
+    closeCw();
     var N = 5; cdLeft = N; ui.nxN.textContent = N;
     ui.nxR.style.setProperty("--cd", N + "s"); void ui.nxR.offsetWidth; ui.nxR.classList.add("run");
     ui.nx.classList.add("on");
@@ -675,6 +717,44 @@
     subCss.textContent = "#rdVideo::cue{font-size:" + px + "px;color:#fff;background-color:" + b[0] + ";text-shadow:" + b[1] + "}";
   }
 
+  /* ---------- Seguir viendo dentro del reproductor (como Apple TV) ---------- */
+  function esc(x) { return String(x == null ? "" : x).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function curKey() { var c = W._addonCtx; return c && c.tmdbId ? (c.type === "tv" ? "tv" : "movie") + ":" + c.tmdbId : ""; }
+  function cwItems() {
+    var k = curKey(), all = [];
+    try { all = (W.ZCW && W.ZCW.list && W.ZCW.list()) || []; } catch (e) {}
+    return all.filter(function (x) { return x && x.key !== k; });
+  }
+  function cwPill() { if (ui.cwB) ui.cwB.hidden = !(eleg() && cwItems().length); }
+  function cwCard(en) {
+    var img = en.backdrop ? TMI + en.backdrop : (en.poster ? TMI + en.poster : "");
+    var nx = !!(en.done && en.ns), s = nx ? en.ns : en.s, e = nx ? en.ne : en.e;
+    var left = (!nx && en.len > 0) ? Math.max(1, Math.round((en.len - en.pos) / 60000)) : 0;
+    var pct = left ? Math.max(1, Math.min(99, Math.round(en.pos / en.len * 100))) : 0;
+    var sub = en.type === "tv" ? (nx ? "Siguiente · " : "") + "T" + s + ", E" + e + (left ? " · " + left + " min" : "") : (left ? left + " min" : "");
+    return '<button type="button" class="zwp-cwc" data-k="' + esc(en.key) + '"><span class="zwp-cwt">' + (img ? '<img alt="" src="' + esc(img) + '">' : "") +
+      (pct ? '<i class="zwp-cwg"><u style="width:' + pct + '%"></u></i>' : "") + '</span>' +
+      '<span class="zwp-cwx"><b>' + esc(en.title) + "</b>" + (sub ? "<small>" + esc(sub) + "</small>" : "") + "</span></button>";
+  }
+  function openCw() {
+    var items = cwItems(); if (!items.length) { cwPill(); return; }
+    closeSheet(); cwOpen = true;
+    ui.cwR.innerHTML = items.map(cwCard).join("");
+    ui.cwR.scrollLeft = 0;
+    ui.cw.hidden = false; ZR.classList.add("zwp-cwo");
+    clearTimeout(hideT); ZR.classList.remove("zwp-hide");
+  }
+  function closeCw() {
+    if (!cwOpen) return;
+    cwOpen = false; ui.cw.hidden = true; ZR.classList.remove("zwp-cwo"); showUi();
+  }
+  function playCw(key) {
+    var en = W.ZCW && W.ZCW.get && W.ZCW.get(key), Z = W.ZAM;
+    if (!en || !Z || !Z.resume) return;
+    try { if (Z.saveWeb) Z.saveWeb(); } catch (e) {}
+    closeCw(); Z.resume(en);
+  }
+
   /* ---------- teclado ---------- */
   function onKey(e) {
     var pr = $("rdPlayer");
@@ -689,6 +769,7 @@
     else if (k === "ArrowRight" || k === "l" || k === "L") { seekBy(10); flash(1); pulseSkip(1); }
     else if (k === "f" || k === "F") toggleFs();
     else if (k === "m" || k === "M") v.muted = !v.muted;
+    else if (k === "Escape" && cwOpen) closeCw();
     else if (k === "Escape" && sheetOpen) closeSheet();
     else used = false;
     if (used) { e.preventDefault(); e.stopPropagation(); showUi(); }
@@ -703,7 +784,7 @@
     aspect = "fit"; applyAspect();
     try { v.playbackRate = 1; } catch (e) {}
     ui.speedB.textContent = "";
-    sheetOpen = false; ui.sheet.hidden = true;
+    sheetOpen = false; ui.sheet.hidden = true; cwOpen = false; ui.cw.hidden = true; ZR.classList.remove("zwp-cwo");
     shownPlay = null; avail(); volPaint(); fsIcon(); stopCd(); loadSegs(); subApply(); paint(); showUi();
   }
   var origPlay = typeof W.rdPlay === "function" ? W.rdPlay : null;
@@ -718,6 +799,7 @@
       if (ZR) {
         stopCd();
         closeSheet();
+        cwOpen = false; ui.cw.hidden = true; ZR.classList.remove("zwp-cwo");
         if (D.pictureInPictureElement) D.exitPictureInPicture().catch(noop);
         var pl = plyr(); if (pl && pl.fullscreen && pl.fullscreen.active) pl.fullscreen.exit();
         aspect = "fit"; applyAspect();
