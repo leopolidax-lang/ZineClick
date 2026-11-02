@@ -552,6 +552,45 @@ window.addEventListener("message",e=>{
 document.addEventListener("visibilitychange",()=>{if(document.hidden)zyBgStop()});
 {const dm=document.getElementById("detailModal");if(dm)new MutationObserver(()=>{if(!dm.classList.contains("open")){zyBgStop();if(dm.classList.contains("zy-morph")||dm.classList.contains("zy-in"))dm.classList.remove("zy-morph","zy-in")}}).observe(dm,{attributes:true,attributeFilter:["class"]})}
 {const _ot=openTrailer;openTrailer=function(){try{zyBgStop()}catch(e){}return _ot.apply(this,arguments)}}
+/* Avísame: recordatorios de estrenos (se avisa dentro de la app al abrirla el día del estreno o después) */
+const ZY_REM="zy_remind_v1";
+function zyRemGet(){try{const a=JSON.parse(localStorage.getItem(ZY_REM)||"[]");return Array.isArray(a)?a.filter(x=>x&&x.id&&x.date):[]}catch(e){return[]}}
+function zyRemSave(a){try{localStorage.setItem(ZY_REM,JSON.stringify(a.slice(0,60)))}catch(e){}}
+function zyToday(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function zyRemSync(){const a=zyRemGet();document.querySelectorAll("#modalBody [data-zr]").forEach(b=>{const on=a.some(x=>x.id===b.dataset.zr);b.classList.toggle("on",on);b.classList.toggle("zr-on",on);b.setAttribute("aria-pressed",on?"true":"false");const l=b.querySelector(".dl");if(l)l.textContent=on?"Aviso activo":"Avísame"})}
+function zyRemToggle(id){
+ const t=findTitle(id);if(!t||!t.releaseDate)return;
+ let a=zyRemGet();const k=String(t.id);
+ if(a.some(x=>x.id===k)){a=a.filter(x=>x.id!==k);zyRemSave(a);toast("Aviso quitado")}
+ else{a.push({id:k,title:t.title,date:String(t.releaseDate).slice(0,10),kind:t.kind,posterPath:t.posterPath||null});zyRemSave(a);toast("Te avisaremos cuando se estrene ("+fmtDate(t.releaseDate)+")")}
+ zyRemSync()}
+function zyRemInject(id){
+ try{
+  const t=findTitle(id);if(!t||!t.releaseDate)return;
+  if(String(t.releaseDate).slice(0,10)<=zyToday())return;
+  const m=document.getElementById("detailModal");if(!m||!m.classList.contains("open"))return;
+  const row=m.querySelector("#modalBody .det-ics");if(!row||row.querySelector("[data-zr]"))return;
+  const k=String(t.id).replace(/[^\w-]/g,"");
+  row.insertAdjacentHTML("beforeend",'<button type="button" class="det-ic" data-zr="'+k+'" aria-pressed="false" onclick="zyRemToggle(\''+k+'\')"><svg class="di" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17h12l-1.6-2.2V10a4.4 4.4 0 0 0-8.8 0v4.8z"/><path d="M10.2 19.4a2 2 0 0 0 3.6 0"/></svg><span class="dl">Avísame</span></button>');
+  zyRemSync()
+ }catch(e){}}
+function zyRemBanner(list,total){
+ let box=document.getElementById("zyRem");
+ if(!box){box=document.createElement("div");box.id="zyRem";document.body.appendChild(box);
+  box.addEventListener("click",e=>{
+   const card=e.target.closest(".zr-card");if(!card)return;
+   if(e.target.closest(".zr-x")){card.remove();if(!box.querySelector(".zr-card"))box.classList.remove("on");return}
+   const id=card.dataset.id;box.classList.remove("on");try{openDetail(id)}catch(_){}})}
+ box.innerHTML=list.map(x=>'<div class="zr-card" data-id="'+esc(x.id)+'"><div class="zr-th">'+(x.posterPath?'<img src="https://image.tmdb.org/t/p/w92'+esc(x.posterPath)+'" alt="">':"")+'</div><div class="zr-tx"><small>Ya se estrenó</small><b>'+esc(x.title)+'</b></div><button type="button" class="zr-x" aria-label="Cerrar">×</button></div>').join("")+(total>list.length?'<div class="zr-more">y '+(total-list.length)+' más</div>':"");
+ box.classList.add("on");clearTimeout(box._t);box._t=setTimeout(()=>box.classList.remove("on"),15000)}
+function zyRemCheck(){
+ try{
+  const a=zyRemGet();if(!a.length)return;const td=zyToday();
+  const due=a.filter(x=>x.date<=td);if(!due.length)return;
+  zyRemSave(a.filter(x=>x.date>td));zyRemBanner(due.slice(0,3),due.length)
+ }catch(e){}}
+setTimeout(zyRemCheck,3500);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)zyRemCheck()});
 /* Póster que crece hasta la ficha */
 let zyPosterInfo=null;
 function zyDetailOpen(){const m=document.getElementById("detailModal");return !!(m&&m.classList.contains("open"))}
@@ -589,7 +628,7 @@ function zyMorph(info){
    a.oncancel=()=>{clearTimeout(safety);cleanup()}
   })
  }catch(e){}}
-{const _od=openDetail;openDetail=function(id){try{zyGlow(id)}catch(e){}try{zyBgStop()}catch(e){}try{if(typeof searchTerm==="string"&&searchTerm.trim().length>=2&&window.zyRecAdd)window.zyRecAdd(searchTerm)}catch(e){}const tok=++zyBgTok,pinfo=(zyPosterInfo&&Date.now()-zyPosterInfo.t<600&&!zyDetailOpen())?zyPosterInfo:null;zyPosterInfo=null;const p=_od.apply(this,arguments);try{Promise.resolve(p).then(()=>{zyMorph(pinfo);zyBgStart(tok)},()=>{})}catch(e){}return p}}
+{const _od=openDetail;openDetail=function(id){try{zyGlow(id)}catch(e){}try{zyBgStop()}catch(e){}try{if(typeof searchTerm==="string"&&searchTerm.trim().length>=2&&window.zyRecAdd)window.zyRecAdd(searchTerm)}catch(e){}const tok=++zyBgTok,pinfo=(zyPosterInfo&&Date.now()-zyPosterInfo.t<600&&!zyDetailOpen())?zyPosterInfo:null;zyPosterInfo=null;const p=_od.apply(this,arguments);try{Promise.resolve(p).then(()=>{zyMorph(pinfo);zyRemInject(id);zyBgStart(tok)},()=>{})}catch(e){}return p}}
 
 /* ===== Panel lateral de perfil y ajustes ===== */
 function railEls(){return {rail:document.getElementById("pfRail"),scrim:document.getElementById("pfScrim"),btn:document.getElementById("accountBtn")}}
