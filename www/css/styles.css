@@ -838,7 +838,7 @@ html[data-style="elegant"] body{background:var(--bg)}
 /* más espacio entre secciones y tarjetas */
 html[data-style="elegant"] .section{margin:46px 0}
 html[data-style="elegant"] .section-head{margin-bottom:20px}
-html[data-style="elegant"] .grid{gap:22px 18px}
+html[data-style="elegant"]:not([data-cards]) .grid{gap:22px 18px}
 /* tipografía: títulos firmes, detalles discretos */
 html[data-style="elegant"] .section h2,html[data-style="elegant"] .page-title h1{font-weight:800;letter-spacing:-.8px}
 html[data-style="elegant"] .section-head p,html[data-style="elegant"] .page-title p{color:var(--muted);font-weight:500}
@@ -860,7 +860,7 @@ html[data-style="elegant"] header nav.mn-nav>:is(button[data-page],.nav-search).
 html[data-style="elegant"] .panel,html[data-style="elegant"] .st-card{border-color:rgba(255,255,255,.07)}
 @media(max-width:700px){
  html[data-style="elegant"] .section{margin:38px 0}
- html[data-style="elegant"] .grid{gap:20px 14px}
+ html[data-style="elegant"]:not([data-cards]) .grid{gap:20px 14px}
 }
 
 /* ===== Elegante: banner de portada estilo Apple TV ===== */
@@ -898,3 +898,26 @@ html[data-style="elegant"] #detailModal.open{animation:zyDetFade .22s ease both}
 html[data-style="elegant"] #detailModal.open .modal{animation:zyDetIn .34s cubic-bezier(.2,.8,.2,1) both}
 html.reduce-motion[data-style="elegant"] #detailModal.open,html.reduce-motion[data-style="elegant"] #detailModal.open .modal{animation:none}
 @media(prefers-reduced-motion:reduce){html[data-style="elegant"] #detailModal.open,html[data-style="elegant"] #detailModal.open .modal{animation:none}}
+
+/* ===== Compartido (Elegante y Colorido): banner más grande, botón Mi lista, más espacio y ficha con entrada suave ===== */
+html .section{margin:46px 0}
+html .section-head{margin-bottom:20px}
+html:not([data-cards]) .grid{gap:22px 18px}
+html .hc-track{padding:0}
+html .hc-slide{aspect-ratio:3/4;max-height:76vh}
+html .hc-btns{display:flex;gap:10px;margin-top:16px}
+html .hc-open{display:inline-flex;align-items:center;justify-content:center;min-height:46px;margin:0;padding:0 26px;border-radius:14px;font-weight:800}
+html .hc-list{display:inline-flex;align-items:center;justify-content:center;min-height:46px;margin:0;padding:0 22px;border:0;border-radius:14px;background:rgba(255,255,255,.16);color:#fff;font:inherit;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent}
+html .hc-list:active{transform:scale(.96)}
+html #detailModal.open{animation:zyDetFade .22s ease both}
+html #detailModal.open .modal{animation:zyDetIn .34s cubic-bezier(.2,.8,.2,1) both}
+@media(max-width:700px){
+ html .section{margin:38px 0}
+ html:not([data-cards]) .grid{gap:20px 14px}
+}
+@media(min-width:701px){
+ html .hc-slide{aspect-ratio:auto;max-height:none;height:clamp(380px,46vw,600px)}
+ html .hc-list:hover{background:rgba(255,255,255,.26)}
+}
+html.reduce-motion #detailModal.open,html.reduce-motion #detailModal.open .modal{animation:none}
+@media(prefers-reduced-motion:reduce){html #detailModal.open,html #detailModal.open .modal{animation:none}}
