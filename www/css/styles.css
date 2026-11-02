@@ -921,3 +921,10 @@ html #detailModal.open .modal{animation:zyDetIn .34s cubic-bezier(.2,.8,.2,1) bo
 }
 html.reduce-motion #detailModal.open,html.reduce-motion #detailModal.open .modal{animation:none}
 @media(prefers-reduced-motion:reduce){html #detailModal.open,html #detailModal.open .modal{animation:none}}
+
+/* ===== Ficha: tráiler de fondo sin sonido ===== */
+#detailModal .modal-top{overflow:hidden}
+.zy-bgt{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border:0;pointer-events:none;opacity:0;transition:opacity .9s ease;z-index:0;max-width:none}
+.zy-bgt.on{opacity:.92}
+html #detailModal .modal-top.zy-playing:after{background:linear-gradient(0deg,rgba(8,10,18,.95) 0%,rgba(8,10,18,.45) 45%,rgba(8,10,18,.22) 100%)}
+html.reduce-motion .zy-bgt{display:none}
