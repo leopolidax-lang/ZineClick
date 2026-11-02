@@ -552,7 +552,41 @@ window.addEventListener("message",e=>{
 document.addEventListener("visibilitychange",()=>{if(document.hidden)zyBgStop()});
 {const dm=document.getElementById("detailModal");if(dm)new MutationObserver(()=>{if(!dm.classList.contains("open"))zyBgStop()}).observe(dm,{attributes:true,attributeFilter:["class"]})}
 {const _ot=openTrailer;openTrailer=function(){try{zyBgStop()}catch(e){}return _ot.apply(this,arguments)}}
-{const _od=openDetail;openDetail=function(id){try{zyGlow(id)}catch(e){}try{zyBgStop()}catch(e){}try{if(typeof searchTerm==="string"&&searchTerm.trim().length>=2&&window.zyRecAdd)window.zyRecAdd(searchTerm)}catch(e){}const tok=++zyBgTok,p=_od.apply(this,arguments);try{Promise.resolve(p).then(()=>zyBgStart(tok),()=>{})}catch(e){}return p}}
+/* Póster que crece hasta la ficha */
+let zyPosterInfo=null;
+document.addEventListener("click",e=>{
+ zyPosterInfo=null;
+ try{const p=e.target.closest&&e.target.closest(".card .poster");if(!p)return;
+  const im=p.querySelector("img"),r=p.getBoundingClientRect();
+  if(!im||!im.currentSrc||r.width<20||r.bottom<0||r.top>window.innerHeight)return;
+  zyPosterInfo={t:Date.now(),src:im.currentSrc,l:r.left,tp:r.top,w:r.width,h:r.height}}catch(_){}
+},true);
+function zyMorph(info){
+ try{
+  if(!info||Date.now()-info.t>6000)return;
+  const root=document.documentElement;
+  if(root.classList.contains("reduce-motion")||(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches))return;
+  const m=document.getElementById("detailModal"),mod=m&&m.querySelector(".modal"),top=m&&m.querySelector(".modal-top");
+  if(!m||!m.classList.contains("open")||!mod||!top||!top.clientHeight)return;
+  m.classList.add("zy-morph");
+  const clone=document.createElement("div");clone.className="zy-fly";
+  clone.style.cssText="left:"+info.l+"px;top:"+info.tp+"px;width:"+info.w+"px;height:"+info.h+"px;border-radius:14px";
+  const im=document.createElement("img");im.alt="";im.src=info.src;clone.appendChild(im);document.body.appendChild(clone);
+  const cleanup=()=>{clone.remove();m.classList.remove("zy-morph","zy-in")};
+  const safety=setTimeout(cleanup,1800);
+  requestAnimationFrame(()=>{
+   const t=top.getBoundingClientRect();
+   if(!clone.animate){m.classList.add("zy-in");setTimeout(cleanup,400);return}
+   const a=clone.animate([
+    {left:info.l+"px",top:info.tp+"px",width:info.w+"px",height:info.h+"px",borderRadius:"14px"},
+    {left:t.left+"px",top:t.top+"px",width:t.width+"px",height:t.height+"px",borderRadius:"22px 22px 0 0"}
+   ],{duration:420,easing:"cubic-bezier(.2,.8,.2,1)",fill:"forwards"});
+   m.classList.add("zy-in");
+   a.onfinish=()=>{clone.style.transition="opacity .22s ease";clone.style.opacity="0";setTimeout(()=>{clearTimeout(safety);cleanup()},240)};
+   a.oncancel=()=>{clearTimeout(safety);cleanup()}
+  })
+ }catch(e){}}
+{const _od=openDetail;openDetail=function(id){try{zyGlow(id)}catch(e){}try{zyBgStop()}catch(e){}try{if(typeof searchTerm==="string"&&searchTerm.trim().length>=2&&window.zyRecAdd)window.zyRecAdd(searchTerm)}catch(e){}const tok=++zyBgTok,pinfo=(zyPosterInfo&&Date.now()-zyPosterInfo.t<600)?zyPosterInfo:null;zyPosterInfo=null;const p=_od.apply(this,arguments);try{Promise.resolve(p).then(()=>{zyMorph(pinfo);zyBgStart(tok)},()=>{})}catch(e){}return p}}
 
 /* ===== Panel lateral de perfil y ajustes ===== */
 function railEls(){return {rail:document.getElementById("pfRail"),scrim:document.getElementById("pfScrim"),btn:document.getElementById("accountBtn")}}
@@ -575,7 +609,7 @@ function rdTokenLink(){return '<div class="actions" style="margin-top:14px"><but
 })();
 
 function searchMatch(t){return (t.title+" "+(t.genre||[]).join(" ")+" "+(t.cast||[]).join(" ")+" "+(t.character||"")).toLowerCase().includes(searchTerm.toLowerCase())}
-function renderHome(){backfillCache();renderHero();draw("trendingGrid",[...titles].sort((a,b)=>b.rating-a.rating).slice(0,6));updatePreferenceSummary()}
+function renderHome(){backfillCache();renderHero();draw("trendingGrid",[...titles].sort((a,b)=>b.rating-a.rating).slice(0,16));updatePreferenceSummary()}
 function renderExplore(){let a=titles.filter(t=>((liveQ&&searchTerm.trim().toLowerCase()===liveQ)||searchMatch(t))&&(currentKind==="Todo"||t.kind===currentKind)&&(currentGenre==="Todo"||(t.genre||[]).includes(currentGenre)));let s=document.getElementById("sortSelect").value;if(s==="rating")a.sort((x,y)=>y.rating-x.rating);if(s==="year")a.sort((x,y)=>(y.year||0)-(x.year||0));if(s==="az")a.sort((x,y)=>x.title.localeCompare(y.title));draw("exploreGrid",zyPrefSort(a));if(!a.length&&searchTerm.trim().length>=2)document.getElementById("exploreGrid").innerHTML=`<div class="empty">Sin resultados para “${esc(searchTerm.trim())}”. Prueba con otro nombre o revisa la ortografía.</div>`;document.getElementById("exploreHeading").textContent=searchTerm?`Resultados para “${searchTerm}”`:"Catálogo";document.getElementById("exploreSub").textContent=sourceMode==="live"?"Datos obtenidos de TMDB. La disponibilidad de streaming se consulta por región.":"Catálogo de muestra. Pulsa P → API para conectarte a TMDB.";zyUpdateFilterBar()}
 function renderLists(){let arr=getList(currentList).map(id=>findTitle(id)).filter(Boolean).filter(searchMatch);backfillCache();draw("listsGrid",arr);["watchlist","favorites","watched"].forEach(k=>document.getElementById("count-"+k).textContent=`(${getList(k).length})`)}
 function goPage(p){document.querySelectorAll("main[id$='Page']").forEach(x=>x.classList.add("hidden"));document.getElementById(p+"Page").classList.remove("hidden");document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===p));if(p==="explore"){renderExplore();if(getCredential())loadExploreCatalog();}if(p==="lists")renderLists();if(p==="upcoming")loadUpcoming();if(p==="recommend")recommend(true);if(p==="plugins"&&window.ZPL&&ZPL.showTab)ZPL.showTab();if(p==="cineverse"&&!verseNodes.length){verseStatus(getCredential()?"Busca una película o serie para comenzar.":"Conecta TMDB desde P → API para explorar conexiones reales.");}window.scrollTo({top:0,behavior:zyReduceMotion()?"auto":"smooth"});zyAfterNav(p)}
