@@ -341,7 +341,7 @@
  <span class="pf-sep"></span>
  <button class="pf-btn" id="pfSettings" title="Ajustes" aria-label="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
 </aside>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
 const sampleTitles = [
 {id:1,title:"Dune: Parte Dos",year:2024,kind:"Película",genre:["Ciencia ficción","Acción"],rating:8.5,emoji:"✧",colors:["#bd874e","#20213f"],desc:"Paul Atreides se une a Chani y a los fremen mientras busca venganza y debe elegir entre el amor y el destino del universo.",cast:["Timothée Chalamet","Zendaya","Rebecca Ferguson"],mood:["scifi","action","mind"]},
@@ -364,7 +364,32 @@ const tmdbCredentialKey="cc_tmdb_credential";
 const genreMap={28:"Acción",12:"Aventura",16:"Animación",35:"Comedia",80:"Crimen",99:"Documental",18:"Drama",10751:"Familia",14:"Fantasía",36:"Historia",27:"Terror",10402:"Música",9648:"Misterio",10749:"Romance",878:"Ciencia ficción",10770:"Película de TV",53:"Suspenso",10752:"Bélica",37:"Western",10759:"Acción",10762:"Infantil",10763:"Noticias",10764:"Reality",10765:"Ciencia ficción",10766:"Telenovela",10767:"Talk show",10768:"Política",10749:"Romance"};
 function getList(k){try{const v=JSON.parse(localStorage.getItem(keys[k])||"[]");return Array.isArray(v)?v:[]}catch(e){return []}}
 function setList(k,arr){localStorage.setItem(keys[k],JSON.stringify(arr));zsAffMemo=null}
-function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2200)}
+const ZY_TI={
+ check:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.8l4.6 4.6L19 7.6"/></svg>',
+ minus:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 12h11"/></svg>',
+ bell:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17h12l-1.6-2.2V10a4.4 4.4 0 0 0-8.8 0v4.8z"/><path d="M10.2 19.4a2 2 0 0 0 3.6 0"/></svg>',
+ warn:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.8v6.4"/><path d="M12 17v.1"/></svg>',
+ heart:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19.2s-6.8-4.3-6.8-9.3A3.7 3.7 0 0 1 12 8.1a3.7 3.7 0 0 1 6.8 1.8c0 5-6.8 9.3-6.8 9.3z"/></svg>',
+ eye:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12s3.2-5.5 9-5.5S21 12 21 12s-3.2 5.5-9 5.5S3 12 3 12z"/><circle cx="12" cy="12" r="2.4"/></svg>',
+ info:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 11v5.6"/><path d="M12 7.4v.1"/></svg>'};
+function zyToastKind(m){
+ const s=m.toLowerCase();
+ if(/no se pudo|sin conexi|primero|eso no es|ese texto no|pega primero|no permite|conecta tmdb|selecciona el texto|activa las notificaciones/.test(s))return{c:"warn",i:ZY_TI.warn};
+ if(/^quitado|eliminad|aviso quitado|restablecidas|limpiados/.test(s))return{c:"rm",i:ZY_TI.minus};
+ if(/avisaremos|aviso/.test(s))return{c:"bell",i:ZY_TI.bell};
+ if(/^guardado en favoritos/.test(s))return{c:"heart",i:ZY_TI.heart};
+ if(/^guardado en ya vi/.test(s))return{c:"eye",i:ZY_TI.eye};
+ if(/guardado|conectado|copiado|descargado|recuperada|enlace copiado/.test(s))return{c:"ok",i:ZY_TI.check};
+ return{c:"info",i:ZY_TI.info}}
+let zyToastTimer=null;
+function toast(msg){
+ const el=document.getElementById("toast");if(!el)return;
+ msg=String(msg==null?"":msg);const k=zyToastKind(msg);
+ el.innerHTML='<span class="t-ic t-'+k.c+'">'+k.i+'</span><span class="t-tx"></span>';
+ el.querySelector(".t-tx").textContent=msg;
+ el.classList.add("show");clearTimeout(zyToastTimer);
+ zyToastTimer=setTimeout(()=>el.classList.remove("show"),Math.min(5200,2200+msg.length*28))}
+{const tel=document.getElementById("toast");if(tel)tel.addEventListener("click",()=>{clearTimeout(zyToastTimer);tel.classList.remove("show")})}
 const TMDB_PROXY="https://zineclick.leopolidax.workers.dev/api/tmdb";
 function getOwnCredential(){try{return localStorage.getItem(tmdbCredentialKey)||""}catch(e){return ""}}
 function getCredential(){return getOwnCredential()||"__proxy__"}
