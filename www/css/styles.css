@@ -928,3 +928,15 @@ html.reduce-motion #detailModal.open,html.reduce-motion #detailModal.open .modal
 .zy-bgt.on{opacity:.92}
 html #detailModal .modal-top.zy-playing:after{background:linear-gradient(0deg,rgba(8,10,18,.95) 0%,rgba(8,10,18,.45) 45%,rgba(8,10,18,.22) 100%)}
 html.reduce-motion .zy-bgt{display:none}
+
+/* ===== Siluetas de carga (en vez del texto "Cargando…") ===== */
+.sk-card{pointer-events:none;cursor:default}
+.sk-poster,.sk-line{position:relative;overflow:hidden;background:rgba(255,255,255,.06)}
+.sk-poster{aspect-ratio:2/3;border-radius:15px}
+html[data-style="elegant"] .sk-poster{border-radius:14px}
+.sk-line{height:12px;width:78%;border-radius:6px;margin:12px 0 7px}
+.sk-line.sk-s{height:10px;width:52%;margin:0}
+.sk-poster::after,.sk-line::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.09),transparent);animation:zySk 1.3s ease-in-out infinite}
+@keyframes zySk{to{transform:translateX(100%)}}
+html.reduce-motion .sk-poster::after,html.reduce-motion .sk-line::after{animation:none}
+@media(prefers-reduced-motion:reduce){.sk-poster::after,.sk-line::after{animation:none}}
