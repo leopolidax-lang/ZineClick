@@ -561,8 +561,8 @@ function zyRemSync(){const a=zyRemGet();document.querySelectorAll("#modalBody [d
 function zyRemToggle(id){
  const t=findTitle(id);if(!t||!t.releaseDate)return;
  let a=zyRemGet();const k=String(t.id);
- if(a.some(x=>x.id===k)){a=a.filter(x=>x.id!==k);zyRemSave(a);toast("Aviso quitado")}
- else{a.push({id:k,title:t.title,date:String(t.releaseDate).slice(0,10),kind:t.kind,posterPath:t.posterPath||null});zyRemSave(a);toast("Te avisaremos cuando se estrene ("+fmtDate(t.releaseDate)+")")}
+ if(a.some(x=>x.id===k)){a=a.filter(x=>x.id!==k);zyRemSave(a);toast("Aviso quitado");zyNotifDel(k)}
+ else{const it={id:k,title:t.title,date:String(t.releaseDate).slice(0,10),kind:t.kind,posterPath:t.posterPath||null};a.push(it);zyRemSave(a);toast("Te avisaremos cuando se estrene ("+fmtDate(t.releaseDate)+")");zyNotifAdd(it,true)}
  zyRemSync()}
 function zyRemInject(id){
  try{
@@ -587,8 +587,37 @@ function zyRemCheck(){
  try{
   const a=zyRemGet();if(!a.length)return;const td=zyToday();
   const due=a.filter(x=>x.date<=td);if(!due.length)return;
-  zyRemSave(a.filter(x=>x.date>td));zyRemBanner(due.slice(0,3),due.length)
+  zyRemSave(a.filter(x=>x.date>td));due.forEach(x=>zyNotifDel(x.id));zyRemBanner(due.slice(0,3),due.length)
  }catch(e){}}
+/* Notificaciones del celular para los avisos (solo en la APK; necesita el plugin LocalNotifications) */
+function zyLN(){try{if(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()&&Capacitor.Plugins&&Capacitor.Plugins.LocalNotifications)return Capacitor.Plugins.LocalNotifications}catch(e){}return null}
+function zyNotifId(id){let n=0;const s=String(id);for(let i=0;i<s.length;i++)n=(n*31+s.charCodeAt(i))>>>0;return (n%2000000000)+1}
+async function zyNotifAdd(it,ask){
+ const LN=zyLN();if(!LN)return;
+ try{
+  let p=await LN.checkPermissions();
+  if(p.display!=="granted"){
+   if(!ask)return;
+   p=await LN.requestPermissions();
+   if(p.display!=="granted"){toast("Para recibir el aviso con la app cerrada, activa las notificaciones de Zynora en los ajustes del celular");return}
+  }
+  const at=new Date(it.date+"T09:00:00");if(at.getTime()<=Date.now())return;
+  await LN.schedule({notifications:[{id:zyNotifId(it.id),title:"Ya se estrenó",body:it.title,schedule:{at,allowWhileIdle:true},extra:{id:it.id}}]})
+ }catch(e){}}
+async function zyNotifDel(id){const LN=zyLN();if(!LN)return;try{await LN.cancel({notifications:[{id:zyNotifId(id)}]})}catch(e){}}
+async function zyNotifSync(){
+ const LN=zyLN();if(!LN)return;
+ try{
+  const p=await LN.checkPermissions();if(p.display!=="granted")return;
+  const pend=await LN.getPending();const have=new Set(((pend&&pend.notifications)||[]).map(n=>n.id));
+  for(const it of zyRemGet()){if(!have.has(zyNotifId(it.id)))await zyNotifAdd(it,false)}
+ }catch(e){}}
+setTimeout(()=>{
+ const LN=zyLN();if(!LN)return;
+ try{LN.addListener("localNotificationActionPerformed",ev=>{
+  try{const id=ev&&ev.notification&&ev.notification.extra&&ev.notification.extra.id;
+   if(id){zyRemSave(zyRemGet().filter(x=>x.id!==String(id)));openDetail(String(id))}}catch(e){}})}catch(e){}
+ zyNotifSync()},2500);
 setTimeout(zyRemCheck,3500);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)zyRemCheck()});
 /* Póster que crece hasta la ficha */
