@@ -566,9 +566,11 @@ function zyRemToggle(id){
  zyRemSync()}
 function zyRemInject(id){
  try{
-  const t=findTitle(id);if(!t||!t.releaseDate)return;
-  if(String(t.releaseDate).slice(0,10)<=zyToday())return;
+  const t=findTitle(id);
   const m=document.getElementById("detailModal");if(!m||!m.classList.contains("open"))return;
+  const body=m.querySelector("#modalBody"),d=t&&t.releaseDate?String(t.releaseDate).slice(0,10):"",future=!!d&&d>zyToday();
+  if(body)body.classList.toggle("zy-unrel",future);
+  if(!future)return;
   const row=m.querySelector("#modalBody .det-ics");if(!row||row.querySelector("[data-zr]"))return;
   const k=String(t.id).replace(/[^\w-]/g,"");
   row.insertAdjacentHTML("beforeend",'<button type="button" class="det-ic" data-zr="'+k+'" aria-pressed="false" onclick="zyRemToggle(\''+k+'\')"><svg class="di" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17h12l-1.6-2.2V10a4.4 4.4 0 0 0-8.8 0v4.8z"/><path d="M10.2 19.4a2 2 0 0 0 3.6 0"/></svg><span class="dl">Avísame</span></button>');
