@@ -862,3 +862,23 @@ html[data-style="elegant"] .panel,html[data-style="elegant"] .st-card{border-col
  html[data-style="elegant"] .section{margin:38px 0}
  html[data-style="elegant"] .grid{gap:20px 14px}
 }
+
+/* ===== Elegante: banner de portada estilo Apple TV ===== */
+.hc-list{display:none}
+html[data-style="elegant"] .hc-track{padding:0}
+html[data-style="elegant"] .hc-slide{aspect-ratio:3/4;max-height:76vh;border-radius:22px}
+html[data-style="elegant"] .hc-shade{background:linear-gradient(0deg,var(--bg) 0%,rgba(5,6,10,.88) 24%,rgba(5,6,10,.28) 56%,transparent 76%)}
+html[data-style="elegant"] .hc-copy{text-align:center;padding:22px 22px 26px}
+html[data-style="elegant"] .hc-tag{color:rgba(255,255,255,.72);letter-spacing:2.5px}
+html[data-style="elegant"] .hc-copy h2{font-weight:800;letter-spacing:-1.4px;text-shadow:0 2px 18px rgba(0,0,0,.6)}
+html[data-style="elegant"] .hc-meta{color:rgba(255,255,255,.78)}
+html[data-style="elegant"] .hc-btns{display:flex;justify-content:center;gap:10px;margin-top:18px}
+html[data-style="elegant"] .hc-open{display:inline-flex;align-items:center;justify-content:center;min-height:46px;margin:0;padding:0 28px;border-radius:14px;font-weight:800}
+html[data-style="elegant"] .hc-list{display:inline-flex;align-items:center;justify-content:center;min-height:46px;margin:0;padding:0 22px;border:0;border-radius:14px;background:rgba(255,255,255,.16);color:#fff;font:inherit;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent}
+html[data-style="elegant"] .hc-list:active{transform:scale(.96)}
+@media(min-width:701px){
+ html[data-style="elegant"] .hc-slide{aspect-ratio:auto;max-height:none;height:clamp(380px,46vw,600px)}
+ html[data-style="elegant"] .hc-copy{text-align:left;padding:56px;max-width:700px}
+ html[data-style="elegant"] .hc-btns{justify-content:flex-start}
+ html[data-style="elegant"] .hc-list:hover{background:rgba(255,255,255,.26)}
+}
