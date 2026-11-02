@@ -781,3 +781,48 @@ body.ex-sheet-open{overflow:hidden}
  .mn-d-list button.active::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:3px;background:linear-gradient(180deg,var(--cyan),var(--purple));box-shadow:0 0 12px rgba(var(--acc-rgb),.6)}
 }
 @media(prefers-reduced-motion:reduce){.mn-drawer,.mn-scrim,html header nav.mn-nav>button[data-page]::after{transition:none!important}}
+
+
+/* ===== Logo Zynora (marca en trazo angular) ===== */
+.logo .wm{display:block;height:22px;width:auto;overflow:visible;filter:drop-shadow(0 0 10px rgba(var(--acc-rgb),.35))}
+.logo{gap:12px}
+
+/* ===== Ficha tipo Disney+ / Max: Reproducir grande + íconos con palabra ===== */
+.det2{display:block;margin:16px 0 6px}
+.det2 .det-play{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:54px;padding:0 18px;border:0;border-radius:16px;font-size:17px;font-weight:800;letter-spacing:.2px;color:#071018;background:linear-gradient(100deg,var(--cyan),var(--purple));box-shadow:0 10px 28px rgba(139,92,246,.45);transition:transform .15s,filter .15s}
+.det2 .det-play:active{transform:scale(.98);filter:brightness(.94)}
+.det2 .det-play .dp{width:24px;height:24px;fill:currentColor;stroke:none}
+.det-ics{display:flex;gap:4px;margin:14px -6px 0;padding:0 2px;overflow-x:auto;scrollbar-width:none}
+.det-ics::-webkit-scrollbar{display:none}
+.det-ic{flex:0 0 auto;min-width:68px;display:grid;justify-items:center;gap:6px;padding:8px 6px 6px;background:none;border:0;border-radius:14px;color:var(--text);font-size:12px;font-weight:600;line-height:1.15;text-align:center;transition:color .2s,background .15s,transform .15s}
+.det-ic span{color:#c4cde2;max-width:80px}
+.det-ic .di{width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:transform .18s,filter .2s}
+.det-ic .di .fl{fill:transparent;transition:fill .2s}
+.det-ic .di .onn{display:none}
+.det-ic:active{background:rgba(255,255,255,.08);transform:scale(.95)}
+.det-ic.on{color:var(--cyan)}
+.det-ic.on span{color:var(--cyan)}
+.det-ic.on .di{filter:drop-shadow(0 0 7px rgba(var(--acc-rgb),.7))}
+.det-ic.on .di .fl{fill:rgba(var(--acc-rgb),.25)}
+.det-ic.on .di .off{display:none}
+.det-ic.on .di .onn{display:block}
+@media(hover:hover){.det-ic:hover{background:rgba(255,255,255,.06)}}
+.det-rate{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px;padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.06);border:1px solid var(--glass-line)}
+.det-rate[hidden]{display:none}
+.det-rate b{font-size:13px;color:#dbe4f7;flex:1 0 100%}
+.det-stars{display:flex;gap:4px}
+.det-stars button{width:44px;height:44px;display:grid;place-items:center;background:none;border:0;border-radius:12px;font-size:30px;line-height:1;color:#4a5573;transition:color .15s,transform .15s}
+.det-stars button.on{color:#fbbf24;text-shadow:0 0 14px rgba(251,191,36,.5)}
+.det-stars button:active{transform:scale(.88)}
+.det-rate-x{margin-left:auto;background:none;border:0;color:var(--muted);font-size:13px;font-weight:700;padding:10px 6px}
+
+/* ===== Móvil: esconder cabecera y barra inferior al bajar ===== */
+@media(max-width:700px){
+ html header{top:0;transition:top .28s ease}
+ html.hdr-hide header{top:calc(var(--hh,80px) * -1 - 14px)}
+ html header nav.mn-nav{transition:transform .28s ease}
+ html.hdr-hide header nav.mn-nav{transform:translateY(calc(100% + 4px))}
+ html body .ex-bar{transition:bottom .28s ease}
+ html.hdr-hide body .ex-bar{bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+}
+@media(prefers-reduced-motion:reduce){html header,html header nav.mn-nav,html body .ex-bar{transition:none!important}}
