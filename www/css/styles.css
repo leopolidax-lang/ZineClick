@@ -997,3 +997,6 @@ html #detailModal.zy-morph.zy-in.open .modal{opacity:1;transition:opacity .3s ea
 .zr-tx b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .zr-x{flex:none;width:36px;height:36px;border:0;border-radius:10px;background:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer}
 .zr-more{text-align:center;color:var(--muted);font-size:12px}
+
+/* ===== Títulos que aún no se estrenan: sin "Ya vi" ni "Calificar" ===== */
+#modalBody.zy-unrel [data-list="watched"],#modalBody.zy-unrel #detRateBtn,#modalBody.zy-unrel #detRate{display:none}
