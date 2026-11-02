@@ -969,3 +969,18 @@ html.reduce-motion .sk-poster::after,html.reduce-motion .sk-line::after{animatio
 html[data-style="elegant"] .zs-all{color:#fff}
 .zs-bx{display:block;background:rgba(255,255,255,.07);border-radius:6px}
 .zs-sk .zs-th{border-radius:8px}
+
+/* ===== Filas deslizables en el inicio ===== */
+html #trendingGrid,html #homeUpcomingGrid{display:flex;gap:16px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;padding:10px 4px 22px;margin:-10px -4px -8px;scroll-padding-inline:4px}
+html #trendingGrid>*,html #homeUpcomingGrid>*{flex:0 0 auto;width:clamp(128px,38vw,168px);margin:0;scroll-snap-align:start}
+html #trendingGrid>.empty,html #homeUpcomingGrid>.empty{flex:1 0 100%;width:auto}
+html[data-cards="compact"] #trendingGrid>*,html[data-cards="compact"] #homeUpcomingGrid>*{width:clamp(108px,30vw,140px)}
+html[data-cards="large"] #trendingGrid>*,html[data-cards="large"] #homeUpcomingGrid>*{width:clamp(150px,46vw,210px)}
+@media(hover:none){html #trendingGrid,html #homeUpcomingGrid{scrollbar-width:none}html #trendingGrid::-webkit-scrollbar,html #homeUpcomingGrid::-webkit-scrollbar{display:none}}
+@media(hover:hover){html #trendingGrid,html #homeUpcomingGrid{scrollbar-width:thin}}
+
+/* ===== Póster que crece hasta la ficha ===== */
+.zy-fly{position:fixed;z-index:70;overflow:hidden;pointer-events:none;box-shadow:0 22px 56px rgba(0,0,0,.6);background:#0b0e18}
+.zy-fly img{display:block;width:100%;height:100%;object-fit:cover}
+html #detailModal.zy-morph.open .modal{animation:none;opacity:0}
+html #detailModal.zy-morph.zy-in.open .modal{opacity:1;transition:opacity .3s ease .14s}
