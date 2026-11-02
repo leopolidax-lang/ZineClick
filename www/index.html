@@ -461,7 +461,7 @@ function heroSetup(){
  const tr=document.getElementById("heroTrack");
  tr.addEventListener("scroll",()=>{cancelAnimationFrame(heroRaf);heroRaf=requestAnimationFrame(heroMark)},{passive:true});
  ["pointerdown","touchstart","wheel","keydown"].forEach(ev=>tr.addEventListener(ev,()=>{heroTouch=Date.now()},{passive:true}));
- tr.addEventListener("click",e=>{const sl=e.target.closest(".hc-slide");if(sl)openDetail(sl.dataset.id)});
+ tr.addEventListener("click",e=>{const lb=e.target.closest(".hc-list");if(lb){e.stopPropagation();toggleList("watchlist",lb.dataset.id);return}const sl=e.target.closest(".hc-slide");if(sl)openDetail(sl.dataset.id)});
  tr.addEventListener("keydown",e=>{if(e.key==="ArrowRight"){e.preventDefault();heroGo(heroIdx+1)}if(e.key==="ArrowLeft"){e.preventDefault();heroGo(heroIdx-1)}if(e.key==="Enter"){const sl=tr.children[heroIdx];if(sl)openDetail(sl.dataset.id)}});
  document.getElementById("heroPrev").onclick=()=>{heroTouch=Date.now();heroGo(heroIdx-1)};
  document.getElementById("heroNext").onclick=()=>{heroTouch=Date.now();heroGo(heroIdx+1)};
@@ -482,9 +482,11 @@ function renderHero(){
  const live=heroPool.length>0,tr=document.getElementById("heroTrack");
  tr.innerHTML=items.map((t,i)=>{
   const pic=heroPic(t,i===0),meta=[`★ ${Number(t.rating||0).toFixed(1)}`,t.year||"",(t.genre||[]).slice(0,2).join(" / ")].filter(Boolean).map(esc).join(" · ");
-  return `<article class="hc-slide" data-id="${esc(t.id)}" role="group" aria-roledescription="diapositiva" aria-label="${i+1} de ${items.length}: ${esc(t.title)}" style="--c1:${(t.colors||[])[0]||"#3b3f6b"};--c2:${(t.colors||[])[1]||"#12142b"}"><div class="hc-art">${pic}${pic?"":`<span class="hc-sym">${esc(t.emoji||"✦")}</span>`}</div><div class="hc-shade"></div><div class="hc-copy"><span class="hc-tag">${live?"#"+(i+1)+" en tendencia":"Destacado"} · ${esc(t.kind)}</span><h2>${esc(t.title)}</h2><div class="hc-meta">${meta}</div><p class="hc-desc">${esc(t.desc||"")}</p><span class="btn primary hc-open">Ver ficha</span></div></article>`}).join("");
+  return `<article class="hc-slide" data-id="${esc(t.id)}" role="group" aria-roledescription="diapositiva" aria-label="${i+1} de ${items.length}: ${esc(t.title)}" style="--c1:${(t.colors||[])[0]||"#3b3f6b"};--c2:${(t.colors||[])[1]||"#12142b"}"><div class="hc-art">${pic}${pic?"":`<span class="hc-sym">${esc(t.emoji||"✦")}</span>`}</div><div class="hc-shade"></div><div class="hc-copy"><span class="hc-tag">${live?"#"+(i+1)+" en tendencia":"Destacado"} · ${esc(t.kind)}</span><h2>${esc(t.title)}</h2><div class="hc-meta">${meta}</div><p class="hc-desc">${esc(t.desc||"")}</p><div class="hc-btns"><span class="btn primary hc-open">Ver ficha</span><button type="button" class="hc-list" data-id="${esc(t.id)}" aria-pressed="false">+ Mi lista</button></div></div></article>`}).join("");
  document.getElementById("heroDots").innerHTML=items.map((t,i)=>`<button class="hc-dot${i===0?" on":""}" data-i="${i}" role="tab" aria-selected="${i===0}" aria-label="Ir al destacado ${i+1}"></button>`).join("");
- heroIdx=0;tr.scrollLeft=0}
+ heroIdx=0;tr.scrollLeft=0;heroSyncList()}
+function heroSyncList(){document.querySelectorAll("#heroTrack .hc-list").forEach(b=>{let on=false;try{on=getList("watchlist").map(String).includes(String(b.dataset.id))}catch(e){}b.textContent=on?"✓ En mi lista":"+ Mi lista";b.setAttribute("aria-pressed",on?"true":"false")})}
+{const _tl=toggleList;toggleList=function(){const r=_tl.apply(this,arguments);try{heroSyncList()}catch(e){}return r}}
 
 /* ===== Panel lateral de perfil y ajustes ===== */
 function railEls(){return {rail:document.getElementById("pfRail"),scrim:document.getElementById("pfScrim"),btn:document.getElementById("accountBtn")}}
