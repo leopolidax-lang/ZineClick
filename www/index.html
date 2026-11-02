@@ -397,10 +397,15 @@ async function tmdb(path,params={},opts={}){
  if(!res.ok)throw httpErr("TMDB",res.status);
  try{return await res.json()}catch(e){throw appErr("http","TMDB envió una respuesta que no se pudo leer. Inténtalo de nuevo.")}}
 function normalize(item,forcedType){const __t=normalize0(item,forcedType);try{titleReg.set(String(__t.id),__t);if(titleReg.size>2500)titleReg.delete(titleReg.keys().next().value)}catch(e){}return __t}
-function normalize0(item,forcedType){const isTv=forcedType==="tv"||item.media_type==="tv";const kind=isTv?"Serie":(item.media_type==="person"?"Persona":"Película");const title=item.title||item.name||"Sin título";const date=item.release_date||item.first_air_date||"";const genres=(item.genre_ids||[]).map(id=>genreMap[id]).filter(Boolean);const colors=palette(item.id||title);return {id:(isTv?"tv_":"movie_")+(item.id),tmdbId:item.id,mediaType:isTv?"tv":"movie",title,year:date?Number(date.slice(0,4)):null,kind,genre:genres,rating:Number(item.vote_average||0),emoji:isTv?"▣":"✦",colors,desc:item.overview||"No hay sinopsis disponible en español.",cast:[],posterPath:item.poster_path||null,backdropPath:item.backdrop_path||null,originalTitle:item.original_title||item.original_name||title,mood:guessMood(genres),isLive:true}}
+function normalize0(item,forcedType){const isTv=forcedType==="tv"||item.media_type==="tv";const kind=isTv?"Serie":(item.media_type==="person"?"Persona":"Película");const title=item.title||item.name||"Sin título";const date=item.release_date||item.first_air_date||"";const genres=(item.genre_ids||[]).map(id=>genreMap[id]).filter(Boolean);const colors=palette(item.id||title);return {id:(isTv?"tv_":"movie_")+(item.id),tmdbId:item.id,mediaType:isTv?"tv":"movie",title,year:date?Number(date.slice(0,4)):null,kind,genre:genres,rating:Number(item.vote_average||0),emoji:isTv?"▣":"✦",colors,desc:item.overview||"No hay sinopsis disponible en español.",cast:[],posterPath:item.poster_path||null,backdropPath:item.backdrop_path||null,originalTitle:item.original_title||item.original_name||title,mood:guessMood(genres),isLive:true,releaseDate:date}}
 function palette(seed){let n=0;for(let i=0;i<String(seed).length;i++)n=(n*31+String(seed).charCodeAt(i))>>>0;const h=n%360;return [`hsl(${h} 55% 38%)`,`hsl(${(h+75)%360} 55% 12%)`]}
 function guessMood(gs){let a=[];if(gs.includes("Misterio")||gs.includes("Crimen")||gs.includes("Suspenso"))a.push("mystery");if(gs.includes("Acción")||gs.includes("Aventura"))a.push("action");if(gs.includes("Ciencia ficción"))a.push("scifi");if(gs.includes("Drama")||gs.includes("Historia"))a.push("mind");if(gs.includes("Comedia")||gs.includes("Familia")||gs.includes("Animación"))a.push("comfort");return a}
-function poster(t){const img=t.posterPath?`<img src="https://image.tmdb.org/t/p/w500${t.posterPath}" alt="" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;z-index:0">`:"";return `<div class="poster" style="--c1:${(t.colors||[])[0]||"#3b3f6b"};--c2:${(t.colors||[])[1]||"#12142b"}">${img}${t.posterPath?"":`<span class="symbol">${t.emoji}</span>`}<span class="rating">★ ${Number(t.rating||0).toFixed(1)}</span><span class="type">${t.kind}</span><span class="poster-name">${esc(t.title)}</span></div>`}
+/* Etiquetas en los pósters: "Nuevo" (estrenos de los últimos 45 días) y "Visto" */
+let zyWRaw=null,zyWSet=new Set();
+function zyIsSeen(id){try{const raw=localStorage.getItem(keys.watched)||"[]";if(raw!==zyWRaw){zyWRaw=raw;const a=JSON.parse(raw);zyWSet=new Set(Array.isArray(a)?a.map(String):[])}}catch(e){}return zyWSet.has(String(id))}
+function zyIsNew(t){const d=t&&t.releaseDate;if(!d)return false;const ms=Date.now()-Date.parse(d);return ms>=0&&ms<=45*864e5}
+function zyRefreshSeen(){document.querySelectorAll('.card[onclick^="openDetail(\'"]').forEach(c=>{const m=/openDetail\('([^']+)'\)/.exec(c.getAttribute("onclick")||"");const p=c.querySelector(".poster");if(!m||!p)return;const seen=zyIsSeen(m[1]);p.classList.toggle("is-seen",seen);let b=p.querySelector(".tag-seen");if(seen){const n=p.querySelector(".tag-new");if(n)n.remove();if(!b){const r=p.querySelector(".poster-name");const s=document.createElement("span");s.className="tag-lb tag-seen";s.textContent="✓ Visto";p.insertBefore(s,r)}}else if(b)b.remove()})}
+function poster(t){const seen=zyIsSeen(t.id),nw=!seen&&zyIsNew(t);const img=t.posterPath?`<img src="https://image.tmdb.org/t/p/w500${t.posterPath}" alt="" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;z-index:0">`:"";return `<div class="poster${seen?" is-seen":""}" style="--c1:${(t.colors||[])[0]||"#3b3f6b"};--c2:${(t.colors||[])[1]||"#12142b"}">${img}${t.posterPath?"":`<span class="symbol">${t.emoji}</span>`}<span class="rating">★ ${Number(t.rating||0).toFixed(1)}</span><span class="type">${t.kind}</span>${seen?'<span class="tag-lb tag-seen">✓ Visto</span>':nw?'<span class="tag-lb tag-new">Nuevo</span>':""}<span class="poster-name">${esc(t.title)}</span></div>`}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function card(t){return `<article class="card" onclick="openDetail('${String(t.id).replace(/'/g,"")}')">${poster(t)}<h3>${esc(t.title)}</h3><div class="sub">${t.year||"Año desconocido"} · ${(t.genre||[]).slice(0,2).map(esc).join(" / ")||t.kind}</div></article>`}
 function skelCards(n){return Array.from({length:n},()=>'<article class="card sk-card" aria-hidden="true"><div class="sk-poster"></div><div class="sk-line"></div><div class="sk-line sk-s"></div></article>').join("")}
@@ -488,7 +493,7 @@ function renderHero(){
  document.getElementById("heroDots").innerHTML=items.map((t,i)=>`<button class="hc-dot${i===0?" on":""}" data-i="${i}" role="tab" aria-selected="${i===0}" aria-label="Ir al destacado ${i+1}"></button>`).join("");
  heroIdx=0;tr.scrollLeft=0;heroSyncList()}
 function heroSyncList(){document.querySelectorAll("#heroTrack .hc-list").forEach(b=>{let on=false;try{on=getList("watchlist").map(String).includes(String(b.dataset.id))}catch(e){}b.textContent=on?"✓ En mi lista":"+ Mi lista";b.setAttribute("aria-pressed",on?"true":"false")})}
-{const _tl=toggleList;toggleList=function(){const r=_tl.apply(this,arguments);try{heroSyncList()}catch(e){}return r}}
+{const _tl=toggleList;toggleList=function(){const r=_tl.apply(this,arguments);try{heroSyncList();if(arguments[0]==="watched")zyRefreshSeen()}catch(e){}return r}}
 /* Ficha: color de resplandor tomado del póster (solo se nota en el estilo Elegante) */
 const zyGlowCache=new Map();let zyGlowCur="";
 function zyGlowSet(rgb){const m=document.getElementById("detailModal");if(m)m.style.setProperty("--glow-rgb",rgb||"90,100,140")}
@@ -547,7 +552,7 @@ window.addEventListener("message",e=>{
 document.addEventListener("visibilitychange",()=>{if(document.hidden)zyBgStop()});
 {const dm=document.getElementById("detailModal");if(dm)new MutationObserver(()=>{if(!dm.classList.contains("open"))zyBgStop()}).observe(dm,{attributes:true,attributeFilter:["class"]})}
 {const _ot=openTrailer;openTrailer=function(){try{zyBgStop()}catch(e){}return _ot.apply(this,arguments)}}
-{const _od=openDetail;openDetail=function(id){try{zyGlow(id)}catch(e){}try{zyBgStop()}catch(e){}const tok=++zyBgTok,p=_od.apply(this,arguments);try{Promise.resolve(p).then(()=>zyBgStart(tok),()=>{})}catch(e){}return p}}
+{const _od=openDetail;openDetail=function(id){try{zyGlow(id)}catch(e){}try{zyBgStop()}catch(e){}try{if(typeof searchTerm==="string"&&searchTerm.trim().length>=2&&window.zyRecAdd)window.zyRecAdd(searchTerm)}catch(e){}const tok=++zyBgTok,p=_od.apply(this,arguments);try{Promise.resolve(p).then(()=>zyBgStart(tok),()=>{})}catch(e){}return p}}
 
 /* ===== Panel lateral de perfil y ajustes ===== */
 function railEls(){return {rail:document.getElementById("pfRail"),scrim:document.getElementById("pfScrim"),btn:document.getElementById("accountBtn")}}
@@ -648,6 +653,51 @@ document.querySelectorAll("#listChips .chip").forEach(b=>b.onclick=()=>{document
   else renderExplore()}
  inp.addEventListener("input",e=>{searchTerm=e.target.value;runSearch(false)});
  inp.addEventListener("keydown",e=>{if(e.key==="Enter"){searchTerm=inp.value;runSearch(true);inp.blur()}});
+})();
+/* Buscador: búsquedas recientes y sugerencias con póster mientras escribes */
+(function(){
+ const inp=document.getElementById("searchInput");if(!inp)return;
+ const K="zy_recent_q";let panel=document.getElementById("zySug");
+ if(!panel){panel=document.createElement("div");panel.id="zySug";document.body.appendChild(panel)}
+ function recGet(){try{const a=JSON.parse(localStorage.getItem(K)||"[]");return Array.isArray(a)?a.filter(x=>typeof x==="string").slice(0,8):[]}catch(e){return[]}}
+ function recSave(a){try{localStorage.setItem(K,JSON.stringify(a.slice(0,8)))}catch(e){}}
+ function recAdd(q){q=String(q||"").trim();if(q.length<2||q.length>80)return;const l=q.toLowerCase();recSave([q,...recGet().filter(x=>x.toLowerCase()!==l)])}
+ window.zyRecAdd=recAdd;
+ function place(){const box=inp.closest(".search")||inp,r=box.getBoundingClientRect(),mob=window.innerWidth<=700;
+  const left=mob?10:Math.max(8,r.left),width=mob?window.innerWidth-20:Math.max(r.width,360);
+  panel.style.left=left+"px";panel.style.width=Math.min(width,window.innerWidth-16)+"px";panel.style.top=Math.round(r.bottom+6)+"px";panel.style.maxHeight=Math.max(160,window.innerHeight-r.bottom-20)+"px"}
+ function hide(){panel.classList.remove("on");panel.innerHTML=""}
+ function row(t){return `<button type="button" class="zs-row" data-id="${esc(t.id)}"><span class="zs-th">${t.posterPath?`<img src="https://image.tmdb.org/t/p/w92${t.posterPath}" alt="" loading="lazy" decoding="async">`:""}</span><span class="zs-tx"><b>${esc(t.title)}</b><small>${esc(t.kind)}${t.year?" · "+t.year:""} · ★ ${Number(t.rating||0).toFixed(1)}</small></span></button>`}
+ const skel='<div class="zs-row zs-sk"><span class="zs-th zs-bx"></span><span class="zs-tx"><b class="zs-bx" style="width:62%;height:13px"></b><small class="zs-bx" style="width:36%;height:10px"></small></span></div>'.repeat(4);
+ function render(){
+  if(document.activeElement!==inp)return;
+  const q=inp.value.trim();let html="";
+  if(q.length<2){
+   const rec=recGet();if(!rec.length){hide();return}
+   html='<div class="zs-head"><span>Búsquedas recientes</span><button type="button" data-act="clear">Borrar todo</button></div>'+rec.map(x=>`<div class="zs-recrow"><button type="button" class="zs-rec" data-q="${esc(x)}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span>${esc(x)}</span></button><button type="button" class="zs-del" data-del="${esc(x)}" aria-label="Quitar de recientes">×</button></div>`).join("")
+  }else{
+   let list=null;
+   if(getCredential()){const hit=searchCache.get(q.toLowerCase());list=hit?hit.r:null}
+   else{const lq=q.toLowerCase();list=titles.filter(t=>String(t.title||"").toLowerCase().includes(lq))}
+   if(!list)html=skel;
+   else if(!list.length)html=`<div class="zs-head"><span>Sin resultados para «${esc(q)}»</span></div>`;
+   else html=list.slice(0,6).map(row).join("")+'<button type="button" class="zs-all" data-act="all">Ver todos los resultados</button>'
+  }
+  place();panel.innerHTML=html;panel.classList.add("on")}
+ function go(q){inp.value=q;recAdd(q);hide();inp.dispatchEvent(new KeyboardEvent("keydown",{key:"Enter"}))}
+ panel.addEventListener("mousedown",e=>e.preventDefault());
+ panel.addEventListener("click",e=>{
+  const t=e.target.closest("[data-act],[data-q],[data-del],[data-id]");if(!t)return;
+  if(t.dataset.act==="clear"){try{localStorage.removeItem(K)}catch(_){}render();return}
+  if(t.dataset.del!==undefined){recSave(recGet().filter(x=>x!==t.dataset.del));render();return}
+  if(t.dataset.q){go(t.dataset.q);return}
+  if(t.dataset.act==="all"){go(inp.value.trim());return}
+  if(t.dataset.id){const id=t.dataset.id;recAdd(inp.value);hide();inp.blur();openDetail(id)}});
+ inp.addEventListener("focus",render);
+ inp.addEventListener("input",render);
+ inp.addEventListener("blur",()=>setTimeout(()=>{if(document.activeElement!==inp)hide()},200));
+ inp.addEventListener("keydown",e=>{if(e.key==="Enter"){recAdd(inp.value);hide()}else if(e.key==="Escape")hide()});
+ {const _ls=liveSearch;liveSearch=async function(){try{return await _ls.apply(this,arguments)}finally{try{render()}catch(e){}}}}
 })();
 document.getElementById("sortSelect").onchange=renderExplore;updatePreferenceSummary();
 document.getElementById("verseSearch").addEventListener("keydown",e=>{if(e.key==="Enter")startVerseSearch()});
