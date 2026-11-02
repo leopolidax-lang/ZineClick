@@ -565,6 +565,8 @@ document.addEventListener("click",e=>{
 function zyMorph(info){
  try{
   if(!info||Date.now()-info.t>6000)return;
+  if(!(window.matchMedia&&matchMedia("(min-width:701px) and (hover:hover)").matches))return;
+  if(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())return;
   const root=document.documentElement;
   if(root.classList.contains("reduce-motion")||(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches))return;
   const m=document.getElementById("detailModal"),mod=m&&m.querySelector(".modal"),top=m&&m.querySelector(".modal-top");
