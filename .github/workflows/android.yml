@@ -121,6 +121,48 @@ jobs:
           sed -i 's|<string name="title_activity_main">[^<]*</string>|<string name="title_activity_main">Zynora</string>|' "$F"
           grep -n "app_name\|title_activity_main" "$F"
 
+      - name: Notificaciones (permiso y ícono pequeño)
+        continue-on-error: true
+        run: |
+          python3 - <<'PY'
+          m = 'android/app/src/main/AndroidManifest.xml'
+          t = open(m, encoding='utf-8').read()
+          if 'android.permission.POST_NOTIFICATIONS' not in t:
+              k = t.find('<application')
+              assert k > 0, 'No se encontró <application>'
+              t = t[:k] + '<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    ' + t[k:]
+              open(m, 'w', encoding='utf-8').write(t)
+          print('Permiso de notificaciones listo')
+          PY
+          grep -n "POST_NOTIFICATIONS" android/app/src/main/AndroidManifest.xml
+          if [ -f icon-foreground.png ]; then
+            python3 -m venv /tmp/venvnt
+            /tmp/venvnt/bin/pip install pillow
+            /tmp/venvnt/bin/python - <<'PY'
+          from PIL import Image
+          import os
+          fg = Image.open('icon-foreground.png').convert('RGBA')
+          a = fg.split()[3]
+          lo, hi = a.getextrema()
+          if lo > 200:
+              print('El ícono no tiene transparencia: se deja el ícono pequeño por defecto')
+          else:
+              box = a.point(lambda v: 255 if v > 24 else 0).getbbox()
+              mask = a.crop(box) if box else a
+              side = max(mask.size)
+              sq = Image.new('L', (side, side), 0)
+              sq.paste(mask, ((side - mask.width) // 2, (side - mask.height) // 2))
+              for d, px in {'mdpi': 24, 'hdpi': 36, 'xhdpi': 48, 'xxhdpi': 72, 'xxxhdpi': 96}.items():
+                  folder = 'android/app/src/main/res/drawable-' + d
+                  os.makedirs(folder, exist_ok=True)
+                  m = sq.resize((px, px), Image.LANCZOS)
+                  out = Image.new('RGBA', (px, px), (255, 255, 255, 0))
+                  out.paste(Image.new('RGBA', (px, px), (255, 255, 255, 255)), (0, 0), m)
+                  out.save(folder + '/ic_stat_zynora.png')
+              print('Ícono de notificación creado')
+          PY
+          fi
+
       - name: Android TV (aparece en el menú de la tele, con banner)
         continue-on-error: true
         run: |
