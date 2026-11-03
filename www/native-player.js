@@ -197,6 +197,79 @@
   ].join("");
 
 
+
+  /* ruleta del temporizador: esferas de cristal que giran como un rostizador, a la derecha */
+  CSS += '#znpRoot .znp-wh{position:absolute;inset:0;z-index:6}#znpRoot .znp-wh[hidden]{display:none}' +
+    '#znpRoot .znp-wh-bg{position:absolute;inset:0;background:linear-gradient(270deg,rgba(0,0,0,.5),transparent 52%)}' +
+    '#znpRoot .znp-wh-box{position:absolute;top:50%;right:max(env(safe-area-inset-right),14px);width:92px;height:min(340px,78%);transform:translateY(-50%);-webkit-mask-image:linear-gradient(transparent,#000 20%,#000 80%,transparent);mask-image:linear-gradient(transparent,#000 20%,#000 80%,transparent)}' +
+    '#znpRoot .znp-wh-sc{position:absolute;inset:0;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;perspective:620px;touch-action:pan-y;overscroll-behavior:contain}#znpRoot .znp-wh-sc::-webkit-scrollbar{display:none}' +
+    '#znpRoot .znp-wi{height:66px;display:flex;align-items:center;justify-content:center;scroll-snap-align:center;will-change:transform,opacity;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
+    '#znpRoot .znp-wb{width:56px;height:56px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;color:rgba(255,255,255,.92);background:radial-gradient(circle at 32% 26%,rgba(255,255,255,.42),rgba(255,255,255,.1) 42%,rgba(255,255,255,.03) 72%);border:1px solid rgba(255,255,255,.26);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:inset 0 -7px 12px rgba(120,160,255,.14),inset 0 2px 5px rgba(255,255,255,.35),0 8px 20px rgba(0,0,0,.4);transition:box-shadow .2s,border-color .2s,color .2s}' +
+    '#znpRoot .znp-wb b{font-size:17px;font-weight:700}#znpRoot .znp-wb small{font-size:9px;font-weight:600;opacity:.75;margin-top:2px}' +
+    '#znpRoot .znp-wi.sel .znp-wb{color:var(--cyan,#64f4ff);border-color:rgba(var(--acc-rgb,100,244,255),.8);box-shadow:inset 0 -7px 12px rgba(120,160,255,.14),inset 0 2px 5px rgba(255,255,255,.35),0 0 18px rgba(var(--acc-rgb,100,244,255),.5),0 8px 22px rgba(0,0,0,.4)}' +
+    '#znpRoot .znp-wh-cap{position:absolute;top:50%;right:calc(max(env(safe-area-inset-right),14px) + 106px);transform:translateY(-50%);padding:9px 16px;border-radius:999px;background:rgba(20,24,38,.62);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);font-size:14px;font-weight:600;white-space:nowrap;pointer-events:none}' +
+    '#znpRoot.znp-pip .znp-wh{display:none!important}';
+
+  /* ---------- ruleta del temporizador (lógica) ---------- */
+  var wh = null, wSc = null, wCap = null, wItems = [], wSp = [], wIH = 66, wIdx = -1, wLast = -1, wInit = false, wMoved = false, wT = 0, wCloseT = 0, wRaf = 0;
+  var WOPT = [[0, "Off", ""], [5, "5", "min"], [15, "15", "min"], [30, "30", "min"], [45, "45", "min"], [60, "1", "hora"], [90, "1:30", "h"], [120, "2", "horas"], ["end", "Fin", ""]];
+  function wCapText(i) {
+    var v = WOPT[i][0], c = W._addonCtx, tv = !!(c && c.type === "tv");
+    if (v === 0) return "Sin temporizador";
+    if (v === "end") return tv ? "Al terminar el episodio" : "Al terminar la película";
+    return "Cerrar en " + (v >= 60 ? (v === 60 ? "1 hora" : v === 90 ? "1 h 30 min" : (v / 60) + " horas") : v + " min");
+  }
+  function wCur() { if (sleepEnd) return WOPT.length - 1; if (sleepAt) for (var i = 0; i < WOPT.length; i++) if (WOPT[i][0] === sleepMin) return i; return 0; }
+  function wheelBuild() {
+    if (wh) return;
+    wh = D.createElement("div"); wh.className = "znp-wh"; wh.hidden = true;
+    wh.innerHTML = '<div class="znp-wh-bg"></div><div class="znp-wh-cap"></div><div class="znp-wh-box"><div class="znp-wh-sc"><div></div><div></div></div></div>';
+    root.appendChild(wh);
+    wSc = wh.querySelector(".znp-wh-sc"); wCap = wh.querySelector(".znp-wh-cap");
+    wSp = [wSc.children[0], wSc.children[1]];
+    WOPT.forEach(function (o, i) {
+      var it = D.createElement("div"); it.className = "znp-wi";
+      it.innerHTML = '<div class="znp-wb"><b>' + o[1] + "</b>" + (o[2] ? "<small>" + o[2] + "</small>" : "") + "</div>";
+      it.onclick = function () { wMoved = true; if (i === wIdx) closeSheet(); else wSc.scrollTo({ top: i * wIH, behavior: "smooth" }); };
+      wSc.insertBefore(it, wSp[1]); wItems.push(it);
+    });
+    wh.querySelector(".znp-wh-bg").onclick = function () { closeSheet(); };
+    wSc.addEventListener("scroll", wOnScroll, { passive: true });
+    ["pointerdown", "wheel", "touchstart"].forEach(function (n) { wSc.addEventListener(n, function () { wMoved = true; clearTimeout(wCloseT); }, { passive: true }); });
+  }
+  function wPaint() {
+    var top = wSc.scrollTop, step = 34 * Math.PI / 180, Rr = wIH / (2 * Math.sin(step / 2)), c = Math.max(0, Math.min(WOPT.length - 1, Math.round(top / wIH)));
+    wItems.forEach(function (it, i) {
+      var d = i - top / wIH, ad = Math.abs(d), th = d * step;
+      if (ad > 2.6) { it.style.visibility = "hidden"; return; }
+      it.style.visibility = "";
+      it.style.transform = "translate3d(0," + (Rr * Math.sin(th) - d * wIH).toFixed(1) + "px," + (Rr * (Math.cos(th) - 1)).toFixed(1) + "px) rotateX(" + (-th * 180 / Math.PI).toFixed(1) + "deg)";
+      it.style.opacity = Math.max(0, 1 - ad * 0.34).toFixed(2);
+      it.classList.toggle("sel", i === c);
+    });
+    if (c !== wIdx) { wIdx = c; wCap.textContent = wCapText(c); if (!wInit) { try { if (navigator.vibrate) navigator.vibrate(6); } catch (e) {} } }
+  }
+  function wOnScroll() {
+    if (!wRaf) wRaf = requestAnimationFrame(function () { wRaf = 0; wPaint(); });
+    clearTimeout(wT); clearTimeout(wCloseT); wT = setTimeout(wSettle, 170);
+  }
+  function wSettle() {
+    wPaint();
+    if (wInit) return;
+    var i = Math.max(0, Math.min(WOPT.length - 1, Math.round(wSc.scrollTop / wIH)));
+    if (i !== wLast) { wLast = i; sleepSet(WOPT[i][0]); }
+    if (wMoved) wCloseT = setTimeout(function () { if (sheetOpen && sheetKind === "sleep") closeSheet(); }, 2200);
+  }
+  function wheelShow() {
+    wheelBuild(); clearTimeout(wCloseT); clearTimeout(wT);
+    wh.hidden = false; wMoved = false; wInit = true; wIdx = -1;
+    var pad = Math.max(0, (wSc.clientHeight - wIH) / 2) + "px";
+    wSp[0].style.height = pad; wSp[1].style.height = pad;
+    var i = wCur(); wLast = i; wSc.scrollTop = i * wIH; wPaint();
+    setTimeout(function () { wInit = false; }, 400);
+  }
+  function wheelHide() { clearTimeout(wT); clearTimeout(wCloseT); if (wh) wh.hidden = true; }
+
   var root = null, ui = {};
   var st = { time: 0, length: 0, playing: false, buffering: true };
   var isOpen = false, dragging = false, dragT = 0, sheetOpen = false;
@@ -416,7 +489,7 @@
   /* ---------- panel lateral: audio, subtítulos, velocidad, pantalla ---------- */
   function toggleSheet(kind) { if (sheetOpen && sheetKind === kind) { closeSheet(); return; } openSheet(kind); }
   function closeSheet() {
-    clearInterval(castPoll); sheetOpen = false; if (ui.sheet) ui.sheet.hidden = true; showUi();
+    clearInterval(castPoll); wheelHide(); sheetOpen = false; if (ui.sheet) ui.sheet.hidden = true; showUi();
     if (subDirty) { subDirty = false; restartForSubs(); }
   }
   function fillSheet(title, items, empty) {
@@ -436,6 +509,7 @@
   }
   function openSheet(kind) {
     sheetOpen = true; sheetKind = kind; ui.sheet.hidden = false; clearTimeout(hideT);
+    if (kind !== "sleep") wheelHide();
     if (kind === "cast") {
       castSig = ""; fillSheet("Transmitir a", [], "Buscando dispositivos…");
       castRefresh();
@@ -454,7 +528,7 @@
         return { label: r === 1 ? "Normal" : r + "x", on: r === rate, fn: function () { rate = r; speedBadge(); call("setRate", { rate: r }).catch(noop); } };
       }));
     } else if (kind === "sleep") {
-      fillSheet("Temporizador de apagado", sleepItems());
+      ui.sheet.hidden = true; wheelShow();
     } else if (kind === "quality") {
       fillSheet("Calidad", [[0, "Automática", "Si no cambia nada, este enlace solo trae una calidad"], [1080, "1080p"], [720, "720p"], [480, "480p"], [360, "360p"]].map(function (q) {
         return { label: q[1], sub: q[0] === 0 ? q[2] : "", on: q[0] === quality, fn: function () { quality = q[0]; call("setQuality", { height: q[0] }).catch(noop); } };
@@ -872,7 +946,7 @@
     ui.sub.textContent = c && c.type === "tv" ? "Temporada " + c.season + " · Episodio " + c.episode : "";
     ui.next.hidden = !isTv(); stopCd(); loadSegs(); sleepOnOpen();
     speedBadge(); ui.src.hidden = !(meta && W.ZAM && W.ZAM.sources);
-    sheetOpen = false; ui.sheet.hidden = true; dragging = false;
+    wheelHide(); sheetOpen = false; ui.sheet.hidden = true; dragging = false;
     isOpen = true; root.hidden = false; D.documentElement.classList.add("znp-on");
     cwPill(); paint(); showUi(); attachBack();
     p.play({ subSize: (eleg() && subSt) ? subSt.size : "", subBg: (eleg() && subSt) ? subSt.bg : "", url: url, title: curTitle, referer: (W.__zplHdr && (W.__zplHdr.Referer || W.__zplHdr.referer)) || "", userAgent: (W.__zplHdr && (W.__zplHdr["User-Agent"] || W["__zplHdr"]["user-agent"])) || "" }).catch(function (e) {
@@ -885,7 +959,7 @@
   function close(stopNative) {
     if (!isOpen) return;
     savePos(true); sleepClosed = Date.now();
-    isOpen = false; sheetOpen = false; cwOpen = false; subDirty = false; ui.cw.hidden = true; root.classList.remove("znp-cwo"); stopCd(); curSeg = null; segs = [];
+    isOpen = false; wheelHide(); sheetOpen = false; cwOpen = false; subDirty = false; ui.cw.hidden = true; root.classList.remove("znp-cwo"); stopCd(); curSeg = null; segs = [];
     clearTimeout(hideT); clearTimeout(tapT); clearTimeout(applyT); applyT = 0;
     detachBack();
     root.hidden = true;

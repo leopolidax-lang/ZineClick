@@ -226,6 +226,79 @@
   ].join("");
 
 
+
+  /* ruleta del temporizador: esferas de cristal que giran como un rostizador, a la derecha */
+  CSS += '#zwpRoot .zwp-wh{position:absolute;inset:0;z-index:6}#zwpRoot .zwp-wh[hidden]{display:none}' +
+    '#zwpRoot .zwp-wh-bg{position:absolute;inset:0;background:linear-gradient(270deg,rgba(0,0,0,.5),transparent 52%)}' +
+    '#zwpRoot .zwp-wh-box{position:absolute;top:50%;right:max(env(safe-area-inset-right),14px);width:92px;height:min(340px,78%);transform:translateY(-50%);-webkit-mask-image:linear-gradient(transparent,#000 20%,#000 80%,transparent);mask-image:linear-gradient(transparent,#000 20%,#000 80%,transparent)}' +
+    '#zwpRoot .zwp-wh-sc{position:absolute;inset:0;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;perspective:620px;touch-action:pan-y;overscroll-behavior:contain}#zwpRoot .zwp-wh-sc::-webkit-scrollbar{display:none}' +
+    '#zwpRoot .zwp-wi{height:66px;display:flex;align-items:center;justify-content:center;scroll-snap-align:center;will-change:transform,opacity;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
+    '#zwpRoot .zwp-wb{width:56px;height:56px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;color:rgba(255,255,255,.92);background:radial-gradient(circle at 32% 26%,rgba(255,255,255,.42),rgba(255,255,255,.1) 42%,rgba(255,255,255,.03) 72%);border:1px solid rgba(255,255,255,.26);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:inset 0 -7px 12px rgba(120,160,255,.14),inset 0 2px 5px rgba(255,255,255,.35),0 8px 20px rgba(0,0,0,.4);transition:box-shadow .2s,border-color .2s,color .2s}' +
+    '#zwpRoot .zwp-wb b{font-size:17px;font-weight:700}#zwpRoot .zwp-wb small{font-size:9px;font-weight:600;opacity:.75;margin-top:2px}' +
+    '#zwpRoot .zwp-wi.sel .zwp-wb{color:var(--cyan,#64f4ff);border-color:rgba(var(--acc-rgb,100,244,255),.8);box-shadow:inset 0 -7px 12px rgba(120,160,255,.14),inset 0 2px 5px rgba(255,255,255,.35),0 0 18px rgba(var(--acc-rgb,100,244,255),.5),0 8px 22px rgba(0,0,0,.4)}' +
+    '#zwpRoot .zwp-wh-cap{position:absolute;top:50%;right:calc(max(env(safe-area-inset-right),14px) + 106px);transform:translateY(-50%);padding:9px 16px;border-radius:999px;background:rgba(20,24,38,.62);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);font-size:14px;font-weight:600;white-space:nowrap;pointer-events:none}' +
+    '#zwpRoot.zwp-pip .zwp-wh{display:none!important}';
+
+  /* ---------- ruleta del temporizador (lógica) ---------- */
+  var wh = null, wSc = null, wCap = null, wItems = [], wSp = [], wIH = 66, wIdx = -1, wLast = -1, wInit = false, wMoved = false, wT = 0, wCloseT = 0, wRaf = 0;
+  var WOPT = [[0, "Off", ""], [5, "5", "min"], [15, "15", "min"], [30, "30", "min"], [45, "45", "min"], [60, "1", "hora"], [90, "1:30", "h"], [120, "2", "horas"], ["end", "Fin", ""]];
+  function wCapText(i) {
+    var v = WOPT[i][0], c = W._addonCtx, tv = !!(c && c.type === "tv");
+    if (v === 0) return "Sin temporizador";
+    if (v === "end") return tv ? "Al terminar el episodio" : "Al terminar la película";
+    return "Cerrar en " + (v >= 60 ? (v === 60 ? "1 hora" : v === 90 ? "1 h 30 min" : (v / 60) + " horas") : v + " min");
+  }
+  function wCur() { if (sleepEnd) return WOPT.length - 1; if (sleepAt) for (var i = 0; i < WOPT.length; i++) if (WOPT[i][0] === sleepMin) return i; return 0; }
+  function wheelBuild() {
+    if (wh) return;
+    wh = D.createElement("div"); wh.className = "zwp-wh"; wh.hidden = true;
+    wh.innerHTML = '<div class="zwp-wh-bg"></div><div class="zwp-wh-cap"></div><div class="zwp-wh-box"><div class="zwp-wh-sc"><div></div><div></div></div></div>';
+    ZR.appendChild(wh);
+    wSc = wh.querySelector(".zwp-wh-sc"); wCap = wh.querySelector(".zwp-wh-cap");
+    wSp = [wSc.children[0], wSc.children[1]];
+    WOPT.forEach(function (o, i) {
+      var it = D.createElement("div"); it.className = "zwp-wi";
+      it.innerHTML = '<div class="zwp-wb"><b>' + o[1] + "</b>" + (o[2] ? "<small>" + o[2] + "</small>" : "") + "</div>";
+      it.onclick = function () { wMoved = true; if (i === wIdx) closeSheet(); else wSc.scrollTo({ top: i * wIH, behavior: "smooth" }); };
+      wSc.insertBefore(it, wSp[1]); wItems.push(it);
+    });
+    wh.querySelector(".zwp-wh-bg").onclick = function () { closeSheet(); };
+    wSc.addEventListener("scroll", wOnScroll, { passive: true });
+    ["pointerdown", "wheel", "touchstart"].forEach(function (n) { wSc.addEventListener(n, function () { wMoved = true; clearTimeout(wCloseT); }, { passive: true }); });
+  }
+  function wPaint() {
+    var top = wSc.scrollTop, step = 34 * Math.PI / 180, Rr = wIH / (2 * Math.sin(step / 2)), c = Math.max(0, Math.min(WOPT.length - 1, Math.round(top / wIH)));
+    wItems.forEach(function (it, i) {
+      var d = i - top / wIH, ad = Math.abs(d), th = d * step;
+      if (ad > 2.6) { it.style.visibility = "hidden"; return; }
+      it.style.visibility = "";
+      it.style.transform = "translate3d(0," + (Rr * Math.sin(th) - d * wIH).toFixed(1) + "px," + (Rr * (Math.cos(th) - 1)).toFixed(1) + "px) rotateX(" + (-th * 180 / Math.PI).toFixed(1) + "deg)";
+      it.style.opacity = Math.max(0, 1 - ad * 0.34).toFixed(2);
+      it.classList.toggle("sel", i === c);
+    });
+    if (c !== wIdx) { wIdx = c; wCap.textContent = wCapText(c); if (!wInit) { try { if (navigator.vibrate) navigator.vibrate(6); } catch (e) {} } }
+  }
+  function wOnScroll() {
+    if (!wRaf) wRaf = requestAnimationFrame(function () { wRaf = 0; wPaint(); });
+    clearTimeout(wT); clearTimeout(wCloseT); wT = setTimeout(wSettle, 170);
+  }
+  function wSettle() {
+    wPaint();
+    if (wInit) return;
+    var i = Math.max(0, Math.min(WOPT.length - 1, Math.round(wSc.scrollTop / wIH)));
+    if (i !== wLast) { wLast = i; sleepSet(WOPT[i][0]); }
+    if (wMoved) wCloseT = setTimeout(function () { if (sheetOpen && sheetKind === "sleep") closeSheet(); }, 2200);
+  }
+  function wheelShow() {
+    wheelBuild(); clearTimeout(wCloseT); clearTimeout(wT);
+    wh.hidden = false; wMoved = false; wInit = true; wIdx = -1;
+    var pad = Math.max(0, (wSc.clientHeight - wIH) / 2) + "px";
+    wSp[0].style.height = pad; wSp[1].style.height = pad;
+    var i = wCur(); wLast = i; wSc.scrollTop = i * wIH; wPaint();
+    setTimeout(function () { wInit = false; }, 400);
+  }
+  function wheelHide() { clearTimeout(wT); clearTimeout(wCloseT); if (wh) wh.hidden = true; }
+
   var ZR = null, ui = {}, v = null, host = null, bound = false, fsBound = false;
   var sheetOpen = false, sheetKind = "", dragging = false, dragT = 0;
   var hideT = 0, msgT = 0, flashT = 0, tapT = 0, lastTap = 0, lastSide = 0, mvT = 0;
@@ -572,7 +645,7 @@
 
   /* ---------- panel lateral ---------- */
   function toggleSheet(kind) { if (sheetOpen && sheetKind === kind) { closeSheet(); return; } openSheet(kind); }
-  function closeSheet() { sheetOpen = false; if (ui.sheet) ui.sheet.hidden = true; showUi(); }
+  function closeSheet() { wheelHide(); sheetOpen = false; if (ui.sheet) ui.sheet.hidden = true; showUi(); }
   function fillSheet(title, items, empty) {
     ui.shT.textContent = title; ui.shL.innerHTML = "";
     if (!items.length) { var e = D.createElement("div"); e.className = "zwp-sh-e"; e.textContent = empty || "Nada disponible"; ui.shL.appendChild(e); return; }
@@ -625,8 +698,9 @@
   }
   function openSheet(kind) {
     sheetOpen = true; sheetKind = kind; ui.sheet.hidden = false; clearTimeout(hideT);
+    if (kind !== "sleep") wheelHide();
     if (kind === "sleep") {
-      fillSheet("Temporizador de apagado", sleepItems());
+      ui.sheet.hidden = true; wheelShow();
     } else if (kind === "speed") {
       fillSheet("Velocidad", [0.5, 0.75, 1, 1.25, 1.5, 2].map(function (r) {
         return { label: r === 1 ? "Normal" : r + "x", on: v.playbackRate === r, fn: function () { v.playbackRate = r; } };
@@ -838,7 +912,7 @@
     aspect = "fit"; applyAspect();
     try { v.playbackRate = 1; } catch (e) {}
     ui.speedB.textContent = ""; sleepOnOpen();
-    sheetOpen = false; ui.sheet.hidden = true; cwOpen = false; ui.cw.hidden = true; ZR.classList.remove("zwp-cwo"); backIcon();
+    wheelHide(); sheetOpen = false; ui.sheet.hidden = true; cwOpen = false; ui.cw.hidden = true; ZR.classList.remove("zwp-cwo"); backIcon();
     shownPlay = null; avail(); volPaint(); fsIcon(); stopCd(); loadSegs(); subApply(); paint(); showUi();
   }
   var origPlay = typeof W.rdPlay === "function" ? W.rdPlay : null;
