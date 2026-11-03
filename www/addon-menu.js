@@ -1004,5 +1004,12 @@
     var mt = metaFor(t, m.s, m.e, nm, snap); mt.hdr = hdr;
     return { url: url, meta: mt };
   }
-  W.ZAM = { open: openMenu, playFailed: playFailed, playFlow: playFlow, sources: srcList, resolve: srcResolve, webMeta: function () { return webMeta; }, saveWeb: saveWebNow, webSwitch: webSwitch, resume: safeContinue };
+  /* temporizador de apagado: cierra el menú de fuentes y cualquier ficha abierta y deja la app en el Inicio */
+  function goHome() {
+    try { closeMenu(); } catch (e) {}
+    try { if (typeof W.closeModal === "function") W.closeModal(); } catch (e) {}
+    try { if (typeof W.goPage === "function") W.goPage("home"); } catch (e) {}
+    try { W.scrollTo(0, 0); } catch (e) {}
+  }
+  W.ZAM = { goHome: goHome, open: openMenu, playFailed: playFailed, playFlow: playFlow, sources: srcList, resolve: srcResolve, webMeta: function () { return webMeta; }, saveWeb: saveWebNow, webSwitch: webSwitch, resume: safeContinue };
 })();

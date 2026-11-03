@@ -28,6 +28,7 @@
     audio: '<svg viewBox="0 0 24 24"><path d="M4 9.5v5h3.6l4.4 4V5.5l-4.4 4z"/><path d="M15.6 9.2a4 4 0 0 1 0 5.6M18.3 6.6a8 8 0 0 1 0 10.8"/></svg>',
     quality: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3.5"/><path d="M7.5 9.5v5M7.5 12h3M10.5 9.5v5M14 9.5h1.6a1.9 1.9 0 0 1 0 5H14z"/></svg>',
     subs: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3.5"/><path d="M7 10.5h4M13.5 10.5H17M7 14.5h2.6M12.2 14.5H17"/></svg>',
+    sleep: '<svg viewBox="0 0 24 24"><path d="M20 14.2A8.2 8.2 0 0 1 9.8 4 8.2 8.2 0 1 0 20 14.2z"/><path d="M16 4.5v3M14.5 6h3"/></svg>',
     speed: '<svg viewBox="0 0 24 24"><path d="M4.6 17.5a8.5 8.5 0 1 1 14.8 0"/><path d="M12 14l3.8-4.6"/><circle cx="12" cy="14.2" r="1.1"/></svg>',
     aspect: '<svg viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/></svg>',
     next: '<svg viewBox="0 0 24 24"><path d="M6.5 5.5v13l9.5-6.5z"/><path d="M19 5.5v13"/></svg>',
@@ -260,6 +261,7 @@
             '<button class="zwp-ic" data-p="quality" id="zwpQ" aria-label="Calidad" title="Calidad" hidden>' + ICON.quality + '</button>' +
             '<button class="zwp-ic" data-p="speed" id="zwpSpeed" aria-label="Velocidad" title="Velocidad">' + ICON.speed + '<small id="zwpSpeedB"></small></button>' +
             '<button class="zwp-ic" data-p="aspect" aria-label="Pantalla" title="Pantalla">' + ICON.aspect + '</button>' +
+            '<button class="zwp-ic" data-p="sleep" id="zwpSleep" aria-label="Temporizador de apagado" title="Temporizador de apagado">' + ICON.sleep + '<small id="zwpSleepB"></small></button>' +
             '<span class="zwp-sp"></span>' +
             '<button class="zwp-pill" id="zwpCwB" hidden>Seguir viendo</button>' +
             '<button class="zwp-ic" id="zwpNext" aria-label="Siguiente episodio" title="Siguiente episodio" hidden>' + ICON.next + '</button>' +
@@ -270,7 +272,7 @@
       '</div>' +
       '<div class="zwp-sheet" id="zwpSheet" hidden><div class="zwp-sh-t" id="zwpShT"></div><div class="zwp-sh-l" id="zwpShL"></div></div>' +
       '<div class="zwp-cw" id="zwpCw" hidden><div class="zwp-cw-h"><button class="zwp-cwp" id="zwpCwP">Seguir viendo</button></div><div class="zwp-cw-r" id="zwpCwR"></div></div>';
-    ["Tap", "Ui", "Back", "Title", "Sub", "Rew", "Play", "Fwd", "Bar", "Fill", "Buf", "Knob", "Cur", "Dur", "Pv", "PvT", "Speed", "SpeedB", "Src", "Cast", "Next", "Sheet", "ShT", "ShL", "Fl", "Fr", "Msg", "Intro", "Nx", "NxR", "NxN", "NxGo", "NxNo", "Q", "Mute", "Vol", "Pip", "Fs", "CwB", "Cw", "CwP", "CwR"]
+    ["Tap", "Ui", "Back", "Title", "Sub", "Rew", "Play", "Fwd", "Bar", "Fill", "Buf", "Knob", "Cur", "Dur", "Pv", "PvT", "Speed", "SpeedB", "Sleep", "SleepB", "Src", "Cast", "Next", "Sheet", "ShT", "ShL", "Fl", "Fr", "Msg", "Intro", "Nx", "NxR", "NxN", "NxGo", "NxNo", "Q", "Mute", "Vol", "Pip", "Fs", "CwB", "Cw", "CwP", "CwR"]
       .forEach(function (k) { ui[k.charAt(0).toLowerCase() + k.slice(1)] = ZR.querySelector("#zwp" + k); });
 
     ui.back.onclick = function () {
@@ -409,6 +411,7 @@
     v.addEventListener("ratechange", function () { var r = v.playbackRate; ui.speedB.textContent = r === 1 ? "" : r + "x"; });
     v.addEventListener("volumechange", volPaint);
     v.addEventListener("ended", function () {
+      if (sleepEnd) { sleepClear(); sleepExit(); return; }
       /* al terminar un episodio pasa al siguiente (igual que en la app) */
       var c = W._addonCtx;
       if (!(c && c.type === "tv" && typeof W.addonStep === "function")) return;
@@ -466,6 +469,47 @@
     ZR.classList.remove("zwp-hide");
     clearTimeout(hideT);
     hideT = setTimeout(function () { if (v && !v.paused && !sheetOpen && !dragging && !cwOpen) ZR.classList.add("zwp-hide"); }, 3500);
+  }
+
+  /* ---------- temporizador de apagado ---------- */
+  var sleepAt = 0, sleepMin = 0, sleepEnd = false, sleepT = 0, sleepClosed = 0;
+  function sleepBadge() {
+    if (!ui.sleepB) return;
+    var t = sleepEnd ? "fin" : (sleepAt ? Math.max(1, Math.ceil((sleepAt - Date.now()) / 60000)) + "m" : "");
+    if (ui.sleepB.textContent !== t) ui.sleepB.textContent = t;
+    if (ui.sleep) ui.sleep.classList.toggle("on", !!t);
+  }
+  function sleepClear() { sleepAt = 0; sleepMin = 0; sleepEnd = false; clearInterval(sleepT); sleepT = 0; sleepBadge(); }
+  function sleepSet(m) {
+    sleepClear();
+    if (m === "end") { sleepEnd = true; msg("Se cerrará al terminar"); }
+    else if (m > 0) { sleepMin = m; sleepAt = Date.now() + m * 60000; sleepT = setInterval(sleepTick, 1000); msg("Se cerrará en " + (m >= 60 ? (m / 60) + " h" : m + " min")); }
+    else msg("Temporizador desactivado");
+    sleepBadge();
+  }
+  /* cierra el reproductor, vuelve al Inicio y deja que el dispositivo apague la pantalla */
+  function sleepExit() {
+    try { if (typeof W.rdClosePlayer === "function") W.rdClosePlayer(); else v.pause(); } catch (e) {}
+    try { if (W.ZAM && W.ZAM.goHome) W.ZAM.goHome(); } catch (e) {}
+    try { if (typeof W.toast === "function") W.toast("Temporizador: reproducción cerrada"); } catch (e) {}
+  }
+  function sleepTick() {
+    if (!sleepAt) return;
+    if (Date.now() < sleepAt) { sleepBadge(); return; }
+    sleepClear();
+    if (!(v && ZR)) return;
+    sleepExit();
+  }
+  /* si el reproductor se cerró hace rato, el temporizador anterior ya no vale; entre un episodio y el siguiente sí se conserva */
+  function sleepOnOpen() { if ((sleepAt || sleepEnd) && sleepClosed && Date.now() - sleepClosed > 15000) sleepClear(); sleepClosed = 0; sleepBadge(); }
+  function sleepItems() {
+    var c = W._addonCtx, tv = !!(c && c.type === "tv");
+    var left = sleepEnd ? "" : (sleepAt ? "Quedan " + Math.max(1, Math.ceil((sleepAt - Date.now()) / 60000)) + " min" : "");
+    var opts = [[0, "Desactivado"], [15, "15 minutos"], [30, "30 minutos"], [45, "45 minutos"], [60, "1 hora"], [90, "1 h 30 min"], ["end", tv ? "Al terminar este episodio" : "Al terminar la película"]];
+    return opts.map(function (o) {
+      var on = o[0] === "end" ? sleepEnd : (o[0] === 0 ? (!sleepEnd && !sleepAt) : (sleepAt > 0 && sleepMin === o[0]));
+      return { label: o[1], sub: on && o[0] !== 0 && left ? left : "", on: on, fn: function () { sleepSet(o[0]); } };
+    });
   }
   function msg(t) {
     ui.msg.textContent = t; ui.msg.classList.add("on");
@@ -581,7 +625,9 @@
   }
   function openSheet(kind) {
     sheetOpen = true; sheetKind = kind; ui.sheet.hidden = false; clearTimeout(hideT);
-    if (kind === "speed") {
+    if (kind === "sleep") {
+      fillSheet("Temporizador de apagado", sleepItems());
+    } else if (kind === "speed") {
       fillSheet("Velocidad", [0.5, 0.75, 1, 1.25, 1.5, 2].map(function (r) {
         return { label: r === 1 ? "Normal" : r + "x", on: v.playbackRate === r, fn: function () { v.playbackRate = r; } };
       }));
@@ -791,7 +837,7 @@
     ui.sub.textContent = c && c.type === "tv" ? "Temporada " + c.season + " · Episodio " + c.episode : "";
     aspect = "fit"; applyAspect();
     try { v.playbackRate = 1; } catch (e) {}
-    ui.speedB.textContent = "";
+    ui.speedB.textContent = ""; sleepOnOpen();
     sheetOpen = false; ui.sheet.hidden = true; cwOpen = false; ui.cw.hidden = true; ZR.classList.remove("zwp-cwo"); backIcon();
     shownPlay = null; avail(); volPaint(); fsIcon(); stopCd(); loadSegs(); subApply(); paint(); showUi();
   }
@@ -805,6 +851,7 @@
   if (origClose) W.rdClosePlayer = function () {
     try {
       if (ZR) {
+        sleepClosed = Date.now();
         stopCd();
         closeSheet();
         cwOpen = false; ui.cw.hidden = true; ZR.classList.remove("zwp-cwo");

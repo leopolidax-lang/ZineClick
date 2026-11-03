@@ -21,6 +21,7 @@
     quality: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3.5"/><path d="M7.5 9.5v5M7.5 12h3M10.5 9.5v5M14 9.5h1.6a1.9 1.9 0 0 1 0 5H14z"/></svg>',
     subs: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3.5"/><path d="M7 10.5h4M13.5 10.5H17M7 14.5h2.6M12.2 14.5H17"/></svg>',
     speed: '<svg viewBox="0 0 24 24"><path d="M4.6 17.5a8.5 8.5 0 1 1 14.8 0"/><path d="M12 14l3.8-4.6"/><circle cx="12" cy="14.2" r="1.1"/></svg>',
+    sleep: '<svg viewBox="0 0 24 24"><path d="M20 14.2A8.2 8.2 0 0 1 9.8 4 8.2 8.2 0 1 0 20 14.2z"/><path d="M16 4.5v3M14.5 6h3"/></svg>',
     aspect: '<svg viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/></svg>',
     next: '<svg viewBox="0 0 24 24"><path d="M6.5 5.5v13l9.5-6.5z"/><path d="M19 5.5v13"/></svg>',
     src: '<svg viewBox="0 0 24 24"><path d="M12 3.5 21 8.5 12 13.5 3 8.5z"/><path d="M3 12.5l9 5 9-5"/><path d="M3 16.5l9 5 9-5"/></svg>',
@@ -302,13 +303,14 @@
             '<button class="znp-ic" data-p="quality" aria-label="Calidad" title="Calidad">' + ICON.quality + '</button>' +
             '<button class="znp-ic" data-p="speed" id="znpSpeed" aria-label="Velocidad" title="Velocidad">' + ICON.speed + '<small id="znpSpeedB"></small></button>' +
             '<button class="znp-ic" data-p="aspect" aria-label="Pantalla" title="Pantalla">' + ICON.aspect + '</button>' +
+            '<button class="znp-ic" data-p="sleep" id="znpSleep" aria-label="Temporizador de apagado" title="Temporizador de apagado">' + ICON.sleep + '<small id="znpSleepB"></small></button>' +
             '<button class="znp-pill" id="znpCwB" hidden>Seguir viendo</button>' +
             '<button class="znp-ic znp-nx" id="znpNext" aria-label="Siguiente episodio" title="Siguiente episodio" hidden>' + ICON.next + '</button></div></div>' +
       '</div>' +
       '<div class="znp-sheet" id="znpSheet" hidden><div class="znp-sh-t" id="znpShT"></div><div class="znp-sh-l" id="znpShL"></div></div>' +
       '<div class="znp-cw" id="znpCw" hidden><div class="znp-cw-h"><button class="znp-cwp" id="znpCwP">Seguir viendo</button></div><div class="znp-cw-r" id="znpCwR"></div></div>';
     D.body.appendChild(root);
-    ["Tap", "Ui", "Back", "Title", "Sub", "Rew", "Play", "Fwd", "Bar", "Fill", "Knob", "Cur", "Dur", "Pv", "PvI", "PvT", "Speed", "SpeedB", "Src", "Cast", "Cb", "Next", "Sheet", "ShT", "ShL", "Fl", "Fr", "Msg", "Intro", "Nx", "NxR", "NxN", "NxGo", "NxNo", "CwB", "Cw", "CwP", "CwR"]
+    ["Tap", "Ui", "Back", "Title", "Sub", "Rew", "Play", "Fwd", "Bar", "Fill", "Knob", "Cur", "Dur", "Pv", "PvI", "PvT", "Speed", "SpeedB", "Sleep", "SleepB", "Src", "Cast", "Cb", "Next", "Sheet", "ShT", "ShL", "Fl", "Fr", "Msg", "Intro", "Nx", "NxR", "NxN", "NxGo", "NxNo", "CwB", "Cw", "CwP", "CwR"]
       .forEach(function (k) { ui[k.charAt(0).toLowerCase() + k.slice(1)] = $("znp" + k); });
 
     ui.back.onclick = function () { if (cwOpen) closeCw(); else close(true); };
@@ -451,6 +453,8 @@
       fillSheet("Velocidad", [0.5, 0.75, 1, 1.25, 1.5, 2].map(function (r) {
         return { label: r === 1 ? "Normal" : r + "x", on: r === rate, fn: function () { rate = r; speedBadge(); call("setRate", { rate: r }).catch(noop); } };
       }));
+    } else if (kind === "sleep") {
+      fillSheet("Temporizador de apagado", sleepItems());
     } else if (kind === "quality") {
       fillSheet("Calidad", [[0, "Automática", "Si no cambia nada, este enlace solo trae una calidad"], [1080, "1080p"], [720, "720p"], [480, "480p"], [360, "360p"]].map(function (q) {
         return { label: q[1], sub: q[0] === 0 ? q[2] : "", on: q[0] === quality, fn: function () { quality = q[0]; call("setQuality", { height: q[0] }).catch(noop); } };
@@ -534,6 +538,43 @@
     }).catch(function () { msg("No se pudo transmitir a ese dispositivo"); });
   }
 
+
+  /* ---------- temporizador de apagado ---------- */
+  var sleepAt = 0, sleepMin = 0, sleepEnd = false, sleepT = 0, sleepClosed = 0;
+  function sleepBadge() {
+    if (!ui.sleepB) return;
+    var t = sleepEnd ? "fin" : (sleepAt ? Math.max(1, Math.ceil((sleepAt - Date.now()) / 60000)) + "m" : "");
+    if (ui.sleepB.textContent !== t) ui.sleepB.textContent = t;
+    if (ui.sleep) ui.sleep.classList.toggle("on", !!t);
+  }
+  function sleepClear() { sleepAt = 0; sleepMin = 0; sleepEnd = false; clearInterval(sleepT); sleepT = 0; sleepBadge(); }
+  function sleepSet(m) {
+    sleepClear();
+    if (m === "end") { sleepEnd = true; msg("Se cerrará al terminar"); }
+    else if (m > 0) { sleepMin = m; sleepAt = Date.now() + m * 60000; sleepT = setInterval(sleepTick, 1000); msg("Se cerrará en " + (m >= 60 ? (m / 60) + " h" : m + " min")); }
+    else msg("Temporizador desactivado");
+    sleepBadge();
+  }
+  function sleepTick() {
+    if (!sleepAt) return;
+    if (Date.now() < sleepAt) { sleepBadge(); return; }
+    sleepClear();
+    if (!isOpen) return;
+    close(true); /* guarda la posición, detiene VLC y suelta la pantalla para que el celular pueda apagarla */
+    if (W.ZAM && W.ZAM.goHome) W.ZAM.goHome();
+    say("Temporizador: reproducción cerrada");
+  }
+  /* si el reproductor se cerró hace rato, el temporizador anterior ya no vale; entre un episodio y el siguiente sí se conserva */
+  function sleepOnOpen() { if ((sleepAt || sleepEnd) && sleepClosed && Date.now() - sleepClosed > 15000) sleepClear(); sleepClosed = 0; sleepBadge(); }
+  function sleepItems() {
+    var c = W._addonCtx, tv = !!(c && c.type === "tv");
+    var left = sleepEnd ? "" : (sleepAt ? "Quedan " + Math.max(1, Math.ceil((sleepAt - Date.now()) / 60000)) + " min" : "");
+    var opts = [[0, "Desactivado"], [15, "15 minutos"], [30, "30 minutos"], [45, "45 minutos"], [60, "1 hora"], [90, "1 h 30 min"], ["end", tv ? "Al terminar este episodio" : "Al terminar la película"]];
+    return opts.map(function (o) {
+      var on = o[0] === "end" ? sleepEnd : (o[0] === 0 ? (!sleepEnd && !sleepAt) : (sleepAt > 0 && sleepMin === o[0]));
+      return { label: o[1], sub: on && o[0] !== 0 && left ? left : "", on: on, fn: function () { sleepSet(o[0]); } };
+    });
+  }
   function speedBadge() { if (ui.speedB) ui.speedB.textContent = rate === 1 ? "" : rate + "x"; }
 
   /* ---------- cambiar de fuente sin perder el minuto ---------- */
@@ -779,13 +820,14 @@
         else if (Date.now() - resumeAt > 2500) { resumeAt = Date.now(); resumeN++; call("seekTo", { ms: resumeTo }).catch(noop); }
       }
       if (!applied && !applyT && st.length > 0) applyT = setTimeout(applyPrefs, 1200);
-      savePos(false);
+      savePos(false); if (sleepAt) sleepTick();
       if (!dragging) paint();
     });
     p.addListener("znpEnded", function () {
       if (!isOpen) return;
       if (Date.now() - openAt < 45000 && st.time < 20000 && W.ZAM && W.ZAM.playFailed) { meta = null; close(true); W.ZAM.playFailed(); return; } /* terminó al instante: la fuente no sirve */
       var tv = isTv(); st.time = st.length; try { if (meta && W.ZCW) W.ZCW.progress(meta, st.length, st.length, true); } catch (e) {} meta = null;
+      if (sleepEnd) { sleepClear(); close(true); if (W.ZAM && W.ZAM.goHome) W.ZAM.goHome(); say("Temporizador: reproducción cerrada"); return; }
       if (tv && eleg() && typeof W.addonStep === "function") { startEnd(); return; }
       close(true);
       if (tv && typeof W.addonStep === "function") W.addonStep(1);
@@ -828,7 +870,7 @@
     ui.title.textContent = curTitle || "Reproduciendo";
     var c = W._addonCtx;
     ui.sub.textContent = c && c.type === "tv" ? "Temporada " + c.season + " · Episodio " + c.episode : "";
-    ui.next.hidden = !isTv(); stopCd(); loadSegs();
+    ui.next.hidden = !isTv(); stopCd(); loadSegs(); sleepOnOpen();
     speedBadge(); ui.src.hidden = !(meta && W.ZAM && W.ZAM.sources);
     sheetOpen = false; ui.sheet.hidden = true; dragging = false;
     isOpen = true; root.hidden = false; D.documentElement.classList.add("znp-on");
@@ -842,7 +884,7 @@
   }
   function close(stopNative) {
     if (!isOpen) return;
-    savePos(true);
+    savePos(true); sleepClosed = Date.now();
     isOpen = false; sheetOpen = false; cwOpen = false; subDirty = false; ui.cw.hidden = true; root.classList.remove("znp-cwo"); stopCd(); curSeg = null; segs = [];
     clearTimeout(hideT); clearTimeout(tapT); clearTimeout(applyT); applyT = 0;
     detachBack();
