@@ -215,18 +215,20 @@
   }
   function $(id) { return D.getElementById(id); }
   function call(m, a) { var p = plug(); if (!p || !p[m]) return Promise.reject(new Error("sin plugin")); return p[m](a || {}); }
+  /* duración real; si la fuente no la da (algunos addons), se usa la de TMDB para que la barra avance */
+  function eff() { return st.length > 0 ? st.length : ((meta && meta.rt) || 0); }
   function isTv() { return !!(W._addonCtx && W._addonCtx.type === "tv"); }
 
   /* ---------- posición guardada (para continuar donde lo dejaste) ---------- */
   function posMap() { try { return JSON.parse(localStorage.getItem("znp_pos") || "{}") || {}; } catch (e) { return {}; } }
   function savePos(force) {
-    if (!curTitle || st.length <= 0) return;
+    if (!curTitle || eff() <= 0) return;
     var now = Date.now();
     if (!force && now - lastSave < 5000) return;
     lastSave = now;
-    try { if (meta && W.ZCW) W.ZCW.progress(meta, st.time, st.length, false); } catch (e) {}
+    try { if (meta && W.ZCW) W.ZCW.progress(meta, st.time, eff(), false); } catch (e) {}
     var m = posMap();
-    if (st.time > 30000 && st.time < st.length - 45000) m[curTitle] = st.time; else delete m[curTitle];
+    if (st.time > 30000 && st.time < eff() - 45000) m[curTitle] = st.time; else delete m[curTitle];
     var keys = Object.keys(m);
     if (keys.length > 80) delete m[keys[0]];
     try { localStorage.setItem("znp_pos", JSON.stringify(m)); } catch (e) {}
@@ -336,11 +338,11 @@
     /* barra de progreso: arrastrar o tocar */
     function frac(e) { var r = ui.bar.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); }
     ui.bar.addEventListener("pointerdown", function (e) {
-      if (st.length <= 0) return;
-      dragging = true; dragT = frac(e) * st.length; try { ui.bar.setPointerCapture(e.pointerId); } catch (x) {}
+      if (eff() <= 0) return;
+      dragging = true; dragT = frac(e) * eff(); try { ui.bar.setPointerCapture(e.pointerId); } catch (x) {}
       clearTimeout(hideT); paint(); movePv(e.clientX);
     });
-    ui.bar.addEventListener("pointermove", function (e) { if (dragging) { dragT = frac(e) * st.length; paint(); movePv(e.clientX); } });
+    ui.bar.addEventListener("pointermove", function (e) { if (dragging) { dragT = frac(e) * eff(); paint(); movePv(e.clientX); } });
     function endDrag() {
       if (!dragging) return;
       dragging = false; ui.pv.classList.remove("on"); st.time = dragT; call("seekTo", { ms: Math.round(dragT) }).catch(noop); paint(); showUi();
@@ -352,11 +354,11 @@
   /* ---------- pintar estado ---------- */
   function paint() {
     if (!root) return;
-    var len = st.length, t = dragging ? dragT : st.time, f = len > 0 ? Math.min(1, t / len) : 0;
+    var len = eff(), t = dragging ? dragT : st.time, f = len > 0 ? Math.min(1, t / len) : 0;
     ui.fill.style.width = (f * 100) + "%";
     ui.knob.style.left = (f * 100) + "%";
     ui.cur.textContent = fmt(t);
-    ui.dur.textContent = len > 0 ? "-" + fmt(len - t) : "";
+    ui.dur.textContent = len > 0 ? (st.length > 0 ? "-" : "~-") + fmt(Math.max(0, len - t)) : "";
     ui.play.innerHTML = st.playing ? ICON.pause : ICON.play;
     root.classList.toggle("znp-busy", !!st.buffering || (!st.playing && st.time === 0 && len === 0));
     updateSeg();
@@ -395,7 +397,7 @@
   }
   function seekBy(ms) {
     call("seekBy", { ms: ms }).catch(noop);
-    st.time = Math.max(0, Math.min(st.length || 1e12, st.time + ms)); paint(); showUi();
+    st.time = Math.max(0, Math.min(eff() || 1e12, st.time + ms)); paint(); showUi();
   }
 
   /* ---------- panel lateral: audio, subtítulos, velocidad, pantalla ---------- */

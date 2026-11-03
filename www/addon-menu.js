@@ -401,7 +401,12 @@
     if (typeof W.rdPlay === "function") W.rdPlay({ download: url }, tt ? tt.textContent : "");
   }
 
+  function runtimeMs(t, s, e) {
+    if (t.mediaType === "tv") return epList(t.tmdbId, s).then(function (l) { var x = l.filter(function (z) { return z.n === e; })[0]; return x && x.runtime ? x.runtime * 60000 : 0; }).catch(function () { return 0; });
+    return W.tmdb("/movie/" + t.tmdbId).then(function (d) { return (d && d.runtime ? d.runtime : 0) * 60000; }).catch(function () { return 0; });
+  }
   function launch(url, t, s, e, meta) {
+    if (meta) runtimeMs(t, s, e).then(function (ms) { if (ms) meta.rt = ms; }).catch(noop);
     W.__zplHdr = (meta && meta.hdr) || null;
     W._addonCtx = t.mediaType === "tv" ? { type: "tv", tmdbId: t.tmdbId, title: t.title, season: s, episode: e } : { type: "movie", tmdbId: t.tmdbId, title: t.title };
     var title = playerTitle(t, s, e);
@@ -545,8 +550,23 @@
   /* =============== Continuar / siguiente =============== */
   function asTitle(en) { return { tmdbId: en.tmdbId, mediaType: en.type, title: en.title, posterPath: en.poster, backdropPath: en.backdrop }; }
 
+  /* con idiomas preferidos: busca en todos los addons una fuente de ese idioma para el episodio (false si no hay ninguna) */
+  async function langPlay(t, type, s, e, nm) {
+    var imdb = "";
+    try { imdb = await imdbOf(type, t.tmdbId); } catch (x) { imdb = ""; }
+    var both = await Promise.all([imdb ? fetchStreams(imdb, type, s, e) : Promise.resolve([]), (plg() && plg().count()) ? plg().find(t, type, s, e).catch(function () { return []; }) : Promise.resolve([])]);
+    var items = [];
+    both[0].concat(both[1]).forEach(function (r) { r.streams.forEach(function (st) { items.push({ addon: r.addon, st: st, inf: info(st) }); }); });
+    var i = autoPick(items); if (i < 0) return false;
+    var it = items[i], snap = snapOf(it.addon, it.st), url, hdr = null;
+    if (it.st._zpl) { var rr = await plg().resolveFor(it.st._zpl, type, s, e); url = rr.url; hdr = rr.headers; snap.plg = it.st._zpl; }
+    else url = await resolveUrl(snap);
+    var mt = metaFor(t, s, e, nm, snap); mt.hdr = hdr;
+    launch(url, t, s, e, mt); return true;
+  }
   async function playEpisode(t, s, e, snap, exact) {
     var type = t.mediaType === "tv" ? "tv" : "movie", nm = type === "tv" ? await epName(t.tmdbId, s, e) : "";
+    if (!exact) { var pf = srcPrefs(); if (pf.auto && pf.langs.length) { try { if (await langPlay(t, type, s, e, nm)) return true; } catch (x) {} } }
     if (snap && snap.plg) {
       if (!plg()) return false;
       var rr = await plg().resolveFor(snap.plg, type, s, e), mt1 = metaFor(t, s, e, nm, snap); mt1.hdr = rr.headers;
