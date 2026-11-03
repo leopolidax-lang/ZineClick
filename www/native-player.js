@@ -201,35 +201,33 @@
   /* ruleta del temporizador: esferas de cristal que giran como un rostizador, a la derecha */
   CSS += '#znpRoot .znp-wh{position:absolute;inset:0;z-index:6}#znpRoot .znp-wh[hidden]{display:none}' +
     '#znpRoot .znp-wh-bg{position:absolute;inset:0;background:linear-gradient(270deg,rgba(0,0,0,.5),transparent 52%)}' +
-    '#znpRoot .znp-wh-box{position:absolute;top:50%;right:max(env(safe-area-inset-right),14px);width:92px;height:min(340px,78%);transform:translateY(-50%);-webkit-mask-image:linear-gradient(transparent,#000 20%,#000 80%,transparent);mask-image:linear-gradient(transparent,#000 20%,#000 80%,transparent)}' +
+    '#znpRoot .znp-wh-box{position:absolute;top:50%;right:max(env(safe-area-inset-right),14px);width:230px;height:min(330px,78%);transform:translateY(-50%);-webkit-mask-image:linear-gradient(transparent,#000 20%,#000 80%,transparent);mask-image:linear-gradient(transparent,#000 20%,#000 80%,transparent)}' +
     '#znpRoot .znp-wh-sc{position:absolute;inset:0;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;perspective:620px;touch-action:pan-y;overscroll-behavior:contain}#znpRoot .znp-wh-sc::-webkit-scrollbar{display:none}' +
-    '#znpRoot .znp-wi{height:66px;display:flex;align-items:center;justify-content:center;scroll-snap-align:center;will-change:transform,opacity;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
-    '#znpRoot .znp-wb{width:56px;height:56px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;color:rgba(255,255,255,.92);background:radial-gradient(circle at 32% 26%,rgba(255,255,255,.42),rgba(255,255,255,.1) 42%,rgba(255,255,255,.03) 72%);border:1px solid rgba(255,255,255,.26);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:inset 0 -7px 12px rgba(120,160,255,.14),inset 0 2px 5px rgba(255,255,255,.35),0 8px 20px rgba(0,0,0,.4);transition:box-shadow .2s,border-color .2s,color .2s}' +
-    '#znpRoot .znp-wb b{font-size:17px;font-weight:700}#znpRoot .znp-wb small{font-size:9px;font-weight:600;opacity:.75;margin-top:2px}' +
-    '#znpRoot .znp-wi.sel .znp-wb{color:var(--cyan,#64f4ff);border-color:rgba(var(--acc-rgb,100,244,255),.8);box-shadow:inset 0 -7px 12px rgba(120,160,255,.14),inset 0 2px 5px rgba(255,255,255,.35),0 0 18px rgba(var(--acc-rgb,100,244,255),.5),0 8px 22px rgba(0,0,0,.4)}' +
-    '#znpRoot .znp-wh-cap{position:absolute;top:50%;right:calc(max(env(safe-area-inset-right),14px) + 106px);transform:translateY(-50%);padding:9px 16px;border-radius:999px;background:rgba(20,24,38,.62);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);font-size:14px;font-weight:600;white-space:nowrap;pointer-events:none}' +
+    '#znpRoot .znp-wi{height:52px;display:flex;align-items:center;justify-content:flex-end;transform-origin:right center;scroll-snap-align:center;will-change:transform,opacity;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
+    '#znpRoot .znp-wb{height:40px;padding:0 20px;border-radius:999px;display:flex;align-items:center;justify-content:center;white-space:nowrap;font-size:15px;font-weight:600;line-height:1;color:rgba(255,255,255,.92);background:linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,.07));border:1px solid rgba(255,255,255,.24);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 8px 20px rgba(0,0,0,.38);transition:box-shadow .2s,border-color .2s,color .2s,background .2s}' +
+    '' +
+    '#znpRoot .znp-wi.sel .znp-wb{color:#fff;border-color:rgba(var(--acc-rgb,100,244,255),.85);background:linear-gradient(135deg,rgba(var(--acc-rgb,100,244,255),.38),rgba(167,139,250,.32));box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 0 18px rgba(var(--acc-rgb,100,244,255),.45),0 8px 22px rgba(0,0,0,.4)}' +
+    '' +
     '#znpRoot.znp-pip .znp-wh{display:none!important}';
 
   /* ---------- ruleta del temporizador (lógica) ---------- */
-  var wh = null, wSc = null, wCap = null, wItems = [], wSp = [], wIH = 66, wIdx = -1, wLast = -1, wInit = false, wMoved = false, wT = 0, wCloseT = 0, wRaf = 0;
-  var WOPT = [[0, "Off", ""], [5, "5", "min"], [15, "15", "min"], [30, "30", "min"], [45, "45", "min"], [60, "1", "hora"], [90, "1:30", "h"], [120, "2", "horas"], ["end", "Fin", ""]];
+  var wh = null, wSc = null, wCap = null, wItems = [], wSp = [], wIH = 52, wIdx = -1, wLast = -1, wInit = false, wMoved = false, wT = 0, wCloseT = 0, wRaf = 0;
+  var WOPT = [[0, "Sin temporizador"], [5, "5 min"], [15, "15 min"], [30, "30 min"], [45, "45 min"], [60, "1 hora"], [90, "1 h 30 min"], [120, "2 horas"], ["end", ""]];
   function wCapText(i) {
-    var v = WOPT[i][0], c = W._addonCtx, tv = !!(c && c.type === "tv");
-    if (v === 0) return "Sin temporizador";
-    if (v === "end") return tv ? "Al terminar el episodio" : "Al terminar la película";
-    return "Cerrar en " + (v >= 60 ? (v === 60 ? "1 hora" : v === 90 ? "1 h 30 min" : (v / 60) + " horas") : v + " min");
+    if (WOPT[i][0] === "end") { var c = W._addonCtx; return c && c.type === "tv" ? "Al terminar el episodio" : "Al terminar la película"; }
+    return WOPT[i][1];
   }
   function wCur() { if (sleepEnd) return WOPT.length - 1; if (sleepAt) for (var i = 0; i < WOPT.length; i++) if (WOPT[i][0] === sleepMin) return i; return 0; }
   function wheelBuild() {
     if (wh) return;
     wh = D.createElement("div"); wh.className = "znp-wh"; wh.hidden = true;
-    wh.innerHTML = '<div class="znp-wh-bg"></div><div class="znp-wh-cap"></div><div class="znp-wh-box"><div class="znp-wh-sc"><div></div><div></div></div></div>';
+    wh.innerHTML = '<div class="znp-wh-bg"></div><div class="znp-wh-box"><div class="znp-wh-sc"><div></div><div></div></div></div>';
     root.appendChild(wh);
-    wSc = wh.querySelector(".znp-wh-sc"); wCap = wh.querySelector(".znp-wh-cap");
+    wSc = wh.querySelector(".znp-wh-sc");
     wSp = [wSc.children[0], wSc.children[1]];
     WOPT.forEach(function (o, i) {
       var it = D.createElement("div"); it.className = "znp-wi";
-      it.innerHTML = '<div class="znp-wb"><b>' + o[1] + "</b>" + (o[2] ? "<small>" + o[2] + "</small>" : "") + "</div>";
+      it.innerHTML = '<div class="znp-wb"></div>'; it.firstChild.textContent = wCapText(i);
       it.onclick = function () { wMoved = true; if (i === wIdx) closeSheet(); else wSc.scrollTo({ top: i * wIH, behavior: "smooth" }); };
       wSc.insertBefore(it, wSp[1]); wItems.push(it);
     });
@@ -243,11 +241,11 @@
       var d = i - top / wIH, ad = Math.abs(d), th = d * step;
       if (ad > 2.6) { it.style.visibility = "hidden"; return; }
       it.style.visibility = "";
-      it.style.transform = "translate3d(0," + (Rr * Math.sin(th) - d * wIH).toFixed(1) + "px," + (Rr * (Math.cos(th) - 1)).toFixed(1) + "px) rotateX(" + (-th * 180 / Math.PI).toFixed(1) + "deg)";
+      it.style.transform = "translate3d(0," + (Rr * Math.sin(th) - d * wIH).toFixed(1) + "px," + (Rr * (Math.cos(th) - 1)).toFixed(1) + "px) rotateX(" + (-th * 180 / Math.PI).toFixed(1) + "deg) scale(" + (1 - Math.min(ad, 2) * 0.06).toFixed(3) + ")";
       it.style.opacity = Math.max(0, 1 - ad * 0.34).toFixed(2);
       it.classList.toggle("sel", i === c);
     });
-    if (c !== wIdx) { wIdx = c; wCap.textContent = wCapText(c); if (!wInit) { try { if (navigator.vibrate) navigator.vibrate(6); } catch (e) {} } }
+    if (c !== wIdx) { wIdx = c; if (!wInit) { try { if (navigator.vibrate) navigator.vibrate(6); } catch (e) {} } }
   }
   function wOnScroll() {
     if (!wRaf) wRaf = requestAnimationFrame(function () { wRaf = 0; wPaint(); });
@@ -262,7 +260,7 @@
   }
   function wheelShow() {
     wheelBuild(); clearTimeout(wCloseT); clearTimeout(wT);
-    wh.hidden = false; wMoved = false; wInit = true; wIdx = -1;
+    wh.hidden = false; wItems.forEach(function (it, k) { it.firstChild.textContent = wCapText(k); }); wMoved = false; wInit = true; wIdx = -1;
     var pad = Math.max(0, (wSc.clientHeight - wIH) / 2) + "px";
     wSp[0].style.height = pad; wSp[1].style.height = pad;
     var i = wCur(); wLast = i; wSc.scrollTop = i * wIH; wPaint();
