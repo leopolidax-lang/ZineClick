@@ -203,7 +203,7 @@
   var hideT = 0, msgT = 0, flashT = 0, tapT = 0, lastTap = 0, lastSide = 0;
   var curTitle = "", fallback = null, backH = null, listening = false, resumed = false, lastSave = 0;
   var origPlay = typeof W.rdPlay === "function" ? W.rdPlay : null;
-  var castName = "", castPoll = 0, castSig = "", rate = 1, aspect = "fit", meta = null, sheetKind = "", quality = 0, startAt = 0, applied = false, applyTry = 0, applyT = 0;
+  var openAt = 0, castName = "", castPoll = 0, castSig = "", rate = 1, aspect = "fit", meta = null, sheetKind = "", quality = 0, startAt = 0, applied = false, applyTry = 0, applyT = 0;
   var thumbC = {}, thumbBusy = false, thumbOk = true, thumbFail = 0, thumbWant = -1;
   var cwOpen = false, curUrl = "", subDirty = false, subSt = null;
   var TMI = "https://image.tmdb.org/t/p/w500";
@@ -768,6 +768,7 @@
     });
     p.addListener("znpEnded", function () {
       if (!isOpen) return;
+      if (Date.now() - openAt < 45000 && st.time < 20000 && W.ZAM && W.ZAM.playFailed) { meta = null; close(true); W.ZAM.playFailed(); return; } /* terminó al instante: la fuente no sirve */
       var tv = isTv(); st.time = st.length; try { if (meta && W.ZCW) W.ZCW.progress(meta, st.length, st.length, true); } catch (e) {} meta = null;
       if (tv && eleg() && typeof W.addonStep === "function") { startEnd(); return; }
       close(true);
@@ -803,7 +804,7 @@
     curUrl = url; subSt = subLoad(); cwOpen = false; subDirty = false; if (ui.cw) ui.cw.hidden = true; root.classList.remove("znp-cwo"); backIcon();
     curTitle = title || ""; fallback = fb || (origPlay ? function () { origPlay({ download: url }, title); } : null); resumed = false; rate = 1; aspect = "fit"; quality = 0; lastSave = 0;
     castName = ""; castSig = ""; clearInterval(castPoll); if (ui.cast) { ui.cast.classList.remove("on"); } root.classList.remove("znp-casting");
-    startAt = Number(startMs) || 0; applied = false; applyTry = 0; clearTimeout(applyT); applyT = 0;
+    openAt = Date.now(); startAt = Number(startMs) || 0; applied = false; applyTry = 0; clearTimeout(applyT); applyT = 0;
     st = { time: 0, length: 0, playing: false, buffering: true }; wantUntil = 0;
     ui.title.textContent = curTitle || "Reproduciendo";
     var c = W._addonCtx;
