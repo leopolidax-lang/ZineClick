@@ -232,7 +232,7 @@
   }
   function savePos(force) {
     if (!curTitle || eff() <= 0) return;
-    if (resumeTo) return; /* mientras se está volviendo a tu minuto, no se pisa lo guardado con el 0:00 */
+    if (st.time < 15000 && (resumeTo || !resumed)) return; /* al abrir, aún no se decidió a qué minuto volver: no se pisa lo guardado con el 0:00 */
     var now = Date.now();
     if (!force && now - lastSave < 5000) return;
     lastSave = now;
