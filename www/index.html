@@ -223,7 +223,7 @@
    <div class="st-row"><div class="st-lab"><b>Tamaño de las tarjetas</b><small>Cuántos títulos caben en cada fila del catálogo y de tus listas.</small></div>
     <div class="st-seg" role="radiogroup" aria-label="Tamaño de las tarjetas" data-key="cards"><button type="button" role="radio" aria-checked="false" data-val="compact">Compactas</button><button type="button" role="radio" aria-checked="false" data-val="normal">Normales</button><button type="button" role="radio" aria-checked="false" data-val="large">Grandes</button></div></div>
    <div class="st-row"><div class="st-lab"><b>Estilo de carga del reproductor</b><small>Animación que aparece mientras carga el video.</small></div>
-    <div class="st-seg st-seg-grid" role="radiogroup" aria-label="Estilo de carga del reproductor" data-key="loader"><button type="button" role="radio" aria-checked="false" data-val="trace">Trazo de luz</button><button type="button" role="radio" aria-checked="false" data-val="pulse">Pulso</button><button type="button" role="radio" aria-checked="false" data-val="build">Ensamblado</button><button type="button" role="radio" aria-checked="false" data-val="edge">Borde de luz</button><button type="button" role="radio" aria-checked="false" data-val="zorro">Z del Zorro</button></div></div>
+    <div class="st-seg st-seg-grid" role="radiogroup" aria-label="Estilo de carga del reproductor" data-key="loader"><button type="button" role="radio" aria-checked="false" data-val="trace">Trazo de luz</button><button type="button" role="radio" aria-checked="false" data-val="pulse">Pulso</button><button type="button" role="radio" aria-checked="false" data-val="build">Ensamblado</button><button type="button" role="radio" aria-checked="false" data-val="edge">Borde de luz</button><button type="button" role="radio" aria-checked="false" data-val="zorro">Z</button></div></div>
   </section>
   <div class="st-card" id="addonCard" style="margin-top: 16px;">
     <h2>Proveedores y Addons Externos</h2>
@@ -488,6 +488,37 @@ function syncDetail(){
 function detailRateToggle(){const p=document.getElementById("detRate"),b=document.getElementById("detRateBtn");if(!p)return;p.hidden=!p.hidden;if(b)b.setAttribute("aria-expanded",String(!p.hidden))}
 function detailRate(n){if(detailId==null)return;const key=String(detailId),t=getTaste();if(n>0)t.ratings[key]=n;else delete t.ratings[key];saveTaste(t);syncDetail();const p=document.getElementById("detRate"),b=document.getElementById("detRateBtn");if(p)p.hidden=true;if(b)b.setAttribute("aria-expanded","false");toast(n>0?"Calificaste con "+n+" de 5. Lo tendremos en cuenta.":"Calificación quitada.")}
 function detailFav(){if(detailId!=null)toggleList("favorites",detailId)}
+/* ===== Logos oficiales de título (TMDB) · solo se ven en el estilo Elegante ===== */
+let zyLogoStore=null;const zyLogoBusy=new Map();let zyDetTok="";
+function zyLogoLoad(){if(zyLogoStore)return zyLogoStore;try{zyLogoStore=JSON.parse(localStorage.getItem("zy_logos_v1")||"{}")||{}}catch(e){zyLogoStore={}}return zyLogoStore}
+function zyLogoSave(){try{const o=zyLogoLoad(),k=Object.keys(o);if(k.length>400)k.slice(0,k.length-400).forEach(x=>{delete o[x]});localStorage.setItem("zy_logos_v1",JSON.stringify(o))}catch(e){}}
+function zyPickLogo(list){
+ if(!Array.isArray(list))return "";
+ const ok=list.filter(l=>l&&/\.png$/i.test(l.file_path||"")&&(l.aspect_ratio||2)>=1.1);
+ const rank=l=>l.iso_639_1==="es"?0:l.iso_639_1==="en"?1:l.iso_639_1?3:2;
+ ok.sort((a,b)=>rank(a)-rank(b)||(b.vote_average||0)-(a.vote_average||0)||(b.width||0)-(a.width||0));
+ return ok[0]?ok[0].file_path:""}
+function zyLogoKey(t){return t&&t.tmdbId&&t.mediaType?t.mediaType+"_"+t.tmdbId:""}
+function zyTitleLogo(t){
+ const key=zyLogoKey(t);if(!key||!getCredential())return Promise.resolve("");
+ const st=zyLogoLoad();if(key in st)return Promise.resolve(st[key]==="-"?"":st[key]);
+ if(zyLogoBusy.has(key))return zyLogoBusy.get(key);
+ const p=tmdb("/"+t.mediaType+"/"+t.tmdbId+"/images",{include_image_language:"es,en,null"}).then(d=>{const f=zyPickLogo(d&&d.logos);st[key]=f||"-";zyLogoSave();return f}).catch(()=>"").finally(()=>{zyLogoBusy.delete(key)});
+ zyLogoBusy.set(key,p);return p}
+function zyDetailLogoClear(){zyDetTok="";const top=document.querySelector("#detailModal .modal-top");if(!top)return;top.classList.remove("has-logo");top.querySelectorAll(".det-logo").forEach(e=>e.remove())}
+function zyDetailLogo(t){
+ zyDetailLogoClear();const tok=zyDetTok=String(t.id);
+ const put=p=>{if(!p||zyDetTok!==tok)return;const top=document.querySelector("#detailModal .modal-top");if(!top)return;const im=new Image();im.className="det-logo";im.alt="";im.decoding="async";im.onload=()=>{if(zyDetTok!==tok)return;top.insertBefore(im,top.firstChild);top.classList.add("has-logo")};im.src="https://image.tmdb.org/t/p/w500"+p};
+ if("logoPath" in t){const k=zyLogoKey(t);if(k){const st=zyLogoLoad();st[k]=t.logoPath||"-";zyLogoSave()}put(t.logoPath);return}
+ zyTitleLogo(t).then(put)}
+function heroLogos(items){
+ items.forEach(t=>{zyTitleLogo(t).then(p=>{
+  if(!p)return;const tr=document.getElementById("heroTrack");if(!tr)return;
+  const sl=[...tr.children].find(x=>x.dataset.id===String(t.id));if(!sl||sl.classList.contains("has-logo"))return;
+  const h=sl.querySelector(".hc-copy h2");if(!h)return;
+  const im=new Image();im.className="hc-logo";im.alt="";im.decoding="async";
+  im.onload=()=>{if(sl.classList.contains("has-logo"))return;h.insertAdjacentElement("beforebegin",im);sl.classList.add("has-logo")};
+  im.src="https://image.tmdb.org/t/p/w500"+p})})}
 /* ===== Portada deslizable (estilo Netflix) ===== */
 let heroSig="",heroIdx=0,heroTimer=null,heroTouch=0,heroInit=false,heroRaf=0;
 function heroItems(){const base=heroPool.length?heroPool:[...titles].sort((x,y)=>y.rating-x.rating);return base.slice(0,7)}
@@ -525,7 +556,7 @@ function renderHero(){
   const pic=heroPic(t,i===0),meta=[`★ ${Number(t.rating||0).toFixed(1)}`,t.year||"",(t.genre||[]).slice(0,2).join(" / ")].filter(Boolean).map(esc).join(" · ");
   return `<article class="hc-slide" data-id="${esc(t.id)}" role="group" aria-roledescription="diapositiva" aria-label="${i+1} de ${items.length}: ${esc(t.title)}" style="--c1:${(t.colors||[])[0]||"#3b3f6b"};--c2:${(t.colors||[])[1]||"#12142b"}"><div class="hc-art">${pic}${pic?"":`<span class="hc-sym">${esc(t.emoji||"✦")}</span>`}</div><div class="hc-shade"></div><div class="hc-copy"><span class="hc-tag">${live?"#"+(i+1)+" en tendencia":"Destacado"} · ${esc(t.kind)}</span><h2>${esc(t.title)}</h2><div class="hc-meta">${meta}</div><p class="hc-desc">${esc(t.desc||"")}</p><div class="hc-btns"><span class="btn primary hc-open">Ver ficha</span><button type="button" class="hc-list" data-id="${esc(t.id)}" aria-pressed="false">+ Mi lista</button></div></div></article>`}).join("");
  document.getElementById("heroDots").innerHTML=items.map((t,i)=>`<button class="hc-dot${i===0?" on":""}" data-i="${i}" role="tab" aria-selected="${i===0}" aria-label="Ir al destacado ${i+1}"></button>`).join("");
- heroIdx=0;tr.scrollLeft=0;heroSyncList()}
+ heroIdx=0;tr.scrollLeft=0;heroSyncList();heroLogos(items)}
 function heroSyncList(){document.querySelectorAll("#heroTrack .hc-list").forEach(b=>{let on=false;try{on=getList("watchlist").map(String).includes(String(b.dataset.id))}catch(e){}b.textContent=on?"✓ En mi lista":"+ Mi lista";b.setAttribute("aria-pressed",on?"true":"false")})}
 {const _tl=toggleList;toggleList=function(){const r=_tl.apply(this,arguments);try{heroSyncList();if(arguments[0]==="watched")zyRefreshSeen()}catch(e){}return r}}
 /* Ficha: color de resplandor tomado del póster (solo se nota en el estilo Elegante) */
@@ -1034,8 +1065,8 @@ async function recommend(second=false){
 }
 function surpriseMe(){openRoulette()}
 async function openDetail(id,fromBack){let t=findTitle(id);if(!t){const m=/^(movie|tv)_(\d+)$/.exec(String(id));if(m&&getCredential())return openCredit(m[1],Number(m[2]));toast("No se pudo abrir este título. Inténtalo de nuevo.");return}
- if(t.isLive&&getCredential()){try{const detail=await tmdb(`/${t.mediaType}/${t.tmdbId}`,{append_to_response:"credits,videos,watch/providers,images,recommendations,similar",include_video_language:"es,en,null",include_image_language:"es,en,null"});t={...t,desc:detail.overview||t.desc,genre:(detail.genres||[]).map(g=>g.name),cast:(detail.credits?.cast||[]).slice(0,12).map(c=>({id:c.id,name:c.name,character:c.character,profilePath:c.profile_path})),backdropPath:detail.backdrop_path||detail.images?.backdrops?.[0]?.file_path||t.backdropPath,posterPath:detail.poster_path||detail.images?.posters?.[0]?.file_path||t.posterPath,videos:detail.videos?.results||[],providers:detail["watch/providers"]?.results?.[getRegion()]||null,runtime:detail.runtime,seasons:detail.number_of_seasons,...liveExtras(detail,t.mediaType)};}catch(e){toast(errMsg(e,"No se pudieron cargar todos los detalles."))}}
- if(!fromBack)navPushCurrent(id);const top=document.querySelector("#detailModal .modal-top");top.style.backgroundImage=t.backdropPath?`linear-gradient(90deg,#080b15e8 0%,#080b1599 55%,#080b1540 100%),url(https://image.tmdb.org/t/p/w1280${t.backdropPath})`:t.posterPath?`linear-gradient(90deg,#080b15d9 0%,#080b1577 65%,#080b1540 100%),url(https://image.tmdb.org/t/p/w780${t.posterPath})`:"linear-gradient(135deg,#182743,#15102b,#071a25)";top.style.backgroundSize="cover";top.style.backgroundPosition="center";document.getElementById("modalTitle").textContent=t.title;const trailer=pickTrailer(t.videos);const cast=t.cast||[];const providers=t.providers;const providerText=providers?["flatrate","rent","buy","free","ads"].flatMap(k=>(providers[k]||[]).map(p=>p.provider_name)).filter((v,i,a)=>a.indexOf(v)===i).join(", "):"No hay información regional confirmada en esta ficha. Consulta la disponibilidad en tu país.";
+ if(t.isLive&&getCredential()){try{const detail=await tmdb(`/${t.mediaType}/${t.tmdbId}`,{append_to_response:"credits,videos,watch/providers,images,recommendations,similar",include_video_language:"es,en,null",include_image_language:"es,en,null"});t={...t,desc:detail.overview||t.desc,genre:(detail.genres||[]).map(g=>g.name),cast:(detail.credits?.cast||[]).slice(0,12).map(c=>({id:c.id,name:c.name,character:c.character,profilePath:c.profile_path})),backdropPath:detail.backdrop_path||detail.images?.backdrops?.[0]?.file_path||t.backdropPath,posterPath:detail.poster_path||detail.images?.posters?.[0]?.file_path||t.posterPath,videos:detail.videos?.results||[],providers:detail["watch/providers"]?.results?.[getRegion()]||null,runtime:detail.runtime,seasons:detail.number_of_seasons,logoPath:zyPickLogo(detail.images&&detail.images.logos),...liveExtras(detail,t.mediaType)};}catch(e){toast(errMsg(e,"No se pudieron cargar todos los detalles."))}}
+ if(!fromBack)navPushCurrent(id);const top=document.querySelector("#detailModal .modal-top");top.style.backgroundImage=t.backdropPath?`linear-gradient(90deg,#080b15e8 0%,#080b1599 55%,#080b1540 100%),url(https://image.tmdb.org/t/p/w1280${t.backdropPath})`:t.posterPath?`linear-gradient(90deg,#080b15d9 0%,#080b1577 65%,#080b1540 100%),url(https://image.tmdb.org/t/p/w780${t.posterPath})`:"linear-gradient(135deg,#182743,#15102b,#071a25)";top.style.backgroundSize="cover";top.style.backgroundPosition="center";document.getElementById("modalTitle").textContent=t.title;zyDetailLogo(t);const trailer=pickTrailer(t.videos);const cast=t.cast||[];const providers=t.providers;const providerText=providers?["flatrate","rent","buy","free","ads"].flatMap(k=>(providers[k]||[]).map(p=>p.provider_name)).filter((v,i,a)=>a.indexOf(v)===i).join(", "):"No hay información regional confirmada en esta ficha. Consulta la disponibilidad en tu país.";
  const id1=String(t.id),T=[["cast","Reparto"],["det","Detalles"],["where","Dónde ver"],["sim","Similares"]];
  const muted=m=>`<p class="muted">${m}</p>`;
  const castHtml=cast.length?`<div class="cast-row">${cast.map(n=>typeof n==="object"?`<button class="cc-card" onclick="openPerson(${Number(n.id)})"><span class="cc-ph">${n.profilePath?`<img src="https://image.tmdb.org/t/p/w185${esc(n.profilePath)}" alt="" loading="lazy">`:`<i>${esc((n.name||"?").charAt(0))}</i>`}</span><b>${esc(n.name)}</b><small>${esc(n.character||"Reparto")}</small></button>`:`<span class="person">${esc(n)}</span>`).join("")}</div>`:muted("Conecta TMDB para consultar el reparto.");
@@ -1055,7 +1086,7 @@ async function openPerson(personId,fromBack){
  try{
   const person=await tmdb(`/person/${personId}`,{append_to_response:"combined_credits"});
   const credits=(person.combined_credits?.cast||[]).filter(x=>x.poster_path).sort((a,b)=>(b.popularity||0)-(a.popularity||0)).slice(0,18);
-  if(!fromBack)navPushCurrent();document.getElementById("modalTitle").textContent=person.name||"Filmografía";detailId=null;curPerson=personId;document.getElementById("detailModal").classList.add("open");document.querySelector("#detailModal .modal").scrollTop=0;document.getElementById("modalFav").hidden=true;
+  if(!fromBack)navPushCurrent();document.getElementById("modalTitle").textContent=person.name||"Filmografía";zyDetailLogoClear();detailId=null;curPerson=personId;document.getElementById("detailModal").classList.add("open");document.querySelector("#detailModal .modal").scrollTop=0;document.getElementById("modalFav").hidden=true;
   const top=document.querySelector("#detailModal .modal-top");top.style.backgroundImage=person.profile_path?`linear-gradient(90deg,#080b15e8,#080b1566),url(https://image.tmdb.org/t/p/w780${person.profile_path})`:"";top.style.backgroundSize="cover";top.style.backgroundPosition="center 25%";
   document.getElementById("modalBody").innerHTML=`<div class="meta"><span>Filmografía</span><span class="dot">●</span><span>${credits.length} títulos destacados</span></div><h3>Películas y series</h3><div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">${credits.map(c=>`<article class="card" onclick="openCredit('${c.media_type}',${Number(c.id)})"><div class="poster"><img src="https://image.tmdb.org/t/p/w342${c.poster_path}" alt="" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0"><span class="rating">★ ${Number(c.vote_average||0).toFixed(1)}</span></div><h3>${esc(c.title||c.name||"Sin título")}</h3><div class="sub">${esc(c.character||"")}</div></article>`).join("")||"<p>No hay títulos disponibles.</p>"}</div><button class="btn" onclick="closeModal()">Cerrar ficha</button>`;
  }catch(e){toast(errMsg(e,"No se pudo cargar la filmografía."));}
