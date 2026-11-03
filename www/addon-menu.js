@@ -208,10 +208,12 @@
     '.zep-hint{margin:16px 0 0;text-align:center;color:#7f8aa6;font-size:12px}' +
     '#zacWrap .zac-sec{margin:0 0 6px}#zacWrap .zac-sec[hidden]{display:none}' +
     '#zacWrap .zac-sub{display:block;color:#8f9ab5;font-size:12px;margin-top:3px}' +
-    '#zacWrap .zac-row{display:flex;gap:14px;overflow-x:auto;padding:2px 2px 12px;scrollbar-width:none}#zacWrap .zac-row::-webkit-scrollbar{display:none}' +
+    '#zacWrap .zac-row{display:flex;gap:14px;overflow-x:auto;padding:22px 14px 26px;margin:-20px -14px -14px;scroll-padding-inline:14px;scrollbar-width:none}#zacWrap .zac-row::-webkit-scrollbar{display:none}' +
     '#zacWrap .zac-card{flex:0 0 clamp(112px,31vw,150px);padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;display:flex;flex-direction:column;gap:8px}' +
-    '#zacWrap .zac-card:active{opacity:.8}' +
-    '#zacWrap .zac-p{display:block;aspect-ratio:2/3;border-radius:16px;overflow:hidden;background:#151b2c;box-shadow:0 8px 22px rgba(0,0,0,.35)}' +
+    '#zacWrap .zac-card{-webkit-tap-highlight-color:transparent}#zacWrap .zac-card:active .zac-p{transform:scale(.965);transition-duration:.12s}' +
+    '#zacWrap .zac-p::after{content:"";position:absolute;inset:0;z-index:4;pointer-events:none;border-radius:inherit;background:linear-gradient(135deg,rgba(255,255,255,.22) 0%,rgba(255,255,255,.06) 32%,transparent 56%);opacity:0;transition:opacity .32s ease}' +
+    '@media(hover:hover){html:not(.reduce-motion) #zacWrap .zac-card:hover .zac-p,html:not(.reduce-motion) #zacWrap .zac-card:focus-visible .zac-p{transform:translateY(-7px) scale(1.06);box-shadow:0 26px 44px -12px rgba(0,0,0,.85),0 8px 18px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.16)}#zacWrap .zac-card:hover .zac-p::after,#zacWrap .zac-card:focus-visible .zac-p::after{opacity:1}}#zacWrap .zac-card:focus-visible{outline:none}html.reduce-motion #zacWrap .zac-p{transform:none!important}' +
+    '#zacWrap .zac-p{display:block;position:relative;aspect-ratio:2/3;border-radius:16px;overflow:hidden;background:#151b2c;box-shadow:0 8px 22px rgba(0,0,0,.35);transition:transform .32s cubic-bezier(.2,.8,.2,1),box-shadow .32s ease;will-change:transform}' +
     '#zacWrap .zac-p img{width:100%;height:100%;object-fit:cover;display:block}' +
     '#zacWrap .zac-card b{font-size:13px;line-height:1.25;color:#e8edf8;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}';
 
