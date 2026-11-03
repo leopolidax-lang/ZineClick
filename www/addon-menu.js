@@ -646,9 +646,9 @@
     });
   }
   function catRowHtml(it, v, i) {
-    return '<div class="section-head"><div><h2>' + E(it.cat.name || it.cat.id) + '</h2><small class="zac-sub">' + E(it.addon.name || W._addonHost(it.addon.url)) + '</small></div></div>' +
+    return '<div class="section-head"><div><h2>' + E(it.cat.name || it.cat.id) + '</h2></div></div>' +
       '<div class="zac-row">' + v.map(function (m, j) {
-        return '<button type="button" class="zac-card" data-i="' + i + '" data-j="' + j + '"><span class="zac-p"><img loading="lazy" alt="" src="' + E(m.poster) + '"></span><b>' + E(m.name || m.title) + "</b></button>";
+        return '<button type="button" class="zac-card" data-i="' + i + '" data-j="' + j + '" aria-label="' + E(m.name || m.title) + '"><span class="zac-p"><img loading="lazy" alt="" src="' + E(m.poster) + '"></span></button>';
       }).join("") + "</div>";
   }
   function renderCats() {
