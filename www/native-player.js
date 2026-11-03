@@ -203,7 +203,7 @@
   var hideT = 0, msgT = 0, flashT = 0, tapT = 0, lastTap = 0, lastSide = 0;
   var curTitle = "", fallback = null, backH = null, listening = false, resumed = false, lastSave = 0;
   var origPlay = typeof W.rdPlay === "function" ? W.rdPlay : null;
-  var openAt = 0, castName = "", castPoll = 0, castSig = "", rate = 1, aspect = "fit", meta = null, sheetKind = "", quality = 0, startAt = 0, applied = false, applyTry = 0, applyT = 0;
+  var resumeTo = 0, resumeN = 0, resumeAt = 0, openAt = 0, castName = "", castPoll = 0, castSig = "", rate = 1, aspect = "fit", meta = null, sheetKind = "", quality = 0, startAt = 0, applied = false, applyTry = 0, applyT = 0;
   var thumbC = {}, thumbBusy = false, thumbOk = true, thumbFail = 0, thumbWant = -1;
   var cwOpen = false, curUrl = "", subDirty = false, subSt = null;
   var TMI = "https://image.tmdb.org/t/p/w500";
@@ -221,8 +221,18 @@
 
   /* ---------- posición guardada (para continuar donde lo dejaste) ---------- */
   function posMap() { try { return JSON.parse(localStorage.getItem("znp_pos") || "{}") || {}; } catch (e) { return {}; } }
+  /* posición guardada en "Seguir viendo" para este mismo título/episodio */
+  function zPos() {
+    try {
+      var en = meta && W.ZCW && W.ZCW.get && W.ZCW.get(meta.key);
+      if (!en || en.done) return 0;
+      if (String(en.s) !== String(meta.s) || String(en.e) !== String(meta.e)) return 0;
+      return Number(en.pos) || 0;
+    } catch (e) { return 0; }
+  }
   function savePos(force) {
     if (!curTitle || eff() <= 0) return;
+    if (resumeTo) return; /* mientras se está volviendo a tu minuto, no se pisa lo guardado con el 0:00 */
     var now = Date.now();
     if (!force && now - lastSave < 5000) return;
     lastSave = now;
@@ -339,6 +349,7 @@
     function frac(e) { var r = ui.bar.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); }
     ui.bar.addEventListener("pointerdown", function (e) {
       if (eff() <= 0) return;
+      resumeTo = 0;
       dragging = true; dragT = frac(e) * eff(); try { ui.bar.setPointerCapture(e.pointerId); } catch (x) {}
       clearTimeout(hideT); paint(); movePv(e.clientX);
     });
@@ -397,7 +408,7 @@
   }
   function seekBy(ms) {
     call("seekBy", { ms: ms }).catch(noop);
-    st.time = Math.max(0, Math.min(eff() || 1e12, st.time + ms)); paint(); showUi();
+    resumeTo = 0; st.time = Math.max(0, Math.min(eff() || 1e12, st.time + ms)); paint(); showUi();
   }
 
   /* ---------- panel lateral: audio, subtítulos, velocidad, pantalla ---------- */
@@ -758,9 +769,14 @@
       }
       if (!resumed && st.length > 0) {
         resumed = true;
-        var want = startAt, saved = want || Number(posMap()[curTitle]) || 0;
+        var want = startAt, saved = want || zPos() || Number(posMap()[curTitle]) || 0;
         startAt = 0;
-        if (saved > (want ? 3000 : 30000) && saved < st.length - (want ? 5000 : 60000)) { call("seekTo", { ms: saved }).catch(noop); if (!want) msg("Continuando desde " + fmt(saved)); }
+        if (saved > (want ? 3000 : 20000) && saved < st.length - (want ? 5000 : 60000)) { resumeTo = saved; resumeN = 0; resumeAt = 0; if (!want) msg("Continuando desde " + fmt(saved)); }
+      }
+      /* salta a tu minuto y lo reintenta hasta que el video realmente llegue (algunas fuentes tardan en poder saltar) */
+      if (resumeTo) {
+        if ((st.time > 0 && st.time >= resumeTo - 8000) || resumeN >= 6) resumeTo = 0;
+        else if (Date.now() - resumeAt > 2500) { resumeAt = Date.now(); resumeN++; call("seekTo", { ms: resumeTo }).catch(noop); }
       }
       if (!applied && !applyT && st.length > 0) applyT = setTimeout(applyPrefs, 1200);
       savePos(false);
@@ -804,6 +820,7 @@
     curUrl = url; subSt = subLoad(); cwOpen = false; subDirty = false; if (ui.cw) ui.cw.hidden = true; root.classList.remove("znp-cwo"); backIcon();
     curTitle = title || ""; fallback = fb || (origPlay ? function () { origPlay({ download: url }, title); } : null); resumed = false; rate = 1; aspect = "fit"; quality = 0; lastSave = 0;
     castName = ""; castSig = ""; clearInterval(castPoll); if (ui.cast) { ui.cast.classList.remove("on"); } root.classList.remove("znp-casting");
+    resumeTo = 0; resumeN = 0; resumeAt = 0;
     openAt = Date.now(); startAt = Number(startMs) || 0; applied = false; applyTry = 0; clearTimeout(applyT); applyT = 0;
     st = { time: 0, length: 0, playing: false, buffering: true }; wantUntil = 0;
     ui.title.textContent = curTitle || "Reproduciendo";
