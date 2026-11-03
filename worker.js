@@ -1,10 +1,13 @@
 /* Zynora · proxy web (Cloudflare Worker)
 
-   Hace dos cosas que el navegador no puede hacer solo:
+   Hace tres cosas que el navegador no puede hacer solo:
    1) POST /fetch  → hace por ti las peticiones de los plugins (sin CORS, con User-Agent/Referer propios).
    2) GET  /media  → trae el video con las cabeceras que pide la fuente, reescribe las listas HLS (.m3u8)
                      para que sus trozos también pasen por aquí y le quita la cabecera falsa de PNG
                      a los trozos disfrazados de imagen (lo mismo que hace ZineProxy en la app Android).
+
+   3) GET  /api/tmdb/3/... → consulta TMDB con el secreto TMDB_TOKEN (así el sitio y la app no necesitan que
+                     el usuario pegue su propia credencial). Solo lectura y solo rutas de catálogo.
 
    Seguridad: solo atiende a las páginas listadas en la variable ALLOWED_ORIGINS, solo https, solo puerto 443
    y nunca a direcciones IP ni a nombres internos. Si ALLOWED_ORIGINS está vacía, rechaza todo. */
@@ -283,6 +286,28 @@ async function doMedia(req, url, origin) {
   return new Response(prefixedStream(head, reader), { status: up.status, headers: rh });
 }
 
+/* ---------- GET /api/tmdb/3/... ---------- */
+const TMDB_OK = /^\/3\/(movie|tv|trending|discover|search|genre|person|watch|configuration|collection|network|company|keyword|find)(\/[A-Za-z0-9_-]+)*$/;
+
+async function doTmdb(req, url, origin, env) {
+  const tok = String((env && env.TMDB_TOKEN) || "").trim();
+  if (!tok) throw new HttpError(500, "falta el secreto TMDB_TOKEN en el Worker");
+  const path = url.pathname.slice("/api/tmdb".length);
+  if (!TMDB_OK.test(path)) throw new HttpError(404, "ruta de TMDB no permitida");
+  const q = new URLSearchParams(url.search);
+  q.delete("api_key");
+  const h = new Headers({ Accept: "application/json" });
+  if (tok.indexOf(".") > 0 && tok.length > 60) h.set("Authorization", "Bearer " + tok); else q.set("api_key", tok);
+  const qs = q.toString();
+  const up = await fetch("https://api.themoviedb.org" + path + (qs ? "?" + qs : ""), {
+    method: "GET", headers: h, cf: { cacheTtl: 300, cacheEverything: true }
+  });
+  return new Response(up.body, {
+    status: up.status,
+    headers: { "content-type": up.headers.get("content-type") || "application/json", "cache-control": "private, max-age=60", ...corsHeaders(origin) }
+  });
+}
+
 /* ---------- entrada ---------- */
 export default {
   async fetch(req, env) {
@@ -295,6 +320,7 @@ export default {
       }
       if (url.pathname === "/") return new Response("Zynora proxy OK", { status: 200, headers: { "content-type": "text/plain" } });
       if (!ok) throw new HttpError(403, "origen no permitido (revisa ALLOWED_ORIGINS)");
+      if (url.pathname.indexOf("/api/tmdb/") === 0 && req.method === "GET") return await doTmdb(req, url, origin, env);
       if (url.pathname === "/fetch" && req.method === "POST") return await doFetch(req, origin, url.hostname);
       if (url.pathname === "/media" && (req.method === "GET" || req.method === "HEAD")) return await doMedia(req, url, origin);
       throw new HttpError(404, "no encontrado");
