@@ -141,7 +141,7 @@
     '#znpRoot.znp-cwo .znp-ui::after{display:none}' +
     '#znpRoot.znp-cwo .znp-mid,#znpRoot.znp-cwo .znp-bot,#znpRoot.znp-cwo .znp-ttl{visibility:hidden}' +
     '#znpRoot.znp-cwo .znp-intro,#znpRoot.znp-cwo .znp-nx{display:none!important}' +
-    '#znpRoot .znp-sh-h{padding:12px 14px 4px;font-size:12px;font-weight:600;color:rgba(255,255,255,.5)}';
+    '#znpRoot .znp-sh-h{padding:14px 14px 4px;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,255,255,.55)}';
 
   CSS += [
     "html[data-style=elegant] #znpRoot .znp-pill{display:inline-flex;align-items:center;flex:none;height:36px;padding:0 18px;margin-left:auto;border-radius:999px;background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);font-size:15px;font-weight:600;color:#fff;white-space:nowrap}",
@@ -445,7 +445,7 @@
       if (!meta || !Z || !Z.sources) { fillSheet("Fuentes", [], "No hay fuentes disponibles"); return; }
       Z.sources(meta).then(function (list) {
         if (!sheetOpen || sheetKind !== "src") return;
-        fillSheet("Fuentes", list.map(function (x) { return { label: x.label, sub: x.sub, on: x.on, fn: function () { switchSource(x); } }; }), "Ningún addon encontró fuentes");
+        fillSheet("Fuentes", list.map(function (x) { if (x.head) return { head: x.head }; return { label: x.label, sub: x.sub, on: x.on, fn: function () { switchSource(x); } }; }), "Ningún addon encontró fuentes");
       }).catch(function () { if (sheetOpen && sheetKind === "src") fillSheet("Fuentes", [], "No se pudieron consultar las fuentes"); });
     } else if (kind === "speed") {
       fillSheet("Velocidad", [0.5, 0.75, 1, 1.25, 1.5, 2].map(function (r) {

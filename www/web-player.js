@@ -219,6 +219,7 @@
     "#zwpRoot.zwp-pip .zwp-intro,#zwpRoot.zwp-pip .zwp-nx{display:none!important}",
     "html[data-style=elegant] #zwpRoot.zwp-s .zwp-intro,html[data-style=elegant] #zwpRoot.zwp-s .zwp-nx{right:12px;bottom:98px}",
     "html[data-style=elegant] #zwpRoot.zwp-hide.zwp-s .zwp-intro,html[data-style=elegant] #zwpRoot.zwp-hide.zwp-s .zwp-nx{bottom:20px}",
+    "#zwpRoot .zwp-sh-h{padding:14px 14px 4px;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,255,255,.55)}",
     "html[data-style=elegant] #zwpRoot .zwp-sh-h{padding:12px 14px 4px;font-size:12px;font-weight:600;color:rgba(255,255,255,.5)}",
     "html.reduce-motion html[data-style=elegant] #zwpRoot .zwp-ui,html.reduce-motion html[data-style=elegant] #zwpRoot .zwp-top,html.reduce-motion html[data-style=elegant] #zwpRoot .zwp-bot,html.reduce-motion html[data-style=elegant] #zwpRoot .zwp-intro,html.reduce-motion html[data-style=elegant] #zwpRoot .zwp-nx{transition-duration:.01s!important}"
   ].join("");
@@ -619,7 +620,7 @@
       fillSheet("Fuentes", [], "Buscando fuentes…");
       Z.sources(m).then(function (list) {
         if (!sheetOpen || sheetKind !== "src") return;
-        fillSheet("Fuentes", list.map(function (x) { return { label: x.label, sub: x.sub, on: x.on, fn: function () { switchSource(x, m); } }; }), "Ningún addon encontró fuentes");
+        fillSheet("Fuentes", list.map(function (x) { if (x.head) return { head: x.head }; return { label: x.label, sub: x.sub, on: x.on, fn: function () { switchSource(x, m); } }; }), "Ningún addon encontró fuentes");
       }).catch(function () { if (sheetOpen && sheetKind === "src") fillSheet("Fuentes", [], "No se pudieron consultar las fuentes"); });
     }
   }
