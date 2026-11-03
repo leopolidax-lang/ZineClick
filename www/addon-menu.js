@@ -855,6 +855,14 @@
     var label = "▶ Reproducir";
     if (en && en.src && hasSources()) label = "▶ Continuar" + (en.type === "tv" && !en.done ? " T" + en.s + " · E" + en.e : "");
     if (b.textContent !== label) b.textContent = label;
+    /* botón visible para elegir la fuente a mano (con idiomas configurados, Reproducir elige sola) */
+    var ics = body.querySelector(".det-ics");
+    if (ics && hasSources() && !ics.querySelector(".zam-srcbtn")) {
+      var sb = D.createElement("button"); sb.type = "button"; sb.className = "det-ic zam-srcbtn";
+      sb.innerHTML = '<svg class="di" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg><span>Fuentes</span>';
+      sb.addEventListener("click", function () { var tt = currentTitle(); if (tt) playFlow(tt, true); });
+      ics.insertBefore(sb, ics.firstChild);
+    }
     if (b.dataset.zam) return;
     b.dataset.zam = "1";
     var tm = 0;
