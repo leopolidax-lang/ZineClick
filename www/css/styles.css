@@ -1,3 +1,9 @@
+/* Fuente Inter incluida en la app: se ve igual en todos los celulares (archivos en www/fonts) */
+@font-face{font-family:"Inter";font-style:normal;font-weight:400;font-display:swap;src:url("../fonts/Inter-Regular.woff") format("woff")}
+@font-face{font-family:"Inter";font-style:normal;font-weight:500;font-display:swap;src:url("../fonts/Inter-Medium.woff") format("woff")}
+@font-face{font-family:"Inter";font-style:normal;font-weight:600;font-display:swap;src:url("../fonts/Inter-SemiBold.woff") format("woff")}
+@font-face{font-family:"Inter";font-style:normal;font-weight:700;font-display:swap;src:url("../fonts/Inter-Bold.woff") format("woff")}
+@font-face{font-family:"Inter";font-style:normal;font-weight:800;font-display:swap;src:url("../fonts/Inter-ExtraBold.woff") format("woff")}
 /* Zynora — hoja de estilos principal.
    Se carga desde index.html después del CSS de Plyr. */
 
@@ -1054,7 +1060,7 @@ html[data-style] .card:focus-visible{outline:none}
 html[data-style].reduce-motion .card .poster{transform:none!important}
 
 /* ===== Todos los estilos · tipografía más limpia (pila tipo SF) ===== */
-html[data-style] body{font-family:"SF Pro Display","SF Pro Text",-apple-system,BlinkMacSystemFont,Inter,"Helvetica Neue","Segoe UI",Roboto,system-ui,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;font-feature-settings:"kern","liga","calt"}
+html[data-style] body{font-family:Inter,"SF Pro Text",-apple-system,BlinkMacSystemFont,"Helvetica Neue","Segoe UI",Roboto,system-ui,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;font-feature-settings:"kern","liga","calt"}
 html[data-style] button,html[data-style] input,html[data-style] select,html[data-style] textarea{font-family:inherit}
 html[data-style] .section-head h2,html[data-style] .ex-head h2{font-weight:700;letter-spacing:-.4px;line-height:1.15}
 html[data-style] .section-head p{font-size:12.5px;letter-spacing:.02em;line-height:1.4}
@@ -1077,3 +1083,14 @@ html[data-style] .rating,html[data-style] .det-grid dd{font-variant-numeric:tabu
 @media(hover:hover){
  html[data-style="vivid"]:not(.reduce-motion) .card:hover .poster,html[data-style="vivid"]:not(.reduce-motion) .card:focus-visible .poster{border-color:rgba(var(--acc-rgb),.5);box-shadow:0 26px 44px -12px rgba(0,0,0,.85),0 0 34px -6px rgba(var(--acc-rgb),.38),0 0 0 1px rgba(var(--acc-rgb),.45)}
 }
+
+/* ===== Pósters más limpios: calificación y tipo pasan a la leyenda de abajo; arriba solo queda una etiqueta discreta ===== */
+.card.cap .poster .rating,.card.cap .poster .type{display:none}
+.card.cap .sub{display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px;line-height:1.4;margin-top:1px}
+.card.cap .sub i{font-style:normal;opacity:.45}
+.card.cap .cap-r{color:#f2d38a;font-weight:600;font-variant-numeric:tabular-nums}
+.card.cap .sub.cap-g{display:block;opacity:.72;font-size:12px}
+.card.cap .poster .tag-lb{left:10px;top:10px;padding:4px 9px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.09em;background:rgba(10,13,22,.5);color:#fff;border:1px solid rgba(255,255,255,.22);-webkit-backdrop-filter:blur(10px) saturate(1.4);backdrop-filter:blur(10px) saturate(1.4)}
+.card.cap .poster .tag-new::before{content:"";display:inline-block;width:6px;height:6px;margin-right:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);vertical-align:1px}
+.card.cap .poster .tag-seen{left:auto;right:10px;width:24px;height:24px;padding:0;display:grid;place-items:center;font-size:0}
+.card.cap .poster .tag-seen::before{content:"✓";font-size:12px;font-weight:800;color:#fff}
