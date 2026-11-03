@@ -986,13 +986,13 @@ html[data-style="elegant"] .zs-all{color:#fff}
 .zs-sk .zs-th{border-radius:8px}
 
 /* ===== Filas deslizables en el inicio ===== */
-html #trendingGrid,html #homeUpcomingGrid{display:flex;gap:16px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;padding:10px 4px 22px;margin:-10px -4px -8px;scroll-padding-inline:4px}
+html #trendingGrid,html #homeUpcomingGrid{display:flex;gap:16px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;padding:26px 14px 28px;margin:-26px -14px -14px;scroll-padding-inline:14px}
 html #trendingGrid>*,html #homeUpcomingGrid>*{flex:0 0 auto;width:clamp(128px,38vw,168px);margin:0;scroll-snap-align:start}
 html #trendingGrid>.empty,html #homeUpcomingGrid>.empty{flex:1 0 100%;width:auto}
 html[data-cards="compact"] #trendingGrid>*,html[data-cards="compact"] #homeUpcomingGrid>*{width:clamp(108px,30vw,140px)}
 html[data-cards="large"] #trendingGrid>*,html[data-cards="large"] #homeUpcomingGrid>*{width:clamp(150px,46vw,210px)}
 @media(hover:none){html #trendingGrid,html #homeUpcomingGrid{scrollbar-width:none}html #trendingGrid::-webkit-scrollbar,html #homeUpcomingGrid::-webkit-scrollbar{display:none}}
-@media(hover:hover){html #trendingGrid,html #homeUpcomingGrid{scrollbar-width:thin}}
+html #trendingGrid,html #homeUpcomingGrid{scrollbar-width:none;-ms-overflow-style:none}html #trendingGrid::-webkit-scrollbar,html #homeUpcomingGrid::-webkit-scrollbar{display:none;width:0;height:0}
 
 /* ===== Póster que crece hasta la ficha ===== */
 .zy-fly{position:fixed;z-index:70;overflow:hidden;pointer-events:none;box-shadow:0 22px 56px rgba(0,0,0,.6);background:#0b0e18}
@@ -1030,40 +1030,50 @@ html .toast.show{pointer-events:auto;transform:translate(-50%,0) scale(1)}
 html.reduce-motion .toast{transition:opacity .01s}
 @media(prefers-reduced-motion:reduce){html .toast{transition:opacity .01s}}
 
-/* ===== Elegante · logos oficiales de título (portada y ficha) ===== */
+/* ===== Todos los estilos · logos oficiales de título (portada y ficha) ===== */
 .hc-logo,.det-logo{display:none}
-html[data-style="elegant"] .hc-logo{display:block;width:auto;height:auto;max-width:min(72%,340px);max-height:96px;object-fit:contain;margin:10px auto 12px;filter:drop-shadow(0 4px 18px rgba(0,0,0,.65))}
-html[data-style="elegant"] .hc-slide.has-logo .hc-copy h2{position:absolute;display:block;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-html[data-style="elegant"] #detailModal .modal-top .det-logo{display:block;position:relative;z-index:2;width:auto;height:auto;max-width:min(76%,360px);max-height:110px;object-fit:contain;margin:0 0 4px;filter:drop-shadow(0 4px 18px rgba(0,0,0,.7))}
-html[data-style="elegant"] #detailModal .modal-top.has-logo h2{position:absolute!important;display:block;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+html[data-style] .hc-logo{display:block;width:auto;height:auto;max-width:min(72%,340px);max-height:96px;object-fit:contain;margin:10px auto 12px;filter:drop-shadow(0 4px 18px rgba(0,0,0,.65))}
+html[data-style] .hc-slide.has-logo .hc-copy h2{position:absolute;display:block;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+html[data-style] #detailModal .modal-top .det-logo{display:block;position:relative;z-index:2;width:auto;height:auto;max-width:min(76%,360px);max-height:110px;object-fit:contain;margin:0 0 4px;filter:drop-shadow(0 4px 18px rgba(0,0,0,.7))}
+html[data-style] #detailModal .modal-top.has-logo h2{position:absolute!important;display:block;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media(min-width:701px){
- html[data-style="elegant"] .hc-logo{margin:10px 0 14px;max-width:min(60%,420px);max-height:120px}
- html[data-style="elegant"] #detailModal .modal-top .det-logo{max-width:min(60%,420px);max-height:130px}
+ html[data-style] .hc-logo{margin:10px 0 14px;max-width:min(60%,420px);max-height:120px}
+ html[data-style] #detailModal .modal-top .det-logo{max-width:min(60%,420px);max-height:130px}
 }
 
-/* ===== Elegante · póster que se eleva (estilo Apple TV) ===== */
-html[data-style="elegant"] .poster{transition:transform .32s cubic-bezier(.2,.8,.2,1),box-shadow .32s ease;will-change:transform}
-html[data-style="elegant"] .poster::after{content:"";position:absolute;inset:0;z-index:4;pointer-events:none;border-radius:inherit;background:linear-gradient(135deg,rgba(255,255,255,.22) 0%,rgba(255,255,255,.06) 32%,transparent 56%);opacity:0;transition:opacity .32s ease}
-html[data-style="elegant"] .card{-webkit-tap-highlight-color:transparent}
-html[data-style="elegant"] .card:active .poster{transform:scale(.965);transition-duration:.12s}
+/* ===== Todos los estilos · póster que se eleva (estilo Apple TV) ===== */
+html[data-style] .poster{transition:transform .32s cubic-bezier(.2,.8,.2,1),box-shadow .32s ease;will-change:transform}
+html[data-style] .poster::after{content:"";position:absolute;inset:0;z-index:4;pointer-events:none;border-radius:inherit;background:linear-gradient(135deg,rgba(255,255,255,.22) 0%,rgba(255,255,255,.06) 32%,transparent 56%);opacity:0;transition:opacity .32s ease}
+html[data-style] .card{-webkit-tap-highlight-color:transparent}
+html[data-style] .card:active .poster{transform:scale(.965);transition-duration:.12s}
 @media(hover:hover){
- html[data-style="elegant"]:not(.reduce-motion) .card:hover .poster,html[data-style="elegant"]:not(.reduce-motion) .card:focus-visible .poster{transform:translateY(-7px) scale(1.06);box-shadow:0 26px 44px -12px rgba(0,0,0,.85),0 8px 18px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.16)}
- html[data-style="elegant"] .card:hover .poster::after,html[data-style="elegant"] .card:focus-visible .poster::after{opacity:1}
+ html[data-style]:not(.reduce-motion) .card:hover .poster,html[data-style]:not(.reduce-motion) .card:focus-visible .poster{transform:translateY(-7px) scale(1.06);box-shadow:0 26px 44px -12px rgba(0,0,0,.85),0 8px 18px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.16)}
+ html[data-style] .card:hover .poster::after,html[data-style] .card:focus-visible .poster::after{opacity:1}
 }
-html[data-style="elegant"] .card:focus-visible{outline:none}
-html[data-style="elegant"].reduce-motion .card .poster{transform:none!important}
+html[data-style] .card:focus-visible{outline:none}
+html[data-style].reduce-motion .card .poster{transform:none!important}
 
-/* ===== Elegante · tipografía más limpia (pila tipo SF) ===== */
-html[data-style="elegant"] body{font-family:"SF Pro Display","SF Pro Text",-apple-system,BlinkMacSystemFont,Inter,"Helvetica Neue","Segoe UI",Roboto,system-ui,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;font-feature-settings:"kern","liga","calt"}
-html[data-style="elegant"] button,html[data-style="elegant"] input,html[data-style="elegant"] select,html[data-style="elegant"] textarea{font-family:inherit}
-html[data-style="elegant"] .section-head h2,html[data-style="elegant"] .ex-head h2{font-weight:700;letter-spacing:-.4px;line-height:1.15}
-html[data-style="elegant"] .section-head p{font-size:12.5px;letter-spacing:.02em;line-height:1.4}
-html[data-style="elegant"] .hc-tag{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em}
-html[data-style="elegant"] .hc-meta{font-weight:500;letter-spacing:.01em;font-variant-numeric:tabular-nums}
-html[data-style="elegant"] .hc-desc{line-height:1.5;letter-spacing:.005em}
-html[data-style="elegant"] .card h3{font-size:13.5px;font-weight:600;letter-spacing:-.1px;line-height:1.25}
-html[data-style="elegant"] .card .sub{font-size:12px;font-weight:400;letter-spacing:0}
-html[data-style="elegant"] .btn{font-weight:700;letter-spacing:-.1px}
-html[data-style="elegant"] #detailModal .modal-top h2{font-weight:800;letter-spacing:-1.2px}
-html[data-style="elegant"] #detailModal .syn{font-size:15.5px;line-height:1.58;letter-spacing:.003em;color:rgba(255,255,255,.84)}
-html[data-style="elegant"] .rating,html[data-style="elegant"] .det-grid dd{font-variant-numeric:tabular-nums}
+/* ===== Todos los estilos · tipografía más limpia (pila tipo SF) ===== */
+html[data-style] body{font-family:"SF Pro Display","SF Pro Text",-apple-system,BlinkMacSystemFont,Inter,"Helvetica Neue","Segoe UI",Roboto,system-ui,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;font-feature-settings:"kern","liga","calt"}
+html[data-style] button,html[data-style] input,html[data-style] select,html[data-style] textarea{font-family:inherit}
+html[data-style] .section-head h2,html[data-style] .ex-head h2{font-weight:700;letter-spacing:-.4px;line-height:1.15}
+html[data-style] .section-head p{font-size:12.5px;letter-spacing:.02em;line-height:1.4}
+html[data-style] .hc-tag{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em}
+html[data-style] .hc-meta{font-weight:500;letter-spacing:.01em;font-variant-numeric:tabular-nums}
+html[data-style] .hc-desc{line-height:1.5;letter-spacing:.005em}
+html[data-style] .card h3{font-size:13.5px;font-weight:600;letter-spacing:-.1px;line-height:1.25}
+html[data-style] .card .sub{font-size:12px;font-weight:400;letter-spacing:0}
+html[data-style] .btn{font-weight:700;letter-spacing:-.1px}
+html[data-style] #detailModal .modal-top h2{font-weight:800;letter-spacing:-1.2px}
+html[data-style] #detailModal .syn{font-size:15.5px;line-height:1.58;letter-spacing:.003em;color:rgba(255,255,255,.84)}
+html[data-style] .rating,html[data-style] .det-grid dd{font-variant-numeric:tabular-nums}
+
+/* Celular: si no hay póster sin texto, se deja como antes (título del póster + texto) y no se añade el logo para no repetirlo */
+@media(max-width:700px){
+ html .hc-slide.has-logo:not(.tl) .hc-logo{display:none}
+ html .hc-slide.has-logo:not(.tl) .hc-copy h2{position:static;display:-webkit-box;width:auto;height:auto;margin:8px 0 6px;overflow:hidden;clip:auto;white-space:normal}
+}
+/* Colorido: la elevación conserva el resplandor del color de acento */
+@media(hover:hover){
+ html[data-style="vivid"]:not(.reduce-motion) .card:hover .poster,html[data-style="vivid"]:not(.reduce-motion) .card:focus-visible .poster{border-color:rgba(var(--acc-rgb),.5);box-shadow:0 26px 44px -12px rgba(0,0,0,.85),0 0 34px -6px rgba(var(--acc-rgb),.38),0 0 0 1px rgba(var(--acc-rgb),.45)}
+}
