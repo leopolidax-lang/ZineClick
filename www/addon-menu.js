@@ -233,6 +233,48 @@
         .catch(function () { return { addon: a, streams: [], error: true }; });
     }));
   }
+  /* ---------- idiomas de las fuentes ---------- */
+  var LANGS = [
+    ["latino", "Latino", /\b(latino|latam|lat|es-?la|es-?mx|mexicano)\b|💃|🇲🇽|🇦🇷|🇨🇴|🇨🇱|🇵🇪|🇻🇪|🇺🇾/i],
+    ["espanol", "Español", /\b(castellano|espa[nñ]ol|spanish|spa)\b|espa[nñ]a|🇪🇸/i],
+    ["multi", "Multi", /\b(multi|dual|multi-?audio|multi-?lang)\b/i],
+    ["ingles", "Inglés", /\b(ingl[eé]s|english|eng)\b|🇬🇧|🇺🇸/i],
+    ["frances", "Francés", /\b(franc[eé]s|french|fran[cç]ais|vf|vff|vfq|truefrench)\b|🇫🇷/i],
+    ["portugues", "Portugués", /\b(portugu[eé]s|portuguese|pt-?br|dublado|brazilian)\b|🇧🇷|🇵🇹/i],
+    ["italiano", "Italiano", /\b(italiano|italian|ita)\b|🇮🇹/i],
+    ["aleman", "Alemán", /\b(alem[aá]n|german|deutsch)\b|🇩🇪/i],
+    ["japones", "Japonés", /\b(japon[eé]s|japanese|jpn)\b|🇯🇵/i],
+    ["coreano", "Coreano", /\b(coreano|korean|kor)\b|🇰🇷/i],
+    ["ruso", "Ruso", /\b(ruso|russian|rus)\b|🇷🇺/i],
+    ["chino", "Chino", /\b(chino|chinese|mandarin)\b|🇨🇳|🇹🇼|🇭🇰/i],
+    ["hindi", "Hindi", /\bhindi\b|🇮🇳/i]
+  ];
+  function langIds(txt) {
+    var t = String(txt || "").replace(/\b(subs?|subt[ií]tulos?|subtitles?|subtitled)\b[^\n|]*/gi, " "), out = [];
+    LANGS.forEach(function (l) { if (l[2].test(t)) out.push(l[0]); });
+    var li = out.indexOf("latino"), ei = out.indexOf("espanol");
+    if (li >= 0 && ei >= 0 && !/castellano|🇪🇸|\bes-?es\b|espa[nñ]a/i.test(t)) out.splice(ei, 1);
+    return out;
+  }
+  function langLabel(id) { for (var i = 0; i < LANGS.length; i++) if (LANGS[i][0] === id) return LANGS[i][1]; return id; }
+  function srcPrefs() {
+    var s = J(localStorage.getItem("zy_settings_v1"), {}) || {};
+    return { langs: Array.isArray(s.srcLangs) ? s.srcLangs : [], auto: s.autoSrc !== false };
+  }
+  /* elige la mejor fuente según los idiomas preferidos (el orden marcado es la prioridad); -1 si ninguna coincide */
+  function autoPick(items) {
+    var p = srcPrefs(); if (!p.auto || !p.langs.length) return -1;
+    var RES = { "1080p": 5, "4K": 4, "1440p": 3, "720p": 2, "480p": 1 }, best = -1, bs = -1;
+    items.forEach(function (it, i) {
+      var rank = -1;
+      (it.inf.langIds || []).forEach(function (id) { var r = p.langs.indexOf(id); if (r >= 0 && (rank < 0 || r < rank)) rank = r; });
+      if (rank < 0) return;
+      var sc = (50 - rank) * 1e6 + (RES[it.inf.res] || 0) * 1e4 + (it.st && it.st.url ? 5000 : 0) + Math.min(Number(it.inf.seeds) || 0, 4999);
+      if (sc > bs) { bs = sc; best = i; }
+    });
+    return best;
+  }
+
   function info(st) {
     var bh = st.behaviorHints || {};
     var txt = [st.name, st.title, st.description, bh.filename].filter(Boolean).join("\n"), m, res = "";
@@ -245,13 +287,11 @@
       [/\b(HDR10\+?|HDR)\b/i, "HDR"], [/\b(DV|Dolby Vision)\b/i, "Dolby Vision"],
       [/\bAtmos\b/i, "Atmos"], [/\b(E-?AC-?3|DDP|DD\+)\b/i, "DD+"], [/\bTrueHD\b/i, "TrueHD"], [/\bDTS(-HD)?\b/i, "DTS"], [/\bAAC\b/i, "AAC"], [/\b(AC-?3|Dolby Digital)\b/i, "AC3"],
       [/\b7\.1\b/, "7.1"], [/\b5\.1\b/, "5.1"]].forEach(function (p) { if (p[0].test(txt) && tags.indexOf(p[1]) < 0) tags.push(p[1]); });
-    var lang = [];
-    [[/\b(latino|lat)\b/i, "Latino"], [/\b(castellano|espa[nñ]ol|spa)\b/i, "Español"], [/\b(ingl[eé]s|english|eng)\b/i, "Inglés"], [/\b(dual|multi)\b/i, "Multi"]]
-      .forEach(function (p) { if (p[0].test(txt)) lang.push(p[1]); });
+    var lids = langIds(txt), lang = lids.map(langLabel);
     var head = String(st.name || "Fuente").replace(/\s*\n\s*/g, " · ");
     var body = String(st.title || st.description || "").trim();
     var seeds = (m = txt.match(/👤\s*(\d+)/)) ? m[1] : "";
-    return { res: res, size: size, tags: tags, lang: lang, head: head, body: body, seeds: seeds, bg: bh.bingeGroup || "" };
+    return { res: res, size: size, tags: tags, lang: lang, langIds: lids, head: head, body: body, seeds: seeds, bg: bh.bingeGroup || "" };
   }
   function snapOf(addon, st) {
     var i = info(st), bh = st.behaviorHints || {};
@@ -413,11 +453,11 @@
   }
   function closeMenu() { if (root) root.hidden = true; req++; detachBack(); refreshRow(); decorateDetail(); }
 
-  async function openMenu(t, s0, e0) {
+  async function openMenu(t, s0, e0, auto) {
     build();
     var type = t.mediaType === "tv" ? "tv" : "movie";
     var old = ZCW.get(keyOf(type, t.tmdbId));
-    M = { t: t, type: type, s: 1, e: 1, imdb: "", res: [], filter: "all", seasons: [] };
+    M = { t: t, type: type, s: 1, e: 1, imdb: "", res: [], filter: "all", seasons: [], auto: !!auto, autoTried: false };
     root.hidden = false; attachBack();
     $("zamT").textContent = t.title; $("zamS").textContent = "";
     $("zamChips").innerHTML = "";
@@ -448,6 +488,19 @@
     m.res = res; m.filter = "all"; m.items = [];
     res.forEach(function (r, ai) { r.streams.forEach(function (st) { m.items.push({ ai: ai, addon: r.addon, st: st, inf: info(st) }); }); });
     paintChips(); paintList();
+    if (m.auto && !m.autoTried) {
+      m.autoTried = true;
+      var pp = srcPrefs();
+      if (pp.auto && pp.langs.length && m.items.length) {
+        var pk = autoPick(m.items);
+        if (pk >= 0) {
+          var ids = m.items[pk].inf.langIds || [], lb = "";
+          for (var q = 0; q < pp.langs.length; q++) if (ids.indexOf(pp.langs[q]) >= 0) { lb = langLabel(pp.langs[q]); break; }
+          say("Fuente en " + lb + " encontrada");
+          playFrom(pk, $("zamList").querySelector('[data-i="' + pk + '"]'));
+        } else say("No hay fuentes en tus idiomas. Elige una de la lista.");
+      }
+    }
   }
   function paintChips() {
     var m = M, h = '<button class="zam-chip' + (m.filter === "all" ? " on" : "") + '" data-f="all">Todo<i>' + m.items.length + "</i></button>";
@@ -477,7 +530,7 @@
     if (busy) return;
     var it = M.items[i]; if (!it) return;
     busy = true;
-    var pl = el.querySelector("[data-pl]"); if (pl) pl.classList.add("ld");
+    var pl = el ? el.querySelector("[data-pl]") : null; if (pl) pl.classList.add("ld");
     try {
       var snap = snapOf(it.addon, it.st), url, hdr = null;
       if (it.st._zpl) { var rr = await plg().resolveFor(it.st._zpl, M.type, M.s, M.e); url = rr.url; hdr = rr.headers; snap.plg = it.st._zpl; }
@@ -511,14 +564,14 @@
   }
   async function continueFrom(en) {
     var t = asTitle(en);
-    if (en.type !== "tv") { if (await playEpisode(t, 0, 0, en.src, true)) return; return openMenu(t); }
+    if (en.type !== "tv") { if (await playEpisode(t, 0, 0, en.src, true)) return; return openMenu(t, null, null, true); }
     var s = en.s, e = en.e, exact = true;
-    if (en.done) { var n = await nextEp(t.tmdbId, s, e, 1); if (!n) { say("Ya viste todos los episodios"); return openMenu(t); } s = n.s; e = n.e; exact = false; }
+    if (en.done) { var n = await nextEp(t.tmdbId, s, e, 1); if (!n) { say("Ya viste todos los episodios"); return openMenu(t, null, null, true); } s = n.s; e = n.e; exact = false; }
     say("Abriendo T" + s + " · E" + e + "…");
-    if (!(await playEpisode(t, s, e, en.src, exact))) return openMenu(t);
+    if (!(await playEpisode(t, s, e, en.src, exact))) return openMenu(t, null, null, true);
   }
   function safeContinue(en) {
-    continueFrom(en).catch(function (e) { say((e && e.message) || "No se pudo continuar. Elige una fuente."); openMenu(asTitle(en)); });
+    continueFrom(en).catch(function (e) { say((e && e.message) || "No se pudo continuar. Elige una fuente."); openMenu(asTitle(en), null, null, true); });
   }
 
   /* siguiente episodio (botón "Siguiente" y fin del episodio) */
@@ -531,7 +584,7 @@
       var en = ZCW.get(keyOf("tv", c.tmdbId)), t = { tmdbId: c.tmdbId, mediaType: "tv", title: c.title, posterPath: en && en.poster, backdropPath: en && en.backdrop };
       say("Siguiente: T" + n.s + " · E" + n.e);
       if (en && en.src && (await playEpisode(t, n.s, n.e, en.src, false))) return;
-      openMenu(t, n.s, n.e);
+      openMenu(t, n.s, n.e, true);
     } catch (e) { say((e && e.message) || "No se pudo abrir el siguiente episodio"); }
   };
 
@@ -612,7 +665,7 @@
   function isSeen(id, s, e) { return EW.has(id, s, e); }
   function openEpisode(t, s, e) {
     if (!hasSources()) { playFlow(t, true); return; }
-    openMenu(t, s, e);
+    openMenu(t, s, e, true);
   }
   function paintSeasons(panel) {
     var z = panel._zep, box = panel.querySelector(".zep-sea");
@@ -718,7 +771,7 @@
     }
     var type = t.mediaType === "tv" ? "tv" : "movie", en = ZCW.get(keyOf(type, t.tmdbId));
     if (en && en.src && !manual) { safeContinue(en); return; }
-    openMenu(t);
+    openMenu(t, null, null, !manual);
   }
   var longFired = false;
   W.rdPlayFlow = function () { if (longFired) { longFired = false; return; } playFlow(currentTitle(), false); };

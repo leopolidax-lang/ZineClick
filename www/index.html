@@ -238,6 +238,11 @@
       </div>
     </div>
   </div>
+  <section class="st-card" aria-labelledby="stHL">
+   <h2 id="stHL">Idioma de las fuentes</h2>
+   <div class="st-row st-first"><div class="st-line"><div class="st-lab"><b id="stL10">Elegir fuente automáticamente</b><small>Al reproducir, Zynora busca sola una fuente en tus idiomas y la abre. Si no encuentra ninguna, te muestra la lista para que elijas.</small></div><button class="st-sw" type="button" role="switch" aria-checked="false" aria-labelledby="stL10" data-key="autoSrc"></button></div></div>
+   <div class="st-row"><div class="st-lab"><b>Idiomas preferidos</b><small>Toca para marcar o quitar. El orden en que los marques es la prioridad: 1 se busca primero. Se detecta por el nombre de cada fuente.</small></div><div class="st-gchips" id="stLangs"></div></div>
+  </section>
   <section class="st-card" aria-labelledby="stH2">
    <h2 id="stH2">Descubrimiento</h2>
    <div class="st-row st-first"><div class="st-lab"><b>Contenido preferido</b><small>Con qué empieza Explorar y los recomendadores. Puedes cambiarlo en cualquier momento y el catálogo completo sigue disponible.</small></div>
@@ -1485,11 +1490,12 @@ function toggleRouSound(){rouSound=!rouSound;try{localStorage.setItem("cc_rou_so
    Usa su propia clave "zy_settings_v1". No lee ni modifica ninguna clave existente
    (listas, caché, gustos, credenciales, región...). Restablecer solo borra esa clave. */
 var ZY_VERSION="1.0",zyKey="zy_settings_v1",zySettings=null,zyGenreList=[],zyResetTimer=null,zyPrev="home";
-var zyDefaults={amoled:false,style:"vivid",accent:"cyan",reduceMotion:false,bgTrailer:false,cards:"normal",loader:"pulse",kind:"both",genres:[],sort:"year",prioritize:true};
+var zyDefaults={amoled:false,style:"vivid",accent:"cyan",reduceMotion:false,bgTrailer:false,cards:"normal",loader:"pulse",kind:"both",genres:[],sort:"year",prioritize:true,srcLangs:[],autoSrc:true};
+var zyLangList=[["latino","Latino 💃🏻"],["multi","Multi"],["espanol","Español (España)"],["ingles","Inglés"],["frances","Francés"],["portugues","Portugués"],["italiano","Italiano"],["aleman","Alemán"],["japones","Japonés"],["coreano","Coreano"],["ruso","Ruso"],["chino","Chino"],["hindi","Hindi"]];
 function zySystemReduce(){try{return window.matchMedia("(prefers-reduced-motion: reduce)").matches}catch(e){return false}}
 function zyReduceMotion(){return document.documentElement.classList.contains("reduce-motion")}
 function zySanitize(r){
-  const d={...zyDefaults,genres:[]};if(!r||typeof r!=="object")return d;
+  const d={...zyDefaults,genres:[],srcLangs:[]};if(!r||typeof r!=="object")return d;
   d.amoled=r.amoled===true;
   d.style=["elegant","vivid"].includes(r.style)?r.style:"vivid";
   d.accent=["cyan","violet","neutral","rose","amber"].includes(r.accent)?r.accent:"cyan";
@@ -1501,6 +1507,8 @@ function zySanitize(r){
   d.genres=Array.isArray(r.genres)?[...new Set(r.genres.map(x=>String(x).slice(0,40)))].slice(0,30):[];
   d.sort=["rating","year","az"].includes(r.sort)?r.sort:"year";
   d.prioritize=r.prioritize!==false;
+  d.srcLangs=Array.isArray(r.srcLangs)?[...new Set(r.srcLangs.filter(x=>zyLangList.some(l=>l[0]===x)))]:[];
+  d.autoSrc=r.autoSrc!==false;
   return d}
 function zyLoad(){try{return zySanitize(JSON.parse(localStorage.getItem(zyKey)||"null"))}catch(e){return zySanitize(null)}}
 function zySave(){try{localStorage.setItem(zyKey,JSON.stringify(zySettings));return true}catch(e){toast("No se pudo guardar este ajuste en el dispositivo.");return false}}
@@ -1608,6 +1616,8 @@ function zyRenderSettings(){
   P.querySelectorAll(".st-seg").forEach(g=>g.querySelectorAll("button").forEach(b=>b.setAttribute("aria-checked",String(s[g.dataset.key])===b.dataset.val?"true":"false")));
   const gb=document.getElementById("stGenres");
   if(gb)gb.innerHTML=zyGenreList.map(g=>`<button type="button" class="chip st-gchip${s.genres.includes(g)?" active":""}" role="checkbox" aria-checked="${s.genres.includes(g)}" data-g="${esc(g)}">${esc(g)}</button>`).join("");
+  const lb=document.getElementById("stLangs");
+  if(lb)lb.innerHTML=zyLangList.map(([id,lab])=>{const i=s.srcLangs.indexOf(id);return `<button type="button" class="chip st-gchip st-lchip${i>=0?" active":""}" role="checkbox" aria-checked="${i>=0}" data-l="${id}">${i>=0?(i+1)+" · ":""}${esc(lab)}</button>`}).join("");
   zyRenderData()}
 function zySet(key,val){
   if(!zySettings||!(key in zyDefaults))return;
@@ -1643,6 +1653,8 @@ function zyBind(){
   P.addEventListener("click",e=>{
     const sw=e.target.closest(".st-sw");if(sw){if(!sw.disabled)zySet(sw.dataset.key,sw.getAttribute("aria-checked")!=="true");return}
     const rb=e.target.closest(".st-seg button");if(rb){zySet(rb.parentNode.dataset.key,rb.dataset.val);return}
+    const lc=e.target.closest(".st-lchip");
+    if(lc){const g=lc.dataset.l,cur=zySettings.srcLangs;zySet("srcLangs",cur.includes(g)?cur.filter(x=>x!==g):cur.concat(g));return}
     const gc=e.target.closest(".st-gchip");
     if(gc){const g=gc.dataset.g,cur=zySettings.genres;zySet("genres",cur.includes(g)?cur.filter(x=>x!==g):cur.concat(g));return}
     if(e.target.closest("#stBack")){closeSettings();return}
