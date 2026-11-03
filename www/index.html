@@ -38,6 +38,10 @@
 <script src="config.js"></script>
 <script src="sync.js"></script>
 <link rel="stylesheet" href="css/styles.css">
+<style>/* En tendencia, Explorar y Mis listas: sin el título sobre el póster ni debajo */
+#trendingGrid .poster .poster-name,#trendingGrid .card h3,#exploreGrid .poster .poster-name,#exploreGrid .card h3,#listsGrid .poster .poster-name,#listsGrid .card h3{display:none!important}
+/* Estrenos: solo sin el título sobre el póster */
+#upcomingGrid .poster .poster-name,#homeUpcomingGrid .poster .poster-name{display:none!important}</style>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="zlG" gradientUnits="userSpaceOnUse" x1="20" y1="72" x2="78" y2="33"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs></svg>
