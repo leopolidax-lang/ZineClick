@@ -807,6 +807,8 @@
     });
     p.addListener("znpError", function () {
       if (!isOpen) return;
+      /* la fuente falló nada más abrir: se descarta y el menú prueba la siguiente (igual que cuando termina al instante) */
+      if (Date.now() - openAt < 45000 && st.time < 20000 && W.ZAM && W.ZAM.playFailed) { meta = null; close(true); W.ZAM.playFailed(); return; }
       var fb = fallback; close(true);
       if (fb) { say("VLC no pudo con esta fuente; se usa el reproductor interno"); try { var pn = D.getElementById("addonStreamsPanel"); if (pn) pn.hidden = true; } catch (e2) {} fb(); } else say("No se pudo reproducir este video. Prueba otra fuente.");
     });
