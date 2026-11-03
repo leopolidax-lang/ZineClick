@@ -14,6 +14,7 @@
     play: '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
     pause: '<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>',
     back: '<svg viewBox="0 0 24 24"><path d="M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12z"/></svg>',
+    close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
     skip: '<svg viewBox="0 0 24 24"><path d="M12 4.6A7.9 7.9 0 1 1 5.95 7.42"/><path d="M14.7 2.2 12 4.6l2.7 2.4"/></svg><b>10</b>',
     /* iconos de línea fina (sin cuadro ni círculo) */
     audio: '<svg viewBox="0 0 24 24"><path d="M4 9.5v5h3.6l4.4 4V5.5l-4.4 4z"/><path d="M15.6 9.2a4 4 0 0 1 0 5.6M18.3 6.6a8 8 0 0 1 0 10.8"/></svg>',
@@ -113,7 +114,10 @@
   CSS += '#znpRoot .znp-intro,#znpRoot .znp-nx{display:none}';
 
   /* base: la píldora "Seguir viendo" solo se ve en el modo Elegante */
-  CSS += '#znpRoot .znp-pill{display:none}' +
+  CSS += '#znpRoot .znp-pill{display:inline-flex;align-items:center;flex:none;height:38px;padding:0 18px;margin-left:auto;border-radius:999px;background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(var(--acc-rgb,100,244,255),.5);color:var(--cyan,#64f4ff);font-size:14px;font-weight:700;white-space:nowrap}' +
+    '#znpRoot .znp-pill:active{opacity:.7}#znpRoot .znp-pill[hidden]{display:none!important}#znpRoot .znp-pill:not([hidden]) + .znp-nx{margin-left:6px}' +
+    'html:not([data-style=elegant]) #znpRoot .znp-cwp{background:linear-gradient(135deg,var(--cyan,#64f4ff),var(--znp-end,var(--purple,#a78bfa)));color:#06101a;font-weight:800}' +
+    'html:not([data-style=elegant]) #znpRoot .znp-cwg u{background:linear-gradient(90deg,var(--cyan,#64f4ff),var(--znp-end,var(--purple,#a78bfa)))}' +
     '#znpRoot .znp-cw{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;padding:calc(max(env(safe-area-inset-top),14px) + 62px) 0 max(env(safe-area-inset-bottom),14px);background:linear-gradient(rgba(0,0,0,.8),rgba(0,0,0,.62));animation:znpCw .28s ease}' +
     '#znpRoot .znp-cw[hidden]{display:none}' +
     '@keyframes znpCw{from{opacity:0}to{opacity:1}}' +
@@ -295,7 +299,7 @@
     ["Tap", "Ui", "Back", "Title", "Sub", "Rew", "Play", "Fwd", "Bar", "Fill", "Knob", "Cur", "Dur", "Pv", "PvI", "PvT", "Speed", "SpeedB", "Src", "Cast", "Cb", "Next", "Sheet", "ShT", "ShL", "Fl", "Fr", "Msg", "Intro", "Nx", "NxR", "NxN", "NxGo", "NxNo", "CwB", "Cw", "CwP", "CwR"]
       .forEach(function (k) { ui[k.charAt(0).toLowerCase() + k.slice(1)] = $("znp" + k); });
 
-    ui.back.onclick = function () { close(true); };
+    ui.back.onclick = function () { if (cwOpen) closeCw(); else close(true); };
     ui.rew.onclick = function () { seekBy(-10000); flash(-1); pulseSkip(-1); };
     ui.fwd.onclick = function () { seekBy(10000); flash(1); pulseSkip(1); };
     ui.play.onclick = function () { toggle(); };
@@ -698,7 +702,7 @@
     try { all = (W.ZCW && W.ZCW.list && W.ZCW.list()) || []; } catch (e) {}
     return all.filter(function (x) { return x && x.key !== k; });
   }
-  function cwPill() { if (ui.cwB) ui.cwB.hidden = !(eleg() && cwItems().length); }
+  function cwPill() { if (ui.cwB) ui.cwB.hidden = !cwItems().length; }
   function cwCard(en) {
     var img = en.backdrop ? TMI + en.backdrop : (en.poster ? TMI + en.poster : "");
     var nx = !!(en.done && en.ns), s = nx ? en.ns : en.s, e = nx ? en.ne : en.e;
@@ -709,17 +713,18 @@
       (pct ? '<i class="znp-cwg"><u style="width:' + pct + '%"></u></i>' : "") + '</span>' +
       '<span class="znp-cwx"><b>' + esc(en.title) + "</b>" + (sub ? "<small>" + esc(sub) + "</small>" : "") + "</span></button>";
   }
+  function backIcon() { if (!ui.back) return; ui.back.innerHTML = cwOpen ? ICON.close : ICON.back; ui.back.setAttribute("aria-label", cwOpen ? "Cerrar Seguir viendo" : "Volver"); }
   function openCw() {
     var items = cwItems(); if (!items.length) { cwPill(); return; }
     closeSheet(); cwOpen = true;
     ui.cwR.innerHTML = items.map(cwCard).join("");
     ui.cwR.scrollLeft = 0;
-    ui.cw.hidden = false; root.classList.add("znp-cwo");
+    ui.cw.hidden = false; root.classList.add("znp-cwo"); backIcon();
     clearTimeout(hideT); root.classList.remove("znp-hide");
   }
   function closeCw() {
     if (!cwOpen) return;
-    cwOpen = false; ui.cw.hidden = true; root.classList.remove("znp-cwo"); showUi();
+    cwOpen = false; ui.cw.hidden = true; root.classList.remove("znp-cwo"); backIcon(); showUi();
   }
   function playCw(key) {
     var en = W.ZCW && W.ZCW.get && W.ZCW.get(key), Z = W.ZAM;
@@ -793,7 +798,7 @@
     var p = plug(); if (!p) return false;
     build(); listen(p);
     meta = mt || null; thumbC = {}; thumbBusy = false; thumbOk = true; thumbFail = 0; thumbWant = -1;
-    curUrl = url; subSt = subLoad(); cwOpen = false; subDirty = false; if (ui.cw) ui.cw.hidden = true; root.classList.remove("znp-cwo");
+    curUrl = url; subSt = subLoad(); cwOpen = false; subDirty = false; if (ui.cw) ui.cw.hidden = true; root.classList.remove("znp-cwo"); backIcon();
     curTitle = title || ""; fallback = fb || (origPlay ? function () { origPlay({ download: url }, title); } : null); resumed = false; rate = 1; aspect = "fit"; quality = 0; lastSave = 0;
     castName = ""; castSig = ""; clearInterval(castPoll); if (ui.cast) { ui.cast.classList.remove("on"); } root.classList.remove("znp-casting");
     startAt = Number(startMs) || 0; applied = false; applyTry = 0; clearTimeout(applyT); applyT = 0;

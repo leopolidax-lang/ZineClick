@@ -23,6 +23,7 @@
     play: '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
     pause: '<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>',
     back: '<svg viewBox="0 0 24 24"><path d="M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12z"/></svg>',
+    close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
     skip: '<svg viewBox="0 0 24 24"><path d="M12 4.6A7.9 7.9 0 1 1 5.95 7.42"/><path d="M14.7 2.2 12 4.6l2.7 2.4"/></svg><b>10</b>',
     audio: '<svg viewBox="0 0 24 24"><path d="M4 9.5v5h3.6l4.4 4V5.5l-4.4 4z"/><path d="M15.6 9.2a4 4 0 0 1 0 5.6M18.3 6.6a8 8 0 0 1 0 10.8"/></svg>',
     quality: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3.5"/><path d="M7.5 9.5v5M7.5 12h3M10.5 9.5v5M14 9.5h1.6a1.9 1.9 0 0 1 0 5H14z"/></svg>',
@@ -101,8 +102,8 @@
     '#zwpRoot .zwp-ic.on{color:var(--cyan,#64f4ff)}' +
     /* volumen (solo con ratón) */
     '.zwp-volw{display:flex;align-items:center}' +
-    '.zwp-volw input{width:0;opacity:0;margin:0;transition:width .2s,opacity .2s;accent-color:var(--cyan,#64f4ff);height:4px;cursor:pointer}' +
-    '.zwp-volw:hover input,.zwp-volw:focus-within input{width:84px;opacity:1;margin-right:8px}' +
+    '.zwp-volw input{width:76px;margin:0;opacity:0;visibility:hidden;transition:opacity .2s .1s,visibility 0s .35s;accent-color:var(--cyan,#64f4ff);height:4px;cursor:pointer}' +
+    '.zwp-volw .zwp-ic:hover + input,.zwp-volw input:hover,.zwp-volw input:active{opacity:1;visibility:visible;transition-delay:0s}' +
     '@media (hover:none){.zwp-volw{display:none}}' +
     /* tarjeta lateral: pegada a la pared, sin borde de ese lado */
     '.zwp-sheet{position:absolute;z-index:4;top:max(env(safe-area-inset-top),12px);bottom:max(env(safe-area-inset-bottom),12px);right:env(safe-area-inset-right,0px);width:min(350px,54%);display:flex;flex-direction:column;padding:10px 8px 8px;background:rgba(14,18,32,.66);-webkit-backdrop-filter:blur(22px) saturate(1.3);backdrop-filter:blur(22px) saturate(1.3);border:1px solid rgba(255,255,255,.13);border-right:0;border-radius:22px 0 0 22px;box-shadow:-14px 0 44px rgba(0,0,0,.45),inset 1px 0 0 rgba(255,255,255,.06);pointer-events:auto;animation:zwpIn .24s cubic-bezier(.2,.8,.2,1)}' +
@@ -137,8 +138,11 @@
   CSS += '#zwpRoot .zwp-intro,#zwpRoot .zwp-nx{display:none}';
 
   /* base: la píldora "Seguir viendo" solo se ve en el modo Elegante (y no en ventanas muy angostas) */
-  CSS += '#zwpRoot .zwp-pill{display:none}' +
-    '#zwpRoot .zwp-cw{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;padding:calc(max(env(safe-area-inset-top),14px) + 62px) 0 14px;background:linear-gradient(rgba(0,0,0,.8),rgba(0,0,0,.62));animation:zwpCw .28s ease;pointer-events:auto}' +
+  CSS += '#zwpRoot .zwp-pill{display:inline-flex;align-items:center;flex:none;height:38px;padding:0 18px;border-radius:999px;background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(var(--acc-rgb,100,244,255),.5);color:var(--cyan,#64f4ff);font-size:14px;font-weight:700;white-space:nowrap;transition:background .15s,opacity .15s}' +
+    '#zwpRoot .zwp-pill:hover{background:rgba(var(--acc-rgb,100,244,255),.18)}#zwpRoot .zwp-pill:active{opacity:.7}' +
+    'html:not([data-style=elegant]) #zwpRoot .zwp-cwp{background:linear-gradient(135deg,var(--cyan,#64f4ff),var(--zwp-end));color:#06101a;font-weight:800}' +
+    'html:not([data-style=elegant]) #zwpRoot .zwp-cwg u{background:linear-gradient(90deg,var(--cyan,#64f4ff),var(--zwp-end))}' +
+    '#zwpRoot .zwp-cw{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;justify-content:flex-end;padding:calc(max(env(safe-area-inset-top),14px) + 62px) 0 max(env(safe-area-inset-bottom),34px);background:linear-gradient(rgba(0,0,0,.8),rgba(0,0,0,.62));animation:zwpCw .28s ease;pointer-events:auto}' +
     '#zwpRoot .zwp-cw[hidden]{display:none}' +
     '@keyframes zwpCw{from{opacity:0}to{opacity:1}}' +
     '#zwpRoot .zwp-cw-h{display:flex;gap:10px;padding:0 max(env(safe-area-inset-right),24px) 14px max(env(safe-area-inset-left),24px)}' +
@@ -156,8 +160,9 @@
     '#zwpRoot .zwp-cwx{display:flex;flex-direction:column;gap:1px;min-width:0;padding:0 4px}' +
     '#zwpRoot .zwp-cwx b{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
     '#zwpRoot .zwp-cwx small{font-size:13px;font-weight:500;color:rgba(255,255,255,.62);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
-    '#zwpRoot.zwp-s .zwp-cw{padding-top:56px}#zwpRoot.zwp-s .zwp-cwc{width:clamp(130px,60%,220px)}#zwpRoot.zwp-s .zwp-pill{display:none!important}' +
+    '#zwpRoot.zwp-s .zwp-cw{padding-top:56px;padding-bottom:max(env(safe-area-inset-bottom),20px)}#zwpRoot.zwp-s .zwp-cwc{width:clamp(130px,60%,220px)}#zwpRoot.zwp-s .zwp-pill{display:none!important}' +
     /* con el panel abierto: se ocultan los controles centrales e inferiores, la barra de arriba queda */
+    '#zwpRoot.zwp-cwo .zwp-ui{z-index:4}' +
     '#zwpRoot.zwp-cwo .zwp-ui::after{display:none}' +
     '#zwpRoot.zwp-cwo .zwp-mid,#zwpRoot.zwp-cwo .zwp-bot,#zwpRoot.zwp-cwo .zwp-ttl{visibility:hidden}' +
     '#zwpRoot.zwp-cwo .zwp-intro,#zwpRoot.zwp-cwo .zwp-nx{display:none!important}';
@@ -257,7 +262,7 @@
             '<span class="zwp-sp"></span>' +
             '<button class="zwp-pill" id="zwpCwB" hidden>Seguir viendo</button>' +
             '<button class="zwp-ic" id="zwpNext" aria-label="Siguiente episodio" title="Siguiente episodio" hidden>' + ICON.next + '</button>' +
-            '<div class="zwp-volw"><input type="range" id="zwpVol" min="0" max="1" step="0.02" aria-label="Volumen"><button class="zwp-ic" id="zwpMute" aria-label="Silenciar" title="Silenciar (M)"></button></div>' +
+            '<div class="zwp-volw"><button class="zwp-ic" id="zwpMute" aria-label="Silenciar" title="Silenciar (M)"></button><input type="range" id="zwpVol" min="0" max="1" step="0.02" aria-label="Volumen"></div>' +
             '<button class="zwp-ic" id="zwpPip" aria-label="Ventana flotante" title="Ventana flotante" hidden>' + ICON.pip + '</button>' +
             '<button class="zwp-ic" id="zwpFs" aria-label="Pantalla completa" title="Pantalla completa (F)"></button>' +
           '</div></div>' +
@@ -268,6 +273,7 @@
       .forEach(function (k) { ui[k.charAt(0).toLowerCase() + k.slice(1)] = ZR.querySelector("#zwp" + k); });
 
     ui.back.onclick = function () {
+      if (cwOpen) { closeCw(); return; }
       var pl = plyr();
       if (pl && pl.fullscreen && pl.fullscreen.active) { pl.fullscreen.exit(); setTimeout(fsIcon, 200); }
       else if (typeof W.rdClosePlayer === "function") W.rdClosePlayer();
@@ -725,7 +731,7 @@
     try { all = (W.ZCW && W.ZCW.list && W.ZCW.list()) || []; } catch (e) {}
     return all.filter(function (x) { return x && x.key !== k; });
   }
-  function cwPill() { if (ui.cwB) ui.cwB.hidden = !(eleg() && cwItems().length); }
+  function cwPill() { if (ui.cwB) ui.cwB.hidden = !cwItems().length; }
   function cwCard(en) {
     var img = en.backdrop ? TMI + en.backdrop : (en.poster ? TMI + en.poster : "");
     var nx = !!(en.done && en.ns), s = nx ? en.ns : en.s, e = nx ? en.ne : en.e;
@@ -736,17 +742,18 @@
       (pct ? '<i class="zwp-cwg"><u style="width:' + pct + '%"></u></i>' : "") + '</span>' +
       '<span class="zwp-cwx"><b>' + esc(en.title) + "</b>" + (sub ? "<small>" + esc(sub) + "</small>" : "") + "</span></button>";
   }
+  function backIcon() { if (!ui.back) return; ui.back.innerHTML = cwOpen ? ICON.close : ICON.back; ui.back.setAttribute("aria-label", cwOpen ? "Cerrar Seguir viendo" : "Volver"); }
   function openCw() {
     var items = cwItems(); if (!items.length) { cwPill(); return; }
     closeSheet(); cwOpen = true;
     ui.cwR.innerHTML = items.map(cwCard).join("");
     ui.cwR.scrollLeft = 0;
-    ui.cw.hidden = false; ZR.classList.add("zwp-cwo");
+    ui.cw.hidden = false; ZR.classList.add("zwp-cwo"); backIcon();
     clearTimeout(hideT); ZR.classList.remove("zwp-hide");
   }
   function closeCw() {
     if (!cwOpen) return;
-    cwOpen = false; ui.cw.hidden = true; ZR.classList.remove("zwp-cwo"); showUi();
+    cwOpen = false; ui.cw.hidden = true; ZR.classList.remove("zwp-cwo"); backIcon(); showUi();
   }
   function playCw(key) {
     var en = W.ZCW && W.ZCW.get && W.ZCW.get(key), Z = W.ZAM;
@@ -784,7 +791,7 @@
     aspect = "fit"; applyAspect();
     try { v.playbackRate = 1; } catch (e) {}
     ui.speedB.textContent = "";
-    sheetOpen = false; ui.sheet.hidden = true; cwOpen = false; ui.cw.hidden = true; ZR.classList.remove("zwp-cwo");
+    sheetOpen = false; ui.sheet.hidden = true; cwOpen = false; ui.cw.hidden = true; ZR.classList.remove("zwp-cwo"); backIcon();
     shownPlay = null; avail(); volPaint(); fsIcon(); stopCd(); loadSegs(); subApply(); paint(); showUi();
   }
   var origPlay = typeof W.rdPlay === "function" ? W.rdPlay : null;
