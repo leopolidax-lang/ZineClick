@@ -488,37 +488,46 @@ function syncDetail(){
 function detailRateToggle(){const p=document.getElementById("detRate"),b=document.getElementById("detRateBtn");if(!p)return;p.hidden=!p.hidden;if(b)b.setAttribute("aria-expanded",String(!p.hidden))}
 function detailRate(n){if(detailId==null)return;const key=String(detailId),t=getTaste();if(n>0)t.ratings[key]=n;else delete t.ratings[key];saveTaste(t);syncDetail();const p=document.getElementById("detRate"),b=document.getElementById("detRateBtn");if(p)p.hidden=true;if(b)b.setAttribute("aria-expanded","false");toast(n>0?"Calificaste con "+n+" de 5. Lo tendremos en cuenta.":"Calificación quitada.")}
 function detailFav(){if(detailId!=null)toggleList("favorites",detailId)}
-/* ===== Logos oficiales de título (TMDB) · solo se ven en el estilo Elegante ===== */
+/* ===== Logos oficiales de título (TMDB) + póster sin texto para el celular ===== */
 let zyLogoStore=null;const zyLogoBusy=new Map();let zyDetTok="";
-function zyLogoLoad(){if(zyLogoStore)return zyLogoStore;try{zyLogoStore=JSON.parse(localStorage.getItem("zy_logos_v1")||"{}")||{}}catch(e){zyLogoStore={}}return zyLogoStore}
-function zyLogoSave(){try{const o=zyLogoLoad(),k=Object.keys(o);if(k.length>400)k.slice(0,k.length-400).forEach(x=>{delete o[x]});localStorage.setItem("zy_logos_v1",JSON.stringify(o))}catch(e){}}
+function zyLogoLoad(){if(zyLogoStore)return zyLogoStore;try{zyLogoStore=JSON.parse(localStorage.getItem("zy_logos_v2")||"{}")||{}}catch(e){zyLogoStore={}}return zyLogoStore}
+function zyLogoSave(){try{const o=zyLogoLoad(),k=Object.keys(o);if(k.length>400)k.slice(0,k.length-400).forEach(x=>{delete o[x]});localStorage.setItem("zy_logos_v2",JSON.stringify(o))}catch(e){}}
 function zyPickLogo(list){
  if(!Array.isArray(list))return "";
  const ok=list.filter(l=>l&&/\.png$/i.test(l.file_path||"")&&(l.aspect_ratio||2)>=1.1);
  const rank=l=>l.iso_639_1==="es"?0:l.iso_639_1==="en"?1:l.iso_639_1?3:2;
  ok.sort((a,b)=>rank(a)-rank(b)||(b.vote_average||0)-(a.vote_average||0)||(b.width||0)-(a.width||0));
  return ok[0]?ok[0].file_path:""}
+/* póster "sin texto" (idioma nulo en TMDB): se usa en el celular cuando ya hay logo añadido, para que el título no salga repetido */
+function zyPickTextless(list){
+ if(!Array.isArray(list))return "";
+ const ok=list.filter(p=>p&&!p.iso_639_1&&/\.(jpg|jpeg|png)$/i.test(p.file_path||"")&&(p.aspect_ratio||.667)<.8&&(p.width||0)>=500);
+ ok.sort((a,b)=>(b.vote_average||0)-(a.vote_average||0)||(b.width||0)-(a.width||0));
+ return ok[0]?ok[0].file_path:""}
 function zyLogoKey(t){return t&&t.tmdbId&&t.mediaType?t.mediaType+"_"+t.tmdbId:""}
 function zyTitleLogo(t){
- const key=zyLogoKey(t);if(!key||!getCredential())return Promise.resolve("");
- const st=zyLogoLoad();if(key in st)return Promise.resolve(st[key]==="-"?"":st[key]);
+ const none={l:"",p:""},key=zyLogoKey(t);if(!key||!getCredential())return Promise.resolve(none);
+ const st=zyLogoLoad();if(st[key]&&typeof st[key]==="object")return Promise.resolve(st[key]);
  if(zyLogoBusy.has(key))return zyLogoBusy.get(key);
- const p=tmdb("/"+t.mediaType+"/"+t.tmdbId+"/images",{include_image_language:"es,en,null"}).then(d=>{const f=zyPickLogo(d&&d.logos);st[key]=f||"-";zyLogoSave();return f}).catch(()=>"").finally(()=>{zyLogoBusy.delete(key)});
+ const p=tmdb("/"+t.mediaType+"/"+t.tmdbId+"/images",{include_image_language:"es,en,null"}).then(d=>{const v={l:zyPickLogo(d&&d.logos),p:zyPickTextless(d&&d.posters)};st[key]=v;zyLogoSave();return v}).catch(()=>none).finally(()=>{zyLogoBusy.delete(key)});
  zyLogoBusy.set(key,p);return p}
 function zyDetailLogoClear(){zyDetTok="";const top=document.querySelector("#detailModal .modal-top");if(!top)return;top.classList.remove("has-logo");top.querySelectorAll(".det-logo").forEach(e=>e.remove())}
 function zyDetailLogo(t){
  zyDetailLogoClear();const tok=zyDetTok=String(t.id);
- const put=p=>{if(!p||zyDetTok!==tok)return;const top=document.querySelector("#detailModal .modal-top");if(!top)return;const im=new Image();im.className="det-logo";im.alt="";im.decoding="async";im.onload=()=>{if(zyDetTok!==tok)return;top.insertBefore(im,top.firstChild);top.classList.add("has-logo")};im.src="https://image.tmdb.org/t/p/w500"+p};
- if("logoPath" in t){const k=zyLogoKey(t);if(k){const st=zyLogoLoad();st[k]=t.logoPath||"-";zyLogoSave()}put(t.logoPath);return}
+ const put=v=>{const p=v&&v.l;if(!p||zyDetTok!==tok)return;const top=document.querySelector("#detailModal .modal-top");if(!top)return;const im=new Image();im.className="det-logo";im.alt="";im.decoding="async";im.onload=()=>{if(zyDetTok!==tok)return;top.insertBefore(im,top.firstChild);top.classList.add("has-logo")};im.src="https://image.tmdb.org/t/p/w500"+p};
+ if("logoPath" in t){const k=zyLogoKey(t),v={l:t.logoPath||"",p:t.textlessPath||""};if(k){zyLogoLoad()[k]=v;zyLogoSave()}put(v);return}
  zyTitleLogo(t).then(put)}
 function heroLogos(items){
- items.forEach(t=>{zyTitleLogo(t).then(p=>{
-  if(!p)return;const tr=document.getElementById("heroTrack");if(!tr)return;
+ items.forEach(t=>{zyTitleLogo(t).then(v=>{
+  if(!v||!v.l)return;const tr=document.getElementById("heroTrack");if(!tr)return;
   const sl=[...tr.children].find(x=>x.dataset.id===String(t.id));if(!sl||sl.classList.contains("has-logo"))return;
   const h=sl.querySelector(".hc-copy h2");if(!h)return;
   const im=new Image();im.className="hc-logo";im.alt="";im.decoding="async";
-  im.onload=()=>{if(sl.classList.contains("has-logo"))return;h.insertAdjacentElement("beforebegin",im);sl.classList.add("has-logo")};
-  im.src="https://image.tmdb.org/t/p/w500"+p})})}
+  im.onload=()=>{
+   if(sl.classList.contains("has-logo"))return;h.insertAdjacentElement("beforebegin",im);sl.classList.add("has-logo");
+   const src=sl.querySelector("picture source");
+   if(v.p&&src){const u="https://image.tmdb.org/t/p/w780"+v.p,pre=new Image();pre.onload=()=>{src.srcset=u;sl.classList.add("tl")};pre.src=u}};
+  im.src="https://image.tmdb.org/t/p/w500"+v.l})})}
 /* ===== Portada deslizable (estilo Netflix) ===== */
 let heroSig="",heroIdx=0,heroTimer=null,heroTouch=0,heroInit=false,heroRaf=0;
 function heroItems(){const base=heroPool.length?heroPool:[...titles].sort((x,y)=>y.rating-x.rating);return base.slice(0,7)}
@@ -1065,7 +1074,7 @@ async function recommend(second=false){
 }
 function surpriseMe(){openRoulette()}
 async function openDetail(id,fromBack){let t=findTitle(id);if(!t){const m=/^(movie|tv)_(\d+)$/.exec(String(id));if(m&&getCredential())return openCredit(m[1],Number(m[2]));toast("No se pudo abrir este título. Inténtalo de nuevo.");return}
- if(t.isLive&&getCredential()){try{const detail=await tmdb(`/${t.mediaType}/${t.tmdbId}`,{append_to_response:"credits,videos,watch/providers,images,recommendations,similar",include_video_language:"es,en,null",include_image_language:"es,en,null"});t={...t,desc:detail.overview||t.desc,genre:(detail.genres||[]).map(g=>g.name),cast:(detail.credits?.cast||[]).slice(0,12).map(c=>({id:c.id,name:c.name,character:c.character,profilePath:c.profile_path})),backdropPath:detail.backdrop_path||detail.images?.backdrops?.[0]?.file_path||t.backdropPath,posterPath:detail.poster_path||detail.images?.posters?.[0]?.file_path||t.posterPath,videos:detail.videos?.results||[],providers:detail["watch/providers"]?.results?.[getRegion()]||null,runtime:detail.runtime,seasons:detail.number_of_seasons,logoPath:zyPickLogo(detail.images&&detail.images.logos),...liveExtras(detail,t.mediaType)};}catch(e){toast(errMsg(e,"No se pudieron cargar todos los detalles."))}}
+ if(t.isLive&&getCredential()){try{const detail=await tmdb(`/${t.mediaType}/${t.tmdbId}`,{append_to_response:"credits,videos,watch/providers,images,recommendations,similar",include_video_language:"es,en,null",include_image_language:"es,en,null"});t={...t,desc:detail.overview||t.desc,genre:(detail.genres||[]).map(g=>g.name),cast:(detail.credits?.cast||[]).slice(0,12).map(c=>({id:c.id,name:c.name,character:c.character,profilePath:c.profile_path})),backdropPath:detail.backdrop_path||detail.images?.backdrops?.[0]?.file_path||t.backdropPath,posterPath:detail.poster_path||detail.images?.posters?.[0]?.file_path||t.posterPath,videos:detail.videos?.results||[],providers:detail["watch/providers"]?.results?.[getRegion()]||null,runtime:detail.runtime,seasons:detail.number_of_seasons,logoPath:zyPickLogo(detail.images&&detail.images.logos),textlessPath:zyPickTextless(detail.images&&detail.images.posters),...liveExtras(detail,t.mediaType)};}catch(e){toast(errMsg(e,"No se pudieron cargar todos los detalles."))}}
  if(!fromBack)navPushCurrent(id);const top=document.querySelector("#detailModal .modal-top");top.style.backgroundImage=t.backdropPath?`linear-gradient(90deg,#080b15e8 0%,#080b1599 55%,#080b1540 100%),url(https://image.tmdb.org/t/p/w1280${t.backdropPath})`:t.posterPath?`linear-gradient(90deg,#080b15d9 0%,#080b1577 65%,#080b1540 100%),url(https://image.tmdb.org/t/p/w780${t.posterPath})`:"linear-gradient(135deg,#182743,#15102b,#071a25)";top.style.backgroundSize="cover";top.style.backgroundPosition="center";document.getElementById("modalTitle").textContent=t.title;zyDetailLogo(t);const trailer=pickTrailer(t.videos);const cast=t.cast||[];const providers=t.providers;const providerText=providers?["flatrate","rent","buy","free","ads"].flatMap(k=>(providers[k]||[]).map(p=>p.provider_name)).filter((v,i,a)=>a.indexOf(v)===i).join(", "):"No hay información regional confirmada en esta ficha. Consulta la disponibilidad en tu país.";
  const id1=String(t.id),T=[["cast","Reparto"],["det","Detalles"],["where","Dónde ver"],["sim","Similares"]];
  const muted=m=>`<p class="muted">${m}</p>`;
