@@ -2083,17 +2083,18 @@ jobs:
 
               /* Tras recargar (buffering) a veces el audio sigue pero la imagen no: se repite el salto de lectura, como al retroceder a mano. */
               private long lastBufNudge = 0;
+              private long zBufStart = 0;
 
               private void nudgeAfterBuffer() {
                   if (System.currentTimeMillis() - lastBufNudge < 15000) return;
-                  if (System.currentTimeMillis() - lastSeekAt < 8000) return;
+                  if (lastSeekAt >= zBufStart - 3000) return;
                   handler.postDelayed(new Runnable() {
                       @Override
                       public void run() {
                           try {
                               if (player == null || !active || suspended || !player.isPlaying()) return;
                               if (System.currentTimeMillis() - lastBufNudge < 15000) return;
-                              if (System.currentTimeMillis() - lastSeekAt < 8000) return;
+                              if (lastSeekAt >= zBufStart - 3000) return;
                               long t = player.getTime();
                               if (t > 4000) {
                                   lastBufNudge = System.currentTimeMillis();
@@ -2119,7 +2120,7 @@ jobs:
           s = rep(s, 'if (player != null) player.setAudioTrack(id);', 'if (player != null) { player.setAudioTrack(id); nudgeAfterAudio(); }')
           # 4) registro de cuando VLC se queda sin datos (para ver las trabas en el siguiente log)
           s = rep(s, 'buffering = e.getBuffering() < 100f;',
-                  'boolean zWasBuf = buffering;\n                buffering = e.getBuffering() < 100f;\n                if (zWasBuf != buffering) android.util.Log.d("ZineBuf", buffering ? "buffering: empieza a recargar" : "buffering: listo");\n                if (zWasBuf && !buffering) nudgeAfterBuffer();')
+                  'boolean zWasBuf = buffering;\n                buffering = e.getBuffering() < 100f;\n                if (zWasBuf != buffering) android.util.Log.d("ZineBuf", buffering ? "buffering: empieza a recargar" : "buffering: listo");\n                if (!zWasBuf && buffering) zBufStart = System.currentTimeMillis();\n                if (zWasBuf && !buffering) nudgeAfterBuffer();')
           # 5) registro de la ventana flotante (para ver que pasa al volver)
           s = rep(s, 'public void pipChanged(boolean on) {',
                   'public void pipChanged(boolean on) {\n        android.util.Log.d("ZinePip", "pipChanged on=" + on + " active=" + active + " suspended=" + suspended + " player=" + (player != null));')
