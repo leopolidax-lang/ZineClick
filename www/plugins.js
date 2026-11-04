@@ -239,6 +239,7 @@
         }
       },
       storage: {
+        keys: function () { return Object.keys(kv); },
         get: function (k) { return Object.prototype.hasOwnProperty.call(kv, k) ? kv[k] : null; },
         set: function (k, v) {
           var n = {}; Object.keys(kv).forEach(function (x) { n[x] = kv[x]; }); n[String(k)] = String(v);
@@ -247,6 +248,10 @@
         },
         remove: function (k) { var n = {}; Object.keys(kv).forEach(function (x) { if (x !== k) n[x] = kv[x]; }); kv = n; post({ k: "kv", kv: kv }); }
       },
+      tmdb: function (path, params) {
+        return new Promise(function (res, rej) { var id = ++seq; pend[id] = { res: res, rej: rej }; post({ k: "tmdb", id: id, call: cur, path: String(path), params: params || {} }); });
+      },
+      lang: "es",
       browser: {
         capture: function (url, o) {
           return new Promise(function (res, rej) { var id = ++seq; pend[id] = { res: res, rej: rej }; post({ k: "capture", id: id, call: cur, url: String(url), opts: o || {} }); });
@@ -257,6 +262,7 @@
       error: function (code, message, o) { return mkErr({ code: code, message: message || code, userMessage: o && o.userMessage }); },
       sleep: function (ms) { return new Promise(function (r) { setTimeout(r, Math.min(Math.max(+ms || 0, 0), 5000)); }); }
     };
+    try { log.report = function () {}; } catch (e) {}
     Object.freeze(api.html); Object.freeze(api.storage); Object.freeze(api.browser); Object.freeze(api.config); Object.freeze(api);
     Object.defineProperty(window, "zynora", { value: api, writable: false, configurable: false });
     Object.defineProperty(window, String.fromCharCode(107, 105, 110, 111), { value: api, writable: false, configurable: false }); /* plugins antiguos */
@@ -365,6 +371,7 @@
     else if (m.k === "log") { rt.logs.push(String(m.a)); if (rt.logs.length > 60) rt.logs.shift(); try { console.log("[plugin " + rt.p.id + "]", m.a); } catch (e) {} }
     else if (m.k === "fetch") { doFetch(rt, m); }
     else if (m.k === "capture") { doCapture(rt, m); }
+    else if (m.k === "tmdb") { doTmdb(rt, m); }
   });
   var TESTRT = null;
 
@@ -377,6 +384,25 @@
       rt.reqs.push(now);
       var c = rt.calls[m.call]; if (c) { c.n++; if (c.n > 60) throw ferr("rate_limited", "demasiadas solicitudes en una llamada (máximo 60)"); }
       reply({ ok: true, res: await pluginFetch(rt.p, m.url, m.opts || {}) });
+    } catch (e) {
+      reply({ ok: false, err: { message: String(e && e.message || e).slice(0, 500), code: e && e.kcode || "network", host: e && e.khost } });
+    }
+  }
+  /* zynora.tmdb(ruta, parámetros): consulta a TMDB usando la misma función que ya usa Zynora */
+  async function doTmdb(rt, m) {
+    var f = rt.f, reply = function (o) { try { if (f && f.contentWindow) f.contentWindow.postMessage(Object.assign({ k: "captureRet", id: m.id }, o), "*"); } catch (e) {} };
+    try {
+      if (typeof W.tmdb !== "function") throw ferr("unsupported", "TMDB no está disponible en esta versión de Zynora.");
+      var c = rt.calls[m.call]; if (c) { c.t = (c.t || 0) + 1; if (c.t > 60) throw ferr("rate_limited", "demasiadas consultas a TMDB en una llamada (máximo 60)"); }
+      var path = String(m.path || "");
+      if (!/^\/[a-z0-9_]+(\/[a-z0-9_]+){0,5}$/i.test(path) || /^\/(account|authentication|list|guest_session)(\/|$)/i.test(path)) throw ferr("invalid_request", "ruta de TMDB no permitida");
+      var params = {}, pin = m.params || {};
+      Object.keys(pin).forEach(function (k) {
+        var v = pin[k]; if (!/^[A-Za-z0-9_]{1,40}$/.test(k)) return;
+        if (typeof v === "number" || typeof v === "boolean") params[k] = v; else if (typeof v === "string" && v.length <= 200) params[k] = v;
+      });
+      var r = await W.tmdb(path, params);
+      reply({ ok: true, res: JSON.parse(JSON.stringify(r === undefined ? null : r)) });
     } catch (e) {
       reply({ ok: false, err: { message: String(e && e.message || e).slice(0, 500), code: e && e.kcode || "network", host: e && e.khost } });
     }
