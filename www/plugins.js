@@ -10,7 +10,7 @@
 (function () {
   "use strict";
   var W = window, D = document;
-  var API_MAX = 6, APP_VER = "1.1.0";
+  API_MAX = 9, APP_VER = "1.1.0";
   /* Compatibilidad con plugins hechos antes de Zynora (formato antiguo): nombres que se siguen leyendo */
   var LEGACY = String.fromCharCode(107, 105, 110, 111);
   var LEGACY_MF = LEGACY + "-plugin.json", LEGACY_TOPIC = LEGACY + "-plugin", LEGACY_SKIP = new RegExp("^" + LEGACY + "tvapp\\/(" + LEGACY + "-plugins|" + LEGACY + "-light)$", "i"), HIDE = new RegExp("^" + LEGACY + "tvapp\\/" + LEGACY + "-plugin-archive$", "i");
@@ -122,9 +122,9 @@
     need(typeof m.entry === "string" && /^[A-Za-z0-9._\/-]{1,200}$/.test(m.entry) && m.entry.indexOf("..") < 0 && m.entry[0] !== "/" && /\.js$/.test(m.entry), "El campo «entry» no es válido (debe ser un archivo .js).");
     var fetchAny = m.fetchHosts === "any", streamAny = m.streamHosts === "any", streamList = Array.isArray(m.streamHosts) ? m.streamHosts : null;
     var hosts = m.hosts == null ? [] : m.hosts;
-    need(Array.isArray(hosts) && hosts.length <= 50 && hosts.every(validPattern), "El campo «hosts» tiene un sitio no válido: " + (Array.isArray(hosts) ? hosts.filter(function (x) { return !validPattern(x); }).join(", ") : "formato incorrecto") + ".");
+    need(Array.isArray(hosts) && hosts.length <= 300 && hosts.every(validPattern), "El campo «hosts» no es válido (" + (Array.isArray(hosts) ? hosts.length + " sitios; no válidos: " + hosts.filter(function (x) { return !validPattern(x); }).join(", ") : "formato incorrecto") + ").");
     need(hosts.length >= 1 || fetchAny, "El campo «hosts» necesita al menos un sitio.");
-    if (streamList) need(streamList.length <= 50 && streamList.every(validPattern), "El campo «streamHosts» tiene un nombre de sitio no válido.");
+    if (streamList) need(streamList.length <= 300 && streamList.every(validPattern), "El campo «streamHosts» tiene un nombre de sitio no válido.");
     need(Array.isArray(m.capabilities) && m.capabilities.every(function (c) { return KNOWN_CAPS.indexOf(c) >= 0; }), "El campo «capabilities» tiene una capacidad desconocida.");
     var caps = m.capabilities.filter(function (c, i, a) { return a.indexOf(c) === i; });
     var catalogOnly = m.catalogOnly === true;
