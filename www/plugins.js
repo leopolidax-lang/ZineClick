@@ -405,7 +405,7 @@
     var f = rt.f, reply = function (o) { try { if (f && f.contentWindow) f.contentWindow.postMessage(Object.assign({ k: "captureRet", id: m.id }, o), "*"); } catch (e) {} };
     try {
       if (typeof W.tmdb !== "function") throw ferr("unsupported", "TMDB no está disponible en esta versión de Zynora.");
-      var c = rt.calls[m.call]; if (c) { c.t = (c.t || 0) + 1; if (c.t > 60) throw ferr("rate_limited", "demasiadas consultas a TMDB en una llamada (máximo 60)"); }
+      var c = rt.calls[m.call]; if (c) { c.tq = (c.tq || 0) + 1; if (c.tq > 60) throw ferr("rate_limited", "demasiadas consultas a TMDB en una llamada (máximo 60)"); }
       var path = String(m.path || "");
       if (!/^\/[a-z0-9_]+(\/[a-z0-9_]+){0,5}$/i.test(path) || /^\/(account|authentication|list|guest_session)(\/|$)/i.test(path)) throw ferr("invalid_request", "ruta de TMDB no permitida");
       var params = {}, pin = m.params || {};
