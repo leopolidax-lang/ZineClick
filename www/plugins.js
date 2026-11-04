@@ -1,5 +1,5 @@
 /* Zynora · plugins.js
-   Sistema de plugins de Zynora (apiVersion 1 a 4). También lee plugins con el formato antiguo.
+   Sistema de plugins de Zynora (apiVersion 1 a 9). También lee plugins con el formato antiguo.
    - Un plugin es un repositorio público de GitHub con zynora-plugin.json + plugin.js
    - Se instala escribiendo usuario/repositorio. La app muestra a qué sitios se conectará y pide permiso.
    - El código del plugin corre aislado (iframe con sandbox y CSP): solo puede salir a internet con zynora.fetch,
@@ -140,7 +140,7 @@
       id: m.id, name: m.name.trim(), version: m.version, apiVersion: m.apiVersion, entry: m.entry, hosts: hosts.map(function (h) { return h.toLowerCase(); }),
       caps: caps, color: m.color || "", icon: typeof m.icon === "string" && /^[A-Za-z0-9._\/-]{1,200}$/.test(m.icon) && m.icon.indexOf("..") < 0 ? m.icon : "",
       description: cut(m.description, 300), author: cut(m.author, 60), homepage: cut(m.homepage, 200), categories: cats,
-      fetchAny: fetchAny, streamAny: streamAny, streamList: streamList, catalogOnly: catalogOnly
+      fetchAny: fetchAny, streamAny: streamAny, streamList: streamList, catalogOnly: catalogOnly, browser: m.browser === true
     };
   }
   function cmpVer(a, b) {
@@ -247,11 +247,17 @@
         },
         remove: function (k) { var n = {}; Object.keys(kv).forEach(function (x) { if (x !== k) n[x] = kv[x]; }); kv = n; post({ k: "kv", kv: kv }); }
       },
+      browser: {
+        capture: function (url, o) {
+          return new Promise(function (res, rej) { var id = ++seq; pend[id] = { res: res, rej: rej }; post({ k: "capture", id: id, call: cur, url: String(url), opts: o || {} }); });
+        }
+      },
+      config: { get: function (k) { var n = "cfg_" + String(k); return Object.prototype.hasOwnProperty.call(kv, n) ? kv[n] : null; } },
       log: log,
       error: function (code, message, o) { return mkErr({ code: code, message: message || code, userMessage: o && o.userMessage }); },
       sleep: function (ms) { return new Promise(function (r) { setTimeout(r, Math.min(Math.max(+ms || 0, 0), 5000)); }); }
     };
-    Object.freeze(api.html); Object.freeze(api.storage); Object.freeze(api);
+    Object.freeze(api.html); Object.freeze(api.storage); Object.freeze(api.browser); Object.freeze(api.config); Object.freeze(api);
     Object.defineProperty(window, "zynora", { value: api, writable: false, configurable: false });
     Object.defineProperty(window, String.fromCharCode(107, 105, 110, 111), { value: api, writable: false, configurable: false }); /* plugins antiguos */
     ["log", "info", "warn", "error", "debug"].forEach(function (n) { try { console[n] = log; } catch (e) {} });
@@ -274,6 +280,9 @@
       if (m.k === "fetchRet") {
         var p = pend[m.id]; if (!p) return; delete pend[m.id];
         if (m.ok) p.res(resp(m.res)); else p.rej(mkErr(m.err));
+      } else if (m.k === "captureRet") {
+        var q = pend[m.id]; if (!q) return; delete pend[m.id];
+        if (m.ok) q.res(m.res); else q.rej(mkErr(m.err));
       } else if (m.k === "call") { chain = chain.then(function () { return exec(m); }); }
     });
     window.__zplReady = function (o) { ex = o; post({ k: "ready", ex: Object.keys(o) }); };
@@ -355,6 +364,7 @@
     else if (m.k === "kv") { try { if (JSON.stringify(m.kv).length <= 65536 && !rt.test) localStorage.setItem(STORE + rt.p.id, JSON.stringify(m.kv)); } catch (e) {} }
     else if (m.k === "log") { rt.logs.push(String(m.a)); if (rt.logs.length > 60) rt.logs.shift(); try { console.log("[plugin " + rt.p.id + "]", m.a); } catch (e) {} }
     else if (m.k === "fetch") { doFetch(rt, m); }
+    else if (m.k === "capture") { doCapture(rt, m); }
   });
   var TESTRT = null;
 
@@ -367,6 +377,37 @@
       rt.reqs.push(now);
       var c = rt.calls[m.call]; if (c) { c.n++; if (c.n > 60) throw ferr("rate_limited", "demasiadas solicitudes en una llamada (máximo 60)"); }
       reply({ ok: true, res: await pluginFetch(rt.p, m.url, m.opts || {}) });
+    } catch (e) {
+      reply({ ok: false, err: { message: String(e && e.message || e).slice(0, 500), code: e && e.kcode || "network", host: e && e.khost } });
+    }
+  }
+  /* zynora.browser.capture: navegador oculto de la app (solo Android) para sacar el enlace real del video */
+  function zb() { var c = W.Capacitor; return c && c.Plugins && c.Plugins.ZineBrowser && c.Plugins.ZineBrowser.capture ? c.Plugins.ZineBrowser : null; }
+  async function doCapture(rt, m) {
+    var f = rt.f, reply = function (o) { try { if (f && f.contentWindow) f.contentWindow.postMessage(Object.assign({ k: "captureRet", id: m.id }, o), "*"); } catch (e) {} };
+    try {
+      if (!rt.p.browser) throw ferr("invalid_request", "este plugin no declaró «browser»");
+      var native = zb();
+      if (!native) throw ferr("unsupported", "El navegador oculto solo funciona en la app de Android.");
+      var c = rt.calls[m.call]; if (c) { c.b = (c.b || 0) + 1; if (c.b > 30) throw ferr("rate_limited", "demasiadas capturas en una llamada (máximo 30)"); }
+      var o = m.opts || {}, u = checkUrl(rt.p, String(m.url), "fetch"), headers = {};
+      Object.keys(o.headers || {}).forEach(function (k) {
+        if (/^(host|content-length|transfer-encoding|connection|cookie|cookie2)$/i.test(k) || !/^[A-Za-z0-9-]{1,64}$/.test(k)) return;
+        var v = String(o.headers[k]); if (v.length > 2048 || /[\r\n]/.test(v)) return;
+        headers[k] = v;
+      });
+      var timeout = Math.min(Math.max(Number(o.timeoutMs) || 10000, 2000), 15000);
+      var r = await native.capture({ url: u.href, headers: headers, timeoutMs: timeout }), media = [];
+      (r && Array.isArray(r.media) ? r.media : []).slice(0, 10).forEach(function (x) {
+        if (!x || typeof x.url !== "string" || !/^https?:\/\//i.test(x.url) || x.url.length > 4096) return;
+        var h = {};
+        Object.keys(x.headers || {}).forEach(function (k) {
+          if (!/^[A-Za-z0-9-]{1,64}$/.test(k) || /^(host|content-length|transfer-encoding|connection)$/i.test(k)) return;
+          var v = String(x.headers[k]); if (v.length <= 4096 && !/[\r\n]/.test(v)) h[k] = v;
+        });
+        media.push({ url: x.url, headers: h });
+      });
+      reply({ ok: true, res: { media: media } });
     } catch (e) {
       reply({ ok: false, err: { message: String(e && e.message || e).slice(0, 500), code: e && e.kcode || "network", host: e && e.khost } });
     }
@@ -421,7 +462,7 @@
   }
 
   /* =============== Llamadas al plugin y revisión de sus respuestas =============== */
-  var TMO = { search: 25000, home: 25000, browse: 25000, episodes: 25000, resolve: 30000 };
+  var TMO = { search: 25000, home: 25000, browse: 25000, episodes: 25000, resolve: 45000 };
   function callPlugin(p, fn, arg) { return rtOf(p).call(fn, arg, TMO[fn] || 20000); }
   var ID = /^[A-Za-z0-9._~-]{1,128}$/;
   function str(v, n) { return typeof v === "string" ? v.trim().slice(0, n) : (typeof v === "number" && isFinite(v) ? String(v).slice(0, n) : ""); }
