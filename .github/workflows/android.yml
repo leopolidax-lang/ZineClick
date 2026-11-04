@@ -728,12 +728,16 @@ jobs:
                   });
               }
 
+              /* hora del último salto manual (barra, botones de 10 s, continuar donde ibas) */
+              private long lastSeekAt = 0;
+
               @PluginMethod
               public void seekTo(final PluginCall call) {
                   final double ms = call.getDouble("ms", 0.0);
                   ui(new Runnable() {
                       @Override
                       public void run() {
+                          lastSeekAt = System.currentTimeMillis();
                           if (player != null) player.setTime((long) Math.max(ms, 0));
                           call.resolve();
                       }
@@ -751,6 +755,7 @@ jobs:
                               long t = player.getTime() + (long) ms;
                               if (t < 0) t = 0;
                               if (len > 0 && t > len - 500) t = len - 500;
+                              lastSeekAt = System.currentTimeMillis();
                               player.setTime(t);
                           }
                           call.resolve();
@@ -2081,12 +2086,14 @@ jobs:
 
               private void nudgeAfterBuffer() {
                   if (System.currentTimeMillis() - lastBufNudge < 15000) return;
+                  if (System.currentTimeMillis() - lastSeekAt < 8000) return;
                   handler.postDelayed(new Runnable() {
                       @Override
                       public void run() {
                           try {
                               if (player == null || !active || suspended || !player.isPlaying()) return;
                               if (System.currentTimeMillis() - lastBufNudge < 15000) return;
+                              if (System.currentTimeMillis() - lastSeekAt < 8000) return;
                               long t = player.getTime();
                               if (t > 4000) {
                                   lastBufNudge = System.currentTimeMillis();
