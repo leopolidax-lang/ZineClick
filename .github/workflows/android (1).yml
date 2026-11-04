@@ -1,0 +1,2770 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Preparar www (app web + supabase-js + configuración)
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+        run: node scripts/prepare-www.mjs
+
+      - name: Crear proyecto Android
+        run: |
+          if [ ! -d android ]; then npx cap add android; fi
+
+      - name: Poner ícono y pantalla de inicio propios
+        continue-on-error: true
+        run: |
+          if [ -f icon.png ] && [ -f icon-foreground.png ]; then
+            python3 -m venv /tmp/venv
+            /tmp/venv/bin/pip install pillow
+            /tmp/venv/bin/python - <<'PY'
+          from PIL import Image, ImageDraw
+          import glob, os
+          res = 'android/app/src/main/res'
+          full = Image.open('icon.png').convert('RGBA')
+          fg = Image.open('icon-foreground.png').convert('RGBA')
+          sizes = {'mdpi': (48, 108), 'hdpi': (72, 162), 'xhdpi': (96, 216),
+                   'xxhdpi': (144, 324), 'xxxhdpi': (192, 432)}
+          for d, (legacy, foreground) in sizes.items():
+              folder = f'{res}/mipmap-{d}'
+              os.makedirs(folder, exist_ok=True)
+              full.resize((legacy, legacy), Image.LANCZOS).convert('RGB').save(f'{folder}/ic_launcher.png')
+              r = full.resize((legacy, legacy), Image.LANCZOS)
+              m = Image.new('L', (legacy * 4, legacy * 4), 0)
+              ImageDraw.Draw(m).ellipse((0, 0, legacy * 4 - 1, legacy * 4 - 1), fill=255)
+              r.putalpha(m.resize((legacy, legacy), Image.LANCZOS))
+              r.save(f'{folder}/ic_launcher_round.png')
+              fg.resize((foreground, foreground), Image.LANCZOS).save(f'{folder}/ic_launcher_foreground.png')
+          os.makedirs(f'{res}/values', exist_ok=True)
+          with open(f'{res}/values/ic_launcher_background.xml', 'w') as f:
+              f.write('<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#000000</color>\n</resources>\n')
+          for p in glob.glob(f'{res}/drawable*/splash.png'):
+              w, h = Image.open(p).size
+              Image.new('RGB', (w, h), (0, 0, 0)).save(p)
+          print('Ícono y splash aplicados')
+          PY
+          fi
+
+      - name: Controles de la app (native-player.js y addon-menu.js)
+        run: |
+          python3 - <<'PY'
+          import os
+          p = 'www/index.html'
+          t = open(p, encoding='utf-8').read()
+          for f in ('addon-menu.js', 'native-player.js', 'plugins.js', 'tv.js', 'update-check.js'):
+              tag = '<script src="%s"></script>' % f
+              if not os.path.exists('www/' + f):
+                  print('::warning::Falta www/' + f + ' (súbelo a la carpeta www del repositorio)')
+              elif tag not in t and '</body>' in t:
+                  i = t.rfind('</body>')
+                  t = t[:i] + tag + '\n' + t[i:]
+          open(p, 'w', encoding='utf-8').write(t)
+          PY
+          grep -c "addon-menu.js\|native-player.js\|plugins.js\|tv.js\|update-check.js" www/index.html
+
+      - name: Sincronizar con Android
+        run: npx cap sync android
+
+      - name: Enlace de retorno para iniciar sesión con Google (deep link)
+        run: |
+          python3 - <<'PY'
+          m = 'android/app/src/main/AndroidManifest.xml'
+          t = open(m, encoding='utf-8').read()
+          if 'auth-callback' not in t:
+              f = ('        <intent-filter>\n'
+                   '            <action android:name="android.intent.action.VIEW" />\n'
+                   '            <category android:name="android.intent.category.DEFAULT" />\n'
+                   '            <category android:name="android.intent.category.BROWSABLE" />\n'
+                   '            <data android:scheme="com.zineclick.app" android:host="auth-callback" />\n'
+                   '        </intent-filter>\n')
+              i = t.find('</activity>')
+              assert i > 0, 'No se encontró <activity> en el manifest'
+              t = t[:i] + f + '    ' + t[i:]
+              open(m, 'w', encoding='utf-8').write(t)
+          print('Deep link auth-callback añadido')
+          PY
+          grep -n "auth-callback" android/app/src/main/AndroidManifest.xml
+
+      - name: Nombre de la app (Zynora)
+        run: |
+          F=android/app/src/main/res/values/strings.xml
+          sed -i 's|<string name="app_name">[^<]*</string>|<string name="app_name">Zynora</string>|' "$F"
+          sed -i 's|<string name="title_activity_main">[^<]*</string>|<string name="title_activity_main">Zynora</string>|' "$F"
+          grep -n "app_name\|title_activity_main" "$F"
+
+      - name: Notificaciones (permiso y ícono pequeño)
+        continue-on-error: true
+        run: |
+          python3 - <<'PY'
+          m = 'android/app/src/main/AndroidManifest.xml'
+          t = open(m, encoding='utf-8').read()
+          if 'android.permission.POST_NOTIFICATIONS' not in t:
+              k = t.find('<application')
+              assert k > 0, 'No se encontró <application>'
+              t = t[:k] + '<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    ' + t[k:]
+              open(m, 'w', encoding='utf-8').write(t)
+          print('Permiso de notificaciones listo')
+          PY
+          grep -n "POST_NOTIFICATIONS" android/app/src/main/AndroidManifest.xml
+          if [ -f icon-foreground.png ]; then
+            python3 -m venv /tmp/venvnt
+            /tmp/venvnt/bin/pip install pillow
+            /tmp/venvnt/bin/python - <<'PY'
+          from PIL import Image
+          import os
+          fg = Image.open('icon-foreground.png').convert('RGBA')
+          a = fg.split()[3]
+          lo, hi = a.getextrema()
+          if lo > 200:
+              print('El ícono no tiene transparencia: se deja el ícono pequeño por defecto')
+          else:
+              box = a.point(lambda v: 255 if v > 24 else 0).getbbox()
+              mask = a.crop(box) if box else a
+              side = max(mask.size)
+              sq = Image.new('L', (side, side), 0)
+              sq.paste(mask, ((side - mask.width) // 2, (side - mask.height) // 2))
+              for d, px in {'mdpi': 24, 'hdpi': 36, 'xhdpi': 48, 'xxhdpi': 72, 'xxxhdpi': 96}.items():
+                  folder = 'android/app/src/main/res/drawable-' + d
+                  os.makedirs(folder, exist_ok=True)
+                  m = sq.resize((px, px), Image.LANCZOS)
+                  out = Image.new('RGBA', (px, px), (255, 255, 255, 0))
+                  out.paste(Image.new('RGBA', (px, px), (255, 255, 255, 255)), (0, 0), m)
+                  out.save(folder + '/ic_stat_zynora.png')
+              print('Ícono de notificación creado')
+          PY
+          fi
+
+      - name: Android TV (aparece en el menú de la tele, con banner)
+        continue-on-error: true
+        run: |
+          python3 -m venv /tmp/venvtv
+          /tmp/venvtv/bin/pip install pillow
+          /tmp/venvtv/bin/python - <<'PY'
+          from PIL import Image
+          import os
+          res = 'android/app/src/main/res/drawable'
+          os.makedirs(res, exist_ok=True)
+          if os.path.exists('icon.png'):
+              ic = Image.open('icon.png').convert('RGBA').resize((300, 300), Image.LANCZOS)
+              bn = Image.new('RGBA', (640, 360), (0, 0, 0, 255))
+              bn.paste(ic, (170, 30), ic)
+              bn.convert('RGB').save(res + '/tv_banner.png')
+              print('Banner de TV creado')
+          PY
+          python3 - <<'PY'
+          import os
+          m = 'android/app/src/main/AndroidManifest.xml'
+          t = open(m, encoding='utf-8').read()
+          if 'android.software.leanback' not in t:
+              k = t.find('<application')
+              assert k > 0, 'No se encontró <application>'
+              feat = ('<uses-feature android:name="android.software.leanback" android:required="false" />\n    '
+                      '<uses-feature android:name="android.hardware.touchscreen" android:required="false" />\n    ')
+              t = t[:k] + feat + t[k:]
+          if 'LEANBACK_LAUNCHER' not in t:
+              i = t.find('android.intent.category.LAUNCHER')
+              assert i > 0, 'No se encontró la categoría LAUNCHER'
+              j = t.find('/>', i) + 2
+              t = t[:j] + '\n                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />' + t[j:]
+          if os.path.exists('android/app/src/main/res/drawable/tv_banner.png') and 'android:banner' not in t:
+              t = t.replace('<application', '<application\n        android:banner="@drawable/tv_banner"', 1)
+          open(m, 'w', encoding='utf-8').write(t)
+          print('Manifest listo para Android TV')
+          PY
+          grep -n "leanback\|LEANBACK\|banner" android/app/src/main/AndroidManifest.xml
+          python3 - <<'PY'
+          p = 'www/index.html'
+          t = open(p, encoding='utf-8').read()
+          old = 'if(document.getElementById("detailModal").classList.contains("open")){modalBack();return}'
+          if 'ZTV.back' not in t and t.count(old) == 1:
+              t = t.replace(old, 'if(window.ZTV&&window.ZTV.back&&window.ZTV.back(ev))return;' + old)
+              open(p, 'w', encoding='utf-8').write(t)
+              print('Boton Atras para TV listo')
+          else:
+              print('AVISO: no se pudo ajustar el boton Atras')
+          PY
+
+      - name: Clave de firma fija (para poder actualizar sin desinstalar)
+        env:
+          KEYSTORE_B64: ${{ secrets.ZINE_KEYSTORE_B64 }}
+          KS_PASS_IN: ${{ secrets.ZINE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS_IN: ${{ secrets.ZINE_KEY_ALIAS }}
+          KEY_PASS_IN: ${{ secrets.ZINE_KEY_PASSWORD }}
+          EXPECTED_SHA256: ${{ vars.SIGN_SHA256 }}
+        run: |
+          set -e
+          KS=android/app/zine.keystore
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | tr -d ' \r\n' | base64 -d > "$KS"
+            echo "Usando la clave del secreto ZINE_KEYSTORE_B64"
+          elif [ -f zineclick-debug.keystore ]; then
+            cp zineclick-debug.keystore "$KS"
+            echo "::warning::La clave de firma sigue dentro del repositorio (público). Guárdala en el secreto ZINE_KEYSTORE_B64 y borra zineclick-debug.keystore del repo."
+          else
+            echo "::error::No hay clave de firma. Crea el secreto ZINE_KEYSTORE_B64 en Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          KS_PASS="${KS_PASS_IN:-android}"
+          KEY_ALIAS="${KEY_ALIAS_IN:-androiddebugkey}"
+          KEY_PASS="${KEY_PASS_IN:-$KS_PASS}"
+          echo "::add-mask::$KS_PASS"
+          echo "::add-mask::$KEY_PASS"
+          if ! keytool -list -v -keystore "$KS" -storepass "$KS_PASS" -alias "$KEY_ALIAS" > /tmp/ks.txt 2>&1; then
+            echo "::error::No se pudo abrir la clave de firma (base64 dañado, o alias/contraseña distintos a androiddebugkey/android). Si usaste otros, crea los secretos ZINE_KEY_ALIAS, ZINE_KEYSTORE_PASSWORD y ZINE_KEY_PASSWORD."
+            head -5 /tmp/ks.txt
+            exit 1
+          fi
+          SHA=$(grep -m1 "SHA256:" /tmp/ks.txt | sed 's/.*SHA256: *//')
+          echo "Huella SHA-256 de la clave: $SHA"
+          NORM=$(echo "$SHA" | tr -d ': ' | tr 'A-F' 'a-f')
+          if [ -n "$EXPECTED_SHA256" ]; then
+            EXP=$(echo "$EXPECTED_SHA256" | tr -d ': ' | tr 'A-F' 'a-f')
+            if [ "$EXP" != "$NORM" ]; then
+              echo "::error::La clave de firma NO coincide con la huella guardada en la variable SIGN_SHA256. Esta compilación no actualizaría la app instalada. Revisa el secreto ZINE_KEYSTORE_B64."
+              exit 1
+            fi
+            echo "La huella coincide con SIGN_SHA256"
+          else
+            echo "::notice::Para blindar las actualizaciones, crea la variable SIGN_SHA256 con este valor: $SHA"
+          fi
+          echo "KS_SHA_NORM=$NORM" >> "$GITHUB_ENV"
+          echo "ZINE_KS_PASS=$KS_PASS" >> "$GITHUB_ENV"
+          echo "ZINE_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "ZINE_KEY_PASS=$KEY_PASS" >> "$GITHUB_ENV"
+
+      - name: Firma explícita + número de versión que siempre sube
+        run: |
+          python3 - <<'PY'
+          import re, time
+          p = 'android/app/build.gradle'
+          s = open(p, encoding='utf-8').read()
+          # 1) versionCode = segundos desde 1970: siempre mayor que cualquier compilación anterior
+          vc = str(int(time.time()))
+          vn = '1.0.${{ github.run_number }}'
+          s, n1 = re.subn(r'versionCode\s*=?\s*\d+', 'versionCode ' + vc, s, count=1)
+          s, n2 = re.subn(r'versionName\s*=?\s*"[^"]*"', 'versionName "' + vn + '"', s, count=1)
+          assert n1 and n2, 'No se encontró versionCode/versionName en build.gradle'
+          # 2) la compilación usa SIEMPRE nuestra clave
+          if 'signingConfigs.zine' not in s:
+              block = ("signingConfigs {\n        zine {\n            storeFile file('zine.keystore')\n"
+                       "            storePassword System.getenv('ZINE_KS_PASS')\n"
+                       "            keyAlias System.getenv('ZINE_KEY_ALIAS')\n"
+                       "            keyPassword System.getenv('ZINE_KEY_PASS')\n        }\n    }\n    ")
+              assert 'buildTypes {' in s, 'No se encontró buildTypes en build.gradle'
+              s = s.replace('buildTypes {', block + 'buildTypes {\n        debug {\n            signingConfig signingConfigs.zine\n        }', 1)
+          open(p, 'w', encoding='utf-8').write(s)
+          print('versionCode', vc, '| versionName', vn)
+          PY
+          grep -n "versionCode\|versionName\|signingConfig" android/app/build.gradle
+
+      - name: Ocultar barra de desplazamiento nativa
+        continue-on-error: true
+        run: |
+          F=android/app/src/main/java/com/zineclick/app/MainActivity.java
+          python3 - "$F" <<'PY'
+          import sys
+          p = sys.argv[1]
+          s = open(p, encoding='utf-8').read()
+          if 'setVerticalScrollBarEnabled' not in s and 'public class MainActivity extends BridgeActivity {}' in s:
+              s = s.replace('import com.getcapacitor.BridgeActivity;', 'import android.webkit.WebView;\nimport com.getcapacitor.BridgeActivity;')
+              s = s.replace('public class MainActivity extends BridgeActivity {}', 'public class MainActivity extends BridgeActivity {\n    @Override\n    public void onStart() {\n        super.onStart();\n        WebView w = getBridge() != null ? getBridge().getWebView() : null;\n        if (w != null) {\n            w.setVerticalScrollBarEnabled(false);\n            w.setHorizontalScrollBarEnabled(false);\n        }\n    }\n}')
+              open(p, 'w', encoding='utf-8').write(s)
+              print('Barra nativa desactivada')
+          PY
+
+      - name: Reproductor nativo con sonido (VLC) - opcional
+        id: native
+        continue-on-error: true
+        run: |
+          set -e
+          PKG_DIR=android/app/src/main/java/com/zineclick/app
+          test -d "$PKG_DIR"
+          cp android/app/build.gradle android/app/build.gradle.bak
+          cp android/app/src/main/AndroidManifest.xml android/app/src/main/AndroidManifest.xml.bak
+          cp "$PKG_DIR/MainActivity.java" "$PKG_DIR/MainActivity.java.bak"
+          cat > "$PKG_DIR/MainActivity.java" <<'JAVA_MAIN'
+          package com.zineclick.app;
+
+          import android.os.Bundle;
+          import android.webkit.WebView;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  registerPlugin(ZinePlayerPlugin.class);
+                  super.onCreate(savedInstanceState);
+              }
+
+              @Override
+              public void onStart() {
+                  super.onStart();
+                  WebView w = getBridge() != null ? getBridge().getWebView() : null;
+                  if (w != null) {
+                      w.setVerticalScrollBarEnabled(false);
+                      w.setHorizontalScrollBarEnabled(false);
+                  }
+              }
+          }
+          JAVA_MAIN
+          cat > "$PKG_DIR/ZinePlayerPlugin.java" <<'JAVA_PLUGIN'
+          package com.zineclick.app;
+
+          import android.app.Activity;
+          import android.content.Context;
+          import android.view.inputmethod.InputMethodManager;
+          import android.content.pm.ActivityInfo;
+          import android.graphics.Bitmap;
+          import android.graphics.Color;
+          import android.media.MediaMetadataRetriever;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.os.Handler;
+          import android.os.Looper;
+          import android.util.Base64;
+          import android.view.ViewGroup;
+          import android.view.WindowManager;
+          import android.webkit.WebView;
+
+          import androidx.core.view.WindowCompat;
+          import androidx.core.view.WindowInsetsCompat;
+          import androidx.core.view.WindowInsetsControllerCompat;
+
+          import com.getcapacitor.JSArray;
+          import com.getcapacitor.JSObject;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+
+          import org.videolan.libvlc.LibVLC;
+          import org.videolan.libvlc.Media;
+          import org.videolan.libvlc.MediaPlayer;
+          import org.videolan.libvlc.util.VLCVideoLayout;
+
+          import java.io.ByteArrayOutputStream;
+          import java.util.ArrayList;
+          import java.util.HashMap;
+          import java.util.concurrent.ExecutorService;
+          import java.util.concurrent.Executors;
+
+          /**
+           * Reproductor VLC sin pantalla propia: el video se dibuja DETRÁS del WebView
+           * y los controles son HTML (native-player.js).
+           */
+          @CapacitorPlugin(name = "ZinePlayer")
+          public class ZinePlayerPlugin extends Plugin {
+              private LibVLC libVLC;
+              private MediaPlayer player;
+              private VLCVideoLayout videoLayout;
+              private ViewGroup videoParent;
+              private final Handler handler = new Handler(Looper.getMainLooper());
+              private String url = "";
+          private String referer = "";
+          private String uagent = "";
+              private String aspect = "fit";
+              private boolean active = false;
+              private int retries = 0;
+              private int qualityH = 0;
+              private boolean suspended = false;
+              private boolean buffering = true;
+              private boolean resumePlaying = true;
+              private long resumeAt = 0;
+              private final ExecutorService thumbEx = Executors.newSingleThreadExecutor();
+              private final ExecutorService relEx = Executors.newSingleThreadExecutor();
+              private MediaMetadataRetriever mmr;
+              private String mmrUrl = "";
+              private boolean mmrFailed = false;
+
+              private void pushState() {
+                  try {
+                      if (!active || suspended || player == null) return;
+                      JSObject o = new JSObject();
+                      o.put("time", Math.max(player.getTime(), 0L));
+                      o.put("length", Math.max(player.getLength(), 0L));
+                      o.put("playing", player.isPlaying());
+                      o.put("buffering", buffering);
+                      notifyListeners("znpState", o);
+                  } catch (Throwable t) {
+                      // se ignora
+                  }
+              }
+
+              private final Runnable ticker = new Runnable() {
+                  @Override
+                  public void run() {
+                      if (active && !suspended && player != null) {
+                          try {
+                              JSObject o = new JSObject();
+                              o.put("time", Math.max(player.getTime(), 0L));
+                              o.put("length", Math.max(player.getLength(), 0L));
+                              o.put("playing", player.isPlaying());
+                              o.put("buffering", buffering);
+                              notifyListeners("znpState", o);
+                          } catch (Throwable t) {
+                              // se ignora: el próximo ciclo lo reintenta
+                          }
+                      }
+                      if (active) handler.postDelayed(this, 500);
+                  }
+              };
+
+              private final MediaPlayer.EventListener listener = new MediaPlayer.EventListener() {
+                  @Override
+                  public void onEvent(MediaPlayer.Event e) {
+                      switch (e.type) {
+                          case MediaPlayer.Event.Buffering:
+                              buffering = e.getBuffering() < 100f;
+                              break;
+                          case MediaPlayer.Event.Paused:
+                              pushState();
+                              break;
+                          case MediaPlayer.Event.Playing:
+                              buffering = false;
+                              retries = 0;
+                              applyAspect();
+                              pushState();
+                              break;
+                          case MediaPlayer.Event.EndReached:
+                              notifyListeners("znpEnded", new JSObject());
+                              break;
+                          case MediaPlayer.Event.EncounteredError:
+                              if (retries < 2 && active && !suspended && player != null) {
+                                  retries++;
+                                  final long rt = Math.max(player.getTime(), 0L);
+                                  handler.postDelayed(new Runnable() {
+                                      @Override
+                                      public void run() {
+                                          try {
+                                              if (player == null || !active || suspended) return;
+                                              player.stop();
+                                              player.detachViews();
+                                              attachAndPlay(rt, true);
+                                          } catch (Throwable t) {
+                                              // si el reintento falla, el siguiente error avisa a la página
+                                          }
+                                      }
+                                  }, 1000);
+                                  break;
+                              }
+                              JSObject o = new JSObject();
+                              o.put("message", "VLC no pudo reproducir este video");
+                              notifyListeners("znpError", o);
+                              break;
+                          default:
+                              break;
+                      }
+                  }
+              };
+
+              private void ui(Runnable r) {
+                  getActivity().runOnUiThread(r);
+              }
+
+              private void applyAspect() {
+                  if (player == null) return;
+                  try {
+                      MediaPlayer.ScaleType s;
+                      switch (aspect) {
+                          case "zoom": s = MediaPlayer.ScaleType.SURFACE_FIT_SCREEN; break;
+                          case "fill": s = MediaPlayer.ScaleType.SURFACE_FILL; break;
+                          case "16:9": s = MediaPlayer.ScaleType.SURFACE_16_9; break;
+                          case "4:3": s = MediaPlayer.ScaleType.SURFACE_4_3; break;
+                          default: s = MediaPlayer.ScaleType.SURFACE_BEST_FIT; break;
+                      }
+                      player.setVideoScale(s);
+                  } catch (Throwable t) {
+                      // sin efecto si el video aún no está listo
+                  }
+              }
+
+              private void immersive(boolean on) {
+                  Activity a = getActivity();
+                  if (a == null) return;
+                  try {
+                      WindowInsetsControllerCompat c = WindowCompat.getInsetsController(a.getWindow(), a.getWindow().getDecorView());
+                      if (c == null) return;
+                      if (on) {
+                          c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                          c.hide(WindowInsetsCompat.Type.systemBars());
+                      } else {
+                          c.show(WindowInsetsCompat.Type.systemBars());
+                      }
+                      if (Build.VERSION.SDK_INT >= 28) {
+                          WindowManager.LayoutParams lp = a.getWindow().getAttributes();
+                          lp.layoutInDisplayCutoutMode = on
+                                  ? WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                                  : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT;
+                          a.getWindow().setAttributes(lp);
+                      }
+                  } catch (Throwable t) {
+                      // las barras del sistema no son críticas
+                  }
+              }
+
+              private void attachAndPlay(long seekTo, boolean thenPlay) {
+                  player.attachViews(videoLayout, null, true, false);
+                  Media m = new Media(libVLC, Uri.parse(url));
+                  if (!referer.isEmpty()) m.addOption(":http-referrer=" + referer);
+                  if (!uagent.isEmpty()) m.addOption(":http-user-agent=" + uagent);
+                  m.addOption(":ipv4-timeout=8000");
+                  m.addOption(":network-caching=8000");
+                  m.addOption(":codec=avcodec,all"); // PRUEBA: decodificación por software (borra esta línea para volver al modo automático)
+                  if (qualityH > 0) m.addOption(":adaptive-maxheight=" + qualityH);
+                  player.setMedia(m);
+                  m.release();
+                  player.play();
+                  final long at = seekTo;
+                  if (at > 1000) {
+                      handler.postDelayed(new Runnable() {
+                          @Override
+                          public void run() {
+                              if (player != null) player.setTime(at);
+                          }
+                      }, 1500);
+                  }
+                  if (!thenPlay) {
+                      handler.postDelayed(new Runnable() {
+                          @Override
+                          public void run() {
+                              if (player != null && player.isPlaying()) player.pause();
+                          }
+                      }, 1800);
+                  }
+              }
+
+              private void startPlayback(String u) {
+                  teardown();
+                  Activity a = getActivity();
+                  WebView wv = getBridge().getWebView();
+                  videoParent = (ViewGroup) wv.getParent();
+                  videoLayout = new VLCVideoLayout(a);
+                  videoParent.addView(videoLayout, 0,
+                          new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                  wv.setBackgroundColor(Color.TRANSPARENT);
+                  a.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+                  a.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                  immersive(true);
+
+                  url = u;
+                  aspect = "fit";
+                  active = true;
+                  suspended = false;
+                  buffering = true;
+                  ArrayList<String> args = new ArrayList<String>();
+                  retries = 0;
+                  qualityH = 0;
+                  args.add("--network-caching=8000");
+                  args.add("--file-caching=3000");
+                  args.add("--http-reconnect");
+                  libVLC = new LibVLC(a, args);
+                  player = new MediaPlayer(libVLC);
+                  player.setEventListener(listener);
+                  attachAndPlay(0, true);
+                  handler.removeCallbacks(ticker);
+                  handler.post(ticker);
+              }
+
+              private void teardown() {
+                  active = false;
+                  suspended = false;
+                  handler.removeCallbacksAndMessages(null);
+                  final MediaPlayer oldPlayer = player;
+                  final LibVLC oldLib = libVLC;
+                  player = null;
+                  libVLC = null;
+                  try {
+                      if (oldPlayer != null) {
+                          oldPlayer.setEventListener(null);
+                          oldPlayer.detachViews();
+                      }
+                  } catch (Throwable t) {
+                      // se sigue liberando el resto
+                  }
+                  try {
+                      if (videoLayout != null && videoParent != null) videoParent.removeView(videoLayout);
+                  } catch (Throwable t) {
+                      // idem
+                  }
+                  videoLayout = null;
+                  thumbEx.execute(new Runnable() {
+                      @Override
+                      public void run() {
+                          closeRetriever();
+                      }
+                  });
+                  relEx.execute(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              if (oldPlayer != null) {
+                                  oldPlayer.stop();
+                                  oldPlayer.release();
+                              }
+                          } catch (Throwable t) {
+                              // idem
+                          }
+                          try {
+                              if (oldLib != null) oldLib.release();
+                          } catch (Throwable t) {
+                              // idem
+                          }
+                      }
+                  });
+              }
+
+              private void restoreWindow() {
+                  Activity a = getActivity();
+                  if (a == null) return;
+                  try {
+                      a.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+                      a.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                      immersive(false);
+                      WebView wv = getBridge().getWebView();
+                      if (wv != null) wv.setBackgroundColor(Color.BLACK);
+                  } catch (Throwable t) {
+                      // idem
+                  }
+              }
+
+              /* ---------------- métodos que llama la página ---------------- */
+
+              @PluginMethod
+              public void showKeyboard(final PluginCall call) {
+                  getActivity().runOnUiThread(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              WebView w = getBridge().getWebView();
+                              w.requestFocus();
+                              InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+                              if (imm != null) imm.showSoftInput(w, 0);
+                          } catch (Throwable t) {
+                              // sin teclado
+                          }
+                      }
+                  });
+                  call.resolve();
+              }
+
+              @PluginMethod
+              public void play(final PluginCall call) {
+                  final String u = call.getString("url");
+                  final String rf = call.getString("referer", "");
+                  final String ag = call.getString("userAgent", "");
+                  if (u == null || u.isEmpty()) {
+                      call.reject("Falta el enlace");
+                      return;
+                  }
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              referer = rf;
+                              uagent = ag;
+                              startPlayback(u);
+                              call.resolve();
+                          } catch (Throwable t) {
+                              teardown();
+                              restoreWindow();
+                              call.reject("No se pudo iniciar VLC: " + t.getMessage());
+                          }
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void stop(final PluginCall call) {
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          teardown();
+                          restoreWindow();
+                          call.resolve();
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void togglePlay(final PluginCall call) {
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          if (player != null) {
+                              if (call.hasOption("play")) {
+                                  if (call.getBoolean("play", true)) player.play(); else player.pause();
+                              } else if (player.isPlaying()) player.pause(); else player.play();
+                          }
+                          call.resolve();
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void seekTo(final PluginCall call) {
+                  final double ms = call.getDouble("ms", 0.0);
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          if (player != null) player.setTime((long) Math.max(ms, 0));
+                          call.resolve();
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void seekBy(final PluginCall call) {
+                  final double ms = call.getDouble("ms", 0.0);
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          if (player != null) {
+                              long len = player.getLength();
+                              long t = player.getTime() + (long) ms;
+                              if (t < 0) t = 0;
+                              if (len > 0 && t > len - 500) t = len - 500;
+                              player.setTime(t);
+                          }
+                          call.resolve();
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void setRate(final PluginCall call) {
+                  final double r = call.getDouble("rate", 1.0);
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          if (player != null) player.setRate((float) r);
+                          call.resolve();
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void setAspect(final PluginCall call) {
+                  final String m = call.getString("mode", "fit");
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          aspect = m;
+                          applyAspect();
+                          call.resolve();
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void setAudio(final PluginCall call) {
+                  final int id = call.getInt("id", -1);
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          if (player != null) player.setAudioTrack(id);
+                          call.resolve();
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void setQuality(final PluginCall call) {
+                  final int h = call.getInt("height", 0);
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              qualityH = h;
+                              if (player != null && active) {
+                                  final long rt = Math.max(player.getTime(), 0L);
+                                  player.stop();
+                                  player.detachViews();
+                                  attachAndPlay(rt, true);
+                              }
+                          } catch (Throwable t) {
+                              // si no se puede reiniciar, se queda con la calidad anterior
+                          }
+                          call.resolve();
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void setSubtitle(final PluginCall call) {
+                  final int id = call.getInt("id", -1);
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          if (player != null) player.setSpuTrack(id);
+                          call.resolve();
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void getTracks(final PluginCall call) {
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          JSObject res = new JSObject();
+                          JSArray audio = new JSArray();
+                          JSArray subs = new JSArray();
+                          try {
+                              if (player != null) {
+                                  MediaPlayer.TrackDescription[] a = player.getAudioTracks();
+                                  if (a != null) for (MediaPlayer.TrackDescription d : a) {
+                                      JSObject t = new JSObject();
+                                      t.put("id", d.id);
+                                      t.put("name", d.name == null ? "" : d.name);
+                                      audio.put(t);
+                                  }
+                                  MediaPlayer.TrackDescription[] s = player.getSpuTracks();
+                                  if (s != null) for (MediaPlayer.TrackDescription d : s) {
+                                      JSObject t = new JSObject();
+                                      t.put("id", d.id);
+                                      t.put("name", d.name == null ? "" : d.name);
+                                      subs.put(t);
+                                  }
+                                  res.put("audioCurrent", player.getAudioTrack());
+                                  res.put("subCurrent", player.getSpuTrack());
+                              }
+                          } catch (Throwable t) {
+                              // se devuelven las listas que se hayan podido leer
+                          }
+                          res.put("quality", qualityH);
+                          res.put("audio", audio);
+                          res.put("subs", subs);
+                          call.resolve(res);
+                      }
+                  });
+              }
+
+              /* ---------------- vista previa de escenas (al deslizar la barra) ---------------- */
+
+              private synchronized MediaMetadataRetriever retriever(String u) {
+                  if (!u.equals(mmrUrl)) {
+                      closeRetriever();
+                      mmrUrl = u;
+                      mmrFailed = false;
+                  }
+                  if (mmrFailed || u.isEmpty()) return null;
+                  if (mmr == null) {
+                      try {
+                          MediaMetadataRetriever r = new MediaMetadataRetriever();
+                          r.setDataSource(u, new HashMap<String, String>());
+                          mmr = r;
+                      } catch (Throwable t) {
+                          mmrFailed = true;
+                          mmr = null;
+                      }
+                  }
+                  return mmr;
+              }
+
+              private synchronized void closeRetriever() {
+                  try {
+                      if (mmr != null) mmr.release();
+                  } catch (Throwable t) {
+                      // idem
+                  }
+                  mmr = null;
+                  mmrUrl = "";
+              }
+
+              @PluginMethod
+              public void getThumb(final PluginCall call) {
+                  final double ms = call.getDouble("ms", 0.0);
+                  final String u = url;
+                  thumbEx.execute(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              MediaMetadataRetriever r = retriever(u);
+                              if (r == null) {
+                                  call.resolve(new JSObject());
+                                  return;
+                              }
+                              Bitmap bmp = r.getFrameAtTime((long) (Math.max(ms, 0) * 1000), MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+                              if (bmp == null) {
+                                  call.resolve(new JSObject());
+                                  return;
+                              }
+                              int w = 320;
+                              int h = Math.max(1, bmp.getHeight() * w / Math.max(1, bmp.getWidth()));
+                              Bitmap sm = Bitmap.createScaledBitmap(bmp, w, h, true);
+                              ByteArrayOutputStream bo = new ByteArrayOutputStream();
+                              sm.compress(Bitmap.CompressFormat.JPEG, 60, bo);
+                              if (sm != bmp) bmp.recycle();
+                              JSObject o = new JSObject();
+                              o.put("data", "data:image/jpeg;base64," + Base64.encodeToString(bo.toByteArray(), Base64.NO_WRAP));
+                              call.resolve(o);
+                          } catch (Throwable t) {
+                              call.resolve(new JSObject());
+                          }
+                      }
+                  });
+              }
+
+              /* ---------------- ciclo de vida de la app ---------------- */
+
+              @Override
+              protected void handleOnStop() {
+                  if (active && !suspended && player != null) {
+                      try {
+                          resumeAt = player.getTime();
+                          resumePlaying = player.isPlaying();
+                          player.stop();
+                          player.detachViews();
+                      } catch (Throwable t) {
+                          // idem
+                      }
+                      suspended = true;
+                  }
+              }
+
+              @Override
+              protected void handleOnStart() {
+                  if (active && suspended && player != null) {
+                      suspended = false;
+                      try {
+                          attachAndPlay(resumeAt, resumePlaying);
+                      } catch (Throwable t) {
+                          // idem
+                      }
+                  }
+              }
+
+              @Override
+              protected void handleOnDestroy() {
+                  teardown();
+              }
+          }
+          JAVA_PLUGIN
+          python3 - <<'PY'
+          import re
+          p = 'android/app/build.gradle'
+          s = open(p, encoding='utf-8').read()
+          if 'libvlc-all' not in s:
+              s = s.replace('dependencies {', "dependencies {\n    implementation 'org.videolan.android:libvlc-all:3.6.0'", 1)
+              s = re.sub(r'(versionName\s+"[^"]*")', r"\1\n        ndk { abiFilters 'arm64-v8a', 'armeabi-v7a' }", s, count=1)
+          open(p, 'w', encoding='utf-8').write(s)
+          PY
+          echo "Reproductor nativo instalado"
+
+      - name: Mejora - conservar idioma y subtítulos al volver a la app
+        id: tracks
+        if: steps.native.outcome == 'success'
+        continue-on-error: true
+        run: |
+          snap() { rm -rf "/tmp/snap_$1"; mkdir -p "/tmp/snap_$1"; cp -a android/app/src/main "/tmp/snap_$1/main"; cp android/app/build.gradle "/tmp/snap_$1/build.gradle"; }
+          snap tracks
+          python3 - <<'PY'
+          PLUGIN = 'android/app/src/main/java/com/zineclick/app/ZinePlayerPlugin.java'
+          MAINACT = 'android/app/src/main/java/com/zineclick/app/MainActivity.java'
+          MANIFEST = 'android/app/src/main/AndroidManifest.xml'
+          def load(p):
+              return open(p, encoding='utf-8').read()
+          def save(p, t):
+              open(p, 'w', encoding='utf-8').write(t)
+          def rep(s, old, new):
+              assert s.count(old) == 1, 'No se encontró: ' + old
+              return s.replace(old, new)
+          LIFE = '    /* ---------------- ciclo de vida de la app ---------------- */\n'
+
+          RESTORE = """
+              private final Runnable restoreRun = new Runnable() {
+                  @Override
+                  public void run() {
+                      if (player == null || !active || suspended) return;
+                      try {
+                          if (resumeAudio != Integer.MIN_VALUE && player.getAudioTrack() != resumeAudio) player.setAudioTrack(resumeAudio);
+                          if (resumeSpu != Integer.MIN_VALUE && player.getSpuTrack() != resumeSpu) player.setSpuTrack(resumeSpu);
+                          if (resumeRate > 0f && resumeRate != 1.0f) player.setRate(resumeRate);
+                      } catch (Throwable t) {
+                          // sin efecto: se queda con las pistas por defecto
+                      }
+                  }
+              };
+
+              private void restoreTracksSoon() {
+                  handler.postDelayed(restoreRun, 1800);
+                  handler.postDelayed(restoreRun, 4000);
+              }
+          """
+          s = load(PLUGIN)
+          s = rep(s, '    private long resumeAt = 0;\n', '    private long resumeAt = 0;\n    private int resumeAudio = Integer.MIN_VALUE;\n    private int resumeSpu = Integer.MIN_VALUE;\n    private float resumeRate = 1.0f;\n')
+          s = rep(s, '                resumePlaying = player.isPlaying();\n', '                resumePlaying = player.isPlaying();\n                resumeAudio = player.getAudioTrack();\n                resumeSpu = player.getSpuTrack();\n                resumeRate = player.getRate();\n')
+          s = rep(s, '                attachAndPlay(resumeAt, resumePlaying);\n', '                attachAndPlay(resumeAt, resumePlaying);\n                restoreTracksSoon();\n')
+          s = rep(s, LIFE, RESTORE + '\n' + LIFE)
+          save(PLUGIN, s)
+          print('Idioma y subtítulos se conservan al volver a la app')
+          PY
+
+
+      - name: Mejora - ventana flotante (imagen en imagen)
+        id: pip
+        if: steps.native.outcome == 'success'
+        continue-on-error: true
+        run: |
+          snap() { rm -rf "/tmp/snap_$1"; mkdir -p "/tmp/snap_$1"; cp -a android/app/src/main "/tmp/snap_$1/main"; cp android/app/build.gradle "/tmp/snap_$1/build.gradle"; }
+          snap pip
+          python3 - <<'PY'
+          PLUGIN = 'android/app/src/main/java/com/zineclick/app/ZinePlayerPlugin.java'
+          MAINACT = 'android/app/src/main/java/com/zineclick/app/MainActivity.java'
+          MANIFEST = 'android/app/src/main/AndroidManifest.xml'
+          def load(p):
+              return open(p, encoding='utf-8').read()
+          def save(p, t):
+              open(p, 'w', encoding='utf-8').write(t)
+          def rep(s, old, new):
+              assert s.count(old) == 1, 'No se encontró: ' + old
+              return s.replace(old, new)
+          LIFE = '    /* ---------------- ciclo de vida de la app ---------------- */\n'
+
+          PIP = """
+              /* ---------------- ventana flotante (imagen en imagen) ---------------- */
+
+              public boolean wantsPip() {
+                  return active && !suspended && player != null;
+              }
+
+              public Rational pipRatio() {
+                  return new Rational(16, 9);
+              }
+
+              private final Runnable pipRefreshRun = new Runnable() {
+                  @Override
+                  public void run() {
+                      if (player == null || videoLayout == null || videoParent == null || !active || suspended) return;
+                      try {
+                          player.detachViews();
+                          videoParent.removeView(videoLayout);
+                          videoParent.addView(videoLayout, 0,
+                                  new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                          WebView wv = getBridge().getWebView();
+                          if (wv != null) wv.setBackgroundColor(Color.TRANSPARENT);
+                          handler.postDelayed(new Runnable() {
+                              @Override
+                              public void run() {
+                                  try {
+                                      if (player != null && videoLayout != null && active && !suspended) {
+                                          player.attachViews(videoLayout, null, true, false);
+                                          applyAspect();
+                                      }
+                                  } catch (Throwable t) {
+                                      // sin efecto
+                                  }
+                              }
+                          }, 200);
+                      } catch (Throwable t) {
+                          // sin efecto
+                      }
+                  }
+              };
+
+              public void pipChanged(boolean on) {
+                  JSObject o = new JSObject();
+                  o.put("on", on);
+                  notifyListeners("znpPip", o);
+                  handler.removeCallbacks(pipRefreshRun);
+                  handler.postDelayed(pipRefreshRun, 350);
+                  handler.postDelayed(pipRefreshRun, 1300);
+              }
+          """
+          MAIN_JAVA = """package com.zineclick.app;
+
+          import android.app.PictureInPictureParams;
+          import android.content.res.Configuration;
+          import android.os.Build;
+          import android.os.Bundle;
+          import android.webkit.WebView;
+          import com.getcapacitor.BridgeActivity;
+          import com.getcapacitor.PluginHandle;
+
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  registerPlugin(ZinePlayerPlugin.class);
+                  super.onCreate(savedInstanceState);
+              }
+
+              @Override
+              public void onStart() {
+                  super.onStart();
+                  WebView w = getBridge() != null ? getBridge().getWebView() : null;
+                  if (w != null) {
+                      w.setVerticalScrollBarEnabled(false);
+                      w.setHorizontalScrollBarEnabled(false);
+                  }
+              }
+
+              private ZinePlayerPlugin zine() {
+                  try {
+                      if (getBridge() == null) return null;
+                      PluginHandle h = getBridge().getPlugin("ZinePlayer");
+                      if (h == null) return null;
+                      return (ZinePlayerPlugin) h.getInstance();
+                  } catch (Throwable t) {
+                      return null;
+                  }
+              }
+
+              @Override
+              public void onUserLeaveHint() {
+                  super.onUserLeaveHint();
+                  if (Build.VERSION.SDK_INT < 26) return;
+                  ZinePlayerPlugin z = zine();
+                  if (z == null || !z.wantsPip()) return;
+                  try {
+                      PictureInPictureParams.Builder b = new PictureInPictureParams.Builder();
+                      b.setAspectRatio(z.pipRatio());
+                      enterPictureInPictureMode(b.build());
+                  } catch (Throwable t) {
+                      // el sistema no permite la ventana flotante: se queda como antes
+                  }
+              }
+
+              @Override
+              public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
+                  super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
+                  ZinePlayerPlugin z = zine();
+                  if (z != null) z.pipChanged(isInPictureInPictureMode);
+              }
+          }
+          """
+          import re
+          plugin = load(PLUGIN)
+          plugin = rep(plugin, 'import android.util.Base64;\n', 'import android.util.Base64;\nimport android.util.Rational;\n')
+          plugin = rep(plugin, LIFE, PIP + '\n' + LIFE)
+
+          man = load(MANIFEST)
+          i = man.find('<activity')
+          assert i > 0, 'No se encontró <activity> en el manifest'
+          j = man.find('>', i)
+          tag = man[i:j]
+          if 'supportsPictureInPicture' not in tag:
+              tag = tag + '\n            android:supportsPictureInPicture="true"'
+          need = ['screenSize', 'smallestScreenSize', 'screenLayout', 'orientation']
+          mm = re.search(r'android:configChanges="([^"]*)"', tag)
+          if mm:
+              cur = mm.group(1).split('|')
+              for n in need:
+                  if n not in cur:
+                      cur.append(n)
+              tag = tag.replace(mm.group(0), 'android:configChanges="' + '|'.join(cur) + '"')
+          else:
+              tag = tag + '\n            android:configChanges="' + '|'.join(need) + '"'
+          man = man[:i] + tag + man[j:]
+
+          save(PLUGIN, plugin)
+          save(MAINACT, MAIN_JAVA)
+          save(MANIFEST, man)
+          print('Imagen en imagen habilitada')
+          PY
+
+
+      - name: Mejora - Chromecast
+        id: cast
+        if: steps.native.outcome == 'success'
+        continue-on-error: true
+        run: |
+          snap() { rm -rf "/tmp/snap_$1"; mkdir -p "/tmp/snap_$1"; cp -a android/app/src/main "/tmp/snap_$1/main"; cp android/app/build.gradle "/tmp/snap_$1/build.gradle"; }
+          snap cast
+          python3 - <<'PY'
+          PLUGIN = 'android/app/src/main/java/com/zineclick/app/ZinePlayerPlugin.java'
+          MAINACT = 'android/app/src/main/java/com/zineclick/app/MainActivity.java'
+          MANIFEST = 'android/app/src/main/AndroidManifest.xml'
+          def load(p):
+              return open(p, encoding='utf-8').read()
+          def save(p, t):
+              open(p, 'w', encoding='utf-8').write(t)
+          def rep(s, old, new):
+              assert s.count(old) == 1, 'No se encontró: ' + old
+              return s.replace(old, new)
+          LIFE = '    /* ---------------- ciclo de vida de la app ---------------- */\n'
+
+          CAST = """
+              /* ---------------- Chromecast (descubrimiento y envío con VLC) ---------------- */
+
+              private final RendererDiscoverer.EventListener rendererListener = new RendererDiscoverer.EventListener() {
+                  @Override
+                  public void onEvent(RendererDiscoverer.Event event) {
+                      try {
+                          RendererItem it = event.getItem();
+                          if (it == null) return;
+                          synchronized (renderers) {
+                              if (event.type == RendererDiscoverer.Event.ItemAdded) {
+                                  it.retain();
+                                  renderers.add(it);
+                              } else if (event.type == RendererDiscoverer.Event.ItemDeleted) {
+                                  for (int i = renderers.size() - 1; i >= 0; i--) {
+                                      if (renderers.get(i).name.equals(it.name)) {
+                                          renderers.get(i).release();
+                                          renderers.remove(i);
+                                      }
+                                  }
+                              }
+                          }
+                      } catch (Throwable t) {
+                          // un evento raro no debe tumbar el reproductor
+                      }
+                  }
+              };
+
+              private void castDiscoveryStart() {
+                  if (!discoverers.isEmpty() || libVLC == null) return;
+                  try {
+                      WifiManager wm = (WifiManager) getActivity().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                      if (wm != null) {
+                          mcLock = wm.createMulticastLock("zine-cast");
+                          mcLock.setReferenceCounted(false);
+                          mcLock.acquire();
+                      }
+                  } catch (Throwable t) {
+                      // sin el candado de multicast algunos routers no muestran dispositivos
+                  }
+                  try {
+                      RendererDiscoverer.Description[] ds = RendererDiscoverer.list(libVLC);
+                      if (ds == null) return;
+                      for (int i = 0; i < ds.length; i++) {
+                          RendererDiscoverer rd = new RendererDiscoverer(libVLC, ds[i].name);
+                          rd.setEventListener(rendererListener);
+                          if (rd.start()) discoverers.add(rd); else rd.release();
+                      }
+                  } catch (Throwable t) {
+                      // sin descubrimiento: la lista queda vacía
+                  }
+              }
+
+              private void castDiscoveryStop() {
+                  try {
+                      if (player != null && castItem != null) player.setRenderer(null);
+                  } catch (Throwable t) {
+                      // idem
+                  }
+                  for (int i = 0; i < discoverers.size(); i++) {
+                      try {
+                          RendererDiscoverer rd = discoverers.get(i);
+                          rd.stop();
+                          rd.setEventListener(null);
+                          rd.release();
+                      } catch (Throwable t) {
+                          // idem
+                      }
+                  }
+                  discoverers.clear();
+                  synchronized (renderers) {
+                      for (int i = 0; i < renderers.size(); i++) {
+                          try {
+                              renderers.get(i).release();
+                          } catch (Throwable t) {
+                              // idem
+                          }
+                      }
+                      renderers.clear();
+                  }
+                  if (castItem != null) {
+                      try {
+                          castItem.release();
+                      } catch (Throwable t) {
+                          // idem
+                      }
+                      castItem = null;
+                  }
+                  try {
+                      if (mcLock != null && mcLock.isHeld()) mcLock.release();
+                  } catch (Throwable t) {
+                      // idem
+                  }
+                  mcLock = null;
+              }
+
+              @PluginMethod
+              public void castList(final PluginCall call) {
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              castDiscoveryStart();
+                              JSObject o = new JSObject();
+                              JSArray arr = new JSArray();
+                              synchronized (renderers) {
+                                  for (int i = 0; i < renderers.size(); i++) {
+                                      JSObject d = new JSObject();
+                                      d.put("id", i);
+                                      d.put("name", renderers.get(i).displayName);
+                                      arr.put(d);
+                                  }
+                              }
+                              o.put("devices", arr);
+                              o.put("current", castItem != null ? castItem.displayName : "");
+                              call.resolve(o);
+                          } catch (Throwable t) {
+                              call.reject("No se pudo buscar dispositivos");
+                          }
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void castTo(final PluginCall call) {
+                  final int id = call.getInt("id", -1);
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          if (player == null || !active) {
+                              call.reject("sin reproducción");
+                              return;
+                          }
+                          RendererItem target = null;
+                          synchronized (renderers) {
+                              if (id >= 0 && id < renderers.size()) target = renderers.get(id);
+                          }
+                          if (id >= 0 && target == null) {
+                              call.reject("dispositivo no disponible");
+                              return;
+                          }
+                          try {
+                              long t = Math.max(player.getTime(), 0L);
+                              player.stop();
+                              player.detachViews();
+                              if (castItem != null) {
+                                  try {
+                                      castItem.release();
+                                  } catch (Throwable x) {
+                                      // idem
+                                  }
+                              }
+                              castItem = target;
+                              if (castItem != null) castItem.retain();
+                              player.setRenderer(castItem);
+                              attachAndPlay(t, true);
+                              JSObject o = new JSObject();
+                              o.put("current", castItem != null ? castItem.displayName : "");
+                              call.resolve(o);
+                          } catch (Throwable x) {
+                              call.reject("No se pudo transmitir");
+                          }
+                      }
+                  });
+              }
+          """
+          s = load(PLUGIN)
+          s = rep(s, 'import android.app.Activity;\n', 'import android.app.Activity;\nimport android.content.Context;\nimport android.net.wifi.WifiManager;\n')
+          s = rep(s, 'import org.videolan.libvlc.MediaPlayer;\n', 'import org.videolan.libvlc.MediaPlayer;\nimport org.videolan.libvlc.RendererDiscoverer;\nimport org.videolan.libvlc.RendererItem;\n')
+          s = rep(s, '    private boolean mmrFailed = false;\n', '    private boolean mmrFailed = false;\n    private final ArrayList<RendererDiscoverer> discoverers = new ArrayList<RendererDiscoverer>();\n    private final ArrayList<RendererItem> renderers = new ArrayList<RendererItem>();\n    private RendererItem castItem = null;\n    private WifiManager.MulticastLock mcLock = null;\n')
+          s = rep(s, '    private void teardown() {\n', '    private void teardown() {\n        castDiscoveryStop();\n')
+          s = rep(s, '    protected void handleOnStop() {\n', '    protected void handleOnStop() {\n        if (castItem != null) return;\n')
+          if 'return active && !suspended && player != null;' in s:
+              s = s.replace('return active && !suspended && player != null;', 'return active && !suspended && player != null && castItem == null;')
+          s = rep(s, LIFE, CAST + '\n' + LIFE)
+
+          m = load(MANIFEST)
+          for perm in ('android.permission.ACCESS_WIFI_STATE', 'android.permission.CHANGE_WIFI_MULTICAST_STATE'):
+              if perm not in m:
+                  k = m.find('<application')
+                  assert k > 0, 'No se encontró <application>'
+                  m = m[:k] + '<uses-permission android:name="' + perm + '" />\n    ' + m[k:]
+          save(PLUGIN, s)
+          save(MANIFEST, m)
+          print('Chromecast habilitado')
+          PY
+
+
+      - name: Mejora - miniaturas de vista previa con VLC
+        id: thumbs
+        if: steps.native.outcome == 'success'
+        continue-on-error: true
+        run: |
+          snap() { rm -rf "/tmp/snap_$1"; mkdir -p "/tmp/snap_$1"; cp -a android/app/src/main "/tmp/snap_$1/main"; cp android/app/build.gradle "/tmp/snap_$1/build.gradle"; }
+          snap thumbs
+          python3 - <<'PY'
+          PLUGIN = 'android/app/src/main/java/com/zineclick/app/ZinePlayerPlugin.java'
+          MAINACT = 'android/app/src/main/java/com/zineclick/app/MainActivity.java'
+          MANIFEST = 'android/app/src/main/AndroidManifest.xml'
+          def load(p):
+              return open(p, encoding='utf-8').read()
+          def save(p, t):
+              open(p, 'w', encoding='utf-8').write(t)
+          def rep(s, old, new):
+              assert s.count(old) == 1, 'No se encontró: ' + old
+              return s.replace(old, new)
+          LIFE = '    /* ---------------- ciclo de vida de la app ---------------- */\n'
+
+          THUMB = """
+              /* ---------------- miniaturas con VLC (respaldo cuando Android no puede leer el video) ---------------- */
+
+              private final Runnable thumbIdle = new Runnable() {
+                  @Override
+                  public void run() {
+                      thumbClose();
+                  }
+              };
+
+              private void thumbClose() {
+                  handler.removeCallbacks(thumbIdle);
+                  try {
+                      if (thumbPlayer != null) {
+                          thumbPlayer.setEventListener(null);
+                          thumbPlayer.stop();
+                          thumbPlayer.detachViews();
+                          thumbPlayer.release();
+                      }
+                  } catch (Throwable t) {
+                      // se sigue liberando
+                  }
+                  thumbPlayer = null;
+                  try {
+                      if (thumbLayout != null && videoParent != null) videoParent.removeView(thumbLayout);
+                  } catch (Throwable t) {
+                      // idem
+                  }
+                  thumbLayout = null;
+                  thumbUrl = "";
+              }
+
+              private void thumbOpen() {
+                  thumbClose();
+                  if (libVLC == null || videoParent == null || getActivity() == null) return;
+                  try {
+                      thumbLayout = new VLCVideoLayout(getActivity());
+                      videoParent.addView(thumbLayout, 0, new ViewGroup.LayoutParams(320, 180));
+                      thumbLayout.setAlpha(0.02f);
+                      thumbPlayer = new MediaPlayer(libVLC);
+                      thumbPlayer.attachViews(thumbLayout, null, false, true);
+                      Media tm = new Media(libVLC, Uri.parse(url));
+                      tm.addOption(":no-audio");
+                      thumbPlayer.setMedia(tm);
+                      tm.release();
+                      thumbPlayer.setVolume(0);
+                      thumbPlayer.play();
+                      thumbUrl = url;
+                  } catch (Throwable t) {
+                      thumbClose();
+                  }
+              }
+
+              private TextureView findTexture(View v) {
+                  if (v instanceof TextureView) return (TextureView) v;
+                  if (v instanceof ViewGroup) {
+                      ViewGroup g = (ViewGroup) v;
+                      for (int i = 0; i < g.getChildCount(); i++) {
+                          TextureView t = findTexture(g.getChildAt(i));
+                          if (t != null) return t;
+                      }
+                  }
+                  return null;
+              }
+
+              private boolean thumbIsDark(Bitmap b) {
+                  int w = b.getWidth();
+                  int h = b.getHeight();
+                  for (int i = 1; i <= 5; i++) {
+                      for (int j = 1; j <= 5; j++) {
+                          int c = b.getPixel(w * i / 6, h * j / 6);
+                          if (Color.red(c) + Color.green(c) + Color.blue(c) > 24) return false;
+                      }
+                  }
+                  return true;
+              }
+
+              private void thumbGrab(PluginCall call) {
+                  try {
+                      TextureView tv = thumbLayout != null ? findTexture(thumbLayout) : null;
+                      if (tv == null || !tv.isAvailable()) {
+                          call.resolve(new JSObject());
+                          return;
+                      }
+                      Bitmap bmp = tv.getBitmap(320, 180);
+                      if (thumbPlayer != null && thumbPlayer.isPlaying()) thumbPlayer.pause();
+                      if (bmp == null || thumbIsDark(bmp)) {
+                          call.resolve(new JSObject());
+                          return;
+                      }
+                      ByteArrayOutputStream bo = new ByteArrayOutputStream();
+                      bmp.compress(Bitmap.CompressFormat.JPEG, 60, bo);
+                      bmp.recycle();
+                      JSObject o = new JSObject();
+                      o.put("data", "data:image/jpeg;base64," + Base64.encodeToString(bo.toByteArray(), Base64.NO_WRAP));
+                      call.resolve(o);
+                  } catch (Throwable t) {
+                      call.resolve(new JSObject());
+                  }
+              }
+
+              private void vlcThumb(final double ms, final PluginCall call) {
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              if (!active || libVLC == null || videoParent == null) {
+                                  call.resolve(new JSObject());
+                                  return;
+                              }
+                              boolean fresh = thumbPlayer == null || !url.equals(thumbUrl);
+                              if (fresh) thumbOpen();
+                              if (thumbPlayer == null) {
+                                  call.resolve(new JSObject());
+                                  return;
+                              }
+                              handler.removeCallbacks(thumbIdle);
+                              handler.postDelayed(thumbIdle, 45000);
+                              if (!thumbPlayer.isPlaying()) thumbPlayer.play();
+                              final long at = (long) Math.max(ms, 0);
+                              long wait = fresh ? 900 : 0;
+                              handler.postDelayed(new Runnable() {
+                                  @Override
+                                  public void run() {
+                                      try {
+                                          if (thumbPlayer != null) thumbPlayer.setTime(at);
+                                      } catch (Throwable t) {
+                                          // sin efecto
+                                      }
+                                  }
+                              }, wait);
+                              handler.postDelayed(new Runnable() {
+                                  @Override
+                                  public void run() {
+                                      thumbGrab(call);
+                                  }
+                              }, wait + 800);
+                          } catch (Throwable t) {
+                              call.resolve(new JSObject());
+                          }
+                      }
+                  });
+              }
+          """
+          s = load(PLUGIN)
+          s = rep(s, 'import android.view.ViewGroup;\n', 'import android.view.TextureView;\nimport android.view.View;\nimport android.view.ViewGroup;\n')
+          s = rep(s, '    private boolean mmrFailed = false;\n', '    private boolean mmrFailed = false;\n    private MediaPlayer thumbPlayer = null;\n    private VLCVideoLayout thumbLayout = null;\n    private String thumbUrl = "";\n')
+          s = rep(s, '    private void teardown() {\n', '    private void teardown() {\n        thumbClose();\n')
+          a = s.index('    public void getThumb(final PluginCall call) {')
+          b = s.index('    /* ----------------', a)
+          seg = s[a:b]
+          r1 = '                    if (r == null) {\n                        call.resolve(new JSObject());\n                        return;\n                    }'
+          r2 = '                    if (bmp == null) {\n                        call.resolve(new JSObject());\n                        return;\n                    }'
+          r3 = '                } catch (Throwable t) {\n                    call.resolve(new JSObject());\n                }'
+          for r in (r1, r2, r3):
+              assert seg.count(r) == 1, 'getThumb: no se encontró un bloque'
+          seg = seg.replace(r1, '                    if (r == null) {\n                        vlcThumb(ms, call);\n                        return;\n                    }')
+          seg = seg.replace(r2, '                    if (bmp == null) {\n                        vlcThumb(ms, call);\n                        return;\n                    }')
+          seg = seg.replace(r3, '                } catch (Throwable t) {\n                    vlcThumb(ms, call);\n                }')
+          s = s[:a] + seg + s[b:]
+          s = rep(s, LIFE, THUMB + '\n' + LIFE)
+          save(PLUGIN, s)
+          print('Miniaturas con VLC habilitadas')
+          PY
+
+
+      - name: Mejora - servidor local para video disfrazado de imagen (rpmvid)
+        id: proxy
+        if: steps.native.outcome == 'success'
+        continue-on-error: true
+        run: |
+          snap() { rm -rf "/tmp/snap_$1"; mkdir -p "/tmp/snap_$1"; cp -a android/app/src/main "/tmp/snap_$1/main"; cp android/app/build.gradle "/tmp/snap_$1/build.gradle"; }
+          snap proxy
+          PKG_DIR=android/app/src/main/java/com/zineclick/app
+          test -f "$PKG_DIR/ZinePlayerPlugin.java"
+          cat > "$PKG_DIR/ZineProxy.java" <<'JAVA_PROXY'
+          package com.zineclick.app;
+
+          import java.io.ByteArrayOutputStream;
+          import java.io.InputStream;
+          import java.io.OutputStream;
+          import java.net.HttpURLConnection;
+          import java.net.InetAddress;
+          import java.net.ServerSocket;
+          import java.net.Socket;
+          import java.net.URL;
+          import java.net.URLDecoder;
+          import java.net.URLEncoder;
+          import java.nio.charset.StandardCharsets;
+          import java.util.concurrent.Callable;
+          import java.util.concurrent.ConcurrentHashMap;
+          import java.util.concurrent.ExecutorService;
+          import java.util.concurrent.Executors;
+          import java.util.concurrent.Future;
+          import java.util.concurrent.TimeUnit;
+          import java.util.regex.Matcher;
+          import java.util.regex.Pattern;
+
+          /**
+           * Servidor local (127.0.0.1) para videos HLS cuyos trocitos vienen disfrazados de imagen PNG.
+           * Descarga la lista y cada trocito con las cabeceras correctas, reescribe las direcciones para
+           * que pasen por aqui y le quita al trocito la cabecera falsa de PNG antes de dárselo a VLC.
+           */
+          public class ZineProxy {
+              private static ServerSocket server;
+              private static int port = 0;
+              private static volatile String referer = "";
+              private static volatile String agent = "";
+              private static final String UA_DEF = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+              private static final Pattern URI_ATTR = Pattern.compile("URI=\"([^\"]+)\"");
+
+              /** Solo envuelve las listas de rpmvid/cubeembed; cualquier otra dirección queda igual. */
+              public static synchronized String wrap(String url, String ref, String ua) {
+                  try {
+                      if (url == null || !url.startsWith("http")) return url;
+                      String low = url.toLowerCase();
+                      if (!((low.contains("rpmvid.com") || low.contains("okcdn.ru") || low.contains("mycdn.me")) && low.contains(".m3u8"))) return url;
+                      return wrapForce(url, ref, ua);
+                  } catch (Throwable t) {
+                      return url;
+                  }
+              }
+
+              /** Envuelve cualquier lista .m3u8 (se usa cuando VLC no logra la conexión directa). */
+              public static synchronized String wrapAlways(String url, String ref, String ua) {
+                  try {
+                      if (url == null || !url.startsWith("http")) return url;
+                      if (!url.toLowerCase().contains(".m3u8")) return url;
+                      return wrapForce(url, ref, ua);
+                  } catch (Throwable t) {
+                      return url;
+                  }
+              }
+
+              static synchronized String wrapForce(String url, String ref, String ua) {
+                  try {
+                      referer = ref == null ? "" : ref;
+                      agent = ua == null ? "" : ua;
+                      start();
+                      if (port == 0) return url;
+                      return proxied(url);
+                  } catch (Throwable t) {
+                      return url;
+                  }
+              }
+
+              private static String proxied(String abs) throws Exception {
+                  return "http://127.0.0.1:" + port + "/p?u=" + URLEncoder.encode(abs, "UTF-8");
+              }
+
+              private static void start() throws Exception {
+                  if (server != null && !server.isClosed()) return;
+                  server = new ServerSocket(0, 64, InetAddress.getByName("127.0.0.1"));
+                  port = server.getLocalPort();
+                  final ServerSocket ss = server;
+                  Thread t = new Thread(new Runnable() {
+                      @Override
+                      public void run() {
+                          while (!ss.isClosed()) {
+                              try {
+                                  final Socket s = ss.accept();
+                                  Thread w = new Thread(new Runnable() {
+                                      @Override
+                                      public void run() {
+                                          handle(s);
+                                      }
+                                  });
+                                  w.setDaemon(true);
+                                  w.start();
+                              } catch (Throwable e) {
+                                  break;
+                              }
+                          }
+                      }
+                  });
+                  t.setDaemon(true);
+                  t.start();
+              }
+
+              private static String readLine(InputStream in) throws Exception {
+                  StringBuilder sb = new StringBuilder();
+                  int c;
+                  while ((c = in.read()) != -1) {
+                      if (c == '\n') break;
+                      if (c != '\r') sb.append((char) c);
+                      if (sb.length() > 16384) break;
+                  }
+                  return sb.toString();
+              }
+
+              private static void send(OutputStream out, int code, String type, byte[] body) throws Exception {
+                  String head = "HTTP/1.1 " + code + (code == 200 ? " OK" : " Error") + "\r\n"
+                          + "Content-Type: " + type + "\r\n"
+                          + "Content-Length: " + body.length + "\r\n"
+                          + "Cache-Control: no-store\r\n"
+                          + "Connection: close\r\n\r\n";
+                  out.write(head.getBytes(StandardCharsets.ISO_8859_1));
+                  out.write(body);
+                  out.flush();
+              }
+
+              private static void handle(Socket s) {
+                  try {
+                      s.setSoTimeout(30000);
+                      InputStream in = s.getInputStream();
+                      OutputStream out = s.getOutputStream();
+                      String req = readLine(in);
+                      String line;
+                      while ((line = readLine(in)).length() > 0) {
+                          // se ignoran las cabeceras del cliente (incluido Range)
+                      }
+                      int i = req.indexOf("u=");
+                      int sp = req.indexOf(' ', 4);
+                      if (i < 0 || sp < 0 || i > sp) {
+                          send(out, 404, "text/plain", new byte[0]);
+                          s.close();
+                          return;
+                      }
+                      String u = URLDecoder.decode(req.substring(i + 2, sp), "UTF-8");
+                      Object[] got = fetch(u);
+                      if (got == null) {
+                          send(out, 502, "text/plain", new byte[0]);
+                          s.close();
+                          return;
+                      }
+                      int code = ((Integer) got[0]).intValue();
+                      if (code >= 400) {
+                          send(out, code, "text/plain", new byte[0]);
+                          s.close();
+                          return;
+                      }
+                      String finalUrl = (String) got[1];
+                      byte[] data = (byte[]) got[2];
+                      String path = u;
+                      int q = path.indexOf('?');
+                      if (q >= 0) path = path.substring(0, q);
+                      boolean playlist = path.toLowerCase().endsWith(".m3u8")
+                              || (data.length > 7 && data[0] == '#' && data[1] == 'E' && data[2] == 'X' && data[3] == 'T' && data[4] == 'M' && data[5] == '3' && data[6] == 'U');
+                      if (playlist) {
+                          send(out, 200, "application/vnd.apple.mpegurl", rewrite(new String(data, StandardCharsets.UTF_8), finalUrl).getBytes(StandardCharsets.UTF_8));
+                      } else {
+                          send(out, 200, "video/mp2t", strip(data));
+                      }
+                      s.close();
+                  } catch (Throwable e) {
+                      try {
+                          s.close();
+                      } catch (Throwable e2) {
+                          // nada
+                      }
+                  }
+              }
+
+              private static final ConcurrentHashMap<String, String> nextOf = new ConcurrentHashMap<String, String>();
+              private static final ConcurrentHashMap<String, Future<Object[]>> pre = new ConcurrentHashMap<String, Future<Object[]>>();
+              private static final ExecutorService pool = Executors.newFixedThreadPool(4);
+
+              /** Entrega el trozo ya precargado si existe; si no, lo descarga. Luego precarga los siguientes. */
+              private static Object[] fetch(String u) {
+                  Object[] r = null;
+                  Future<Object[]> f = pre.remove(u);
+                  if (f != null) {
+                      try {
+                          r = f.get(40, TimeUnit.SECONDS);
+                      } catch (Throwable e) {
+                          r = null;
+                      }
+                  }
+                  if (r == null) r = download(u);
+                  prefetchNext(u);
+                  return r;
+              }
+
+              private static void prefetchNext(String cur) {
+                  try {
+                      if (nextOf.size() > 4000) nextOf.clear();
+                      String n = cur;
+                      for (int i = 0; i < 4; i++) {
+                          n = nextOf.get(n);
+                          if (n == null) return;
+                          if (pre.containsKey(n)) continue;
+                          if (pre.size() > 12) pre.clear();
+                          final String target = n;
+                          pre.put(target, pool.submit(new Callable<Object[]>() {
+                              @Override
+                              public Object[] call() {
+                                  return download(target);
+                              }
+                          }));
+                      }
+                  } catch (Throwable e) {
+                      // la precarga es opcional
+                  }
+              }
+
+              /** Descarga con hasta 6 intentos; devuelve {codigo, urlFinal, bytes} o null si todo falla. */
+              private static Object[] download(String u) {
+                  int code = 0;
+                  for (int attempt = 0; attempt < 6; attempt++) {
+                      HttpURLConnection c = null;
+                      boolean keep = false;
+                      try {
+                          if (attempt > 0) Thread.sleep(Math.min(400L * attempt, 1500L));
+                          c = (HttpURLConnection) new URL(u).openConnection();
+                          c.setInstanceFollowRedirects(true);
+                          c.setConnectTimeout(15000);
+                          c.setReadTimeout(30000);
+                          String ua = agent.isEmpty() ? UA_DEF : agent;
+                          c.setRequestProperty("User-Agent", ua);
+                          c.setRequestProperty("Accept", "*/*");
+                          c.setRequestProperty("Accept-Language", "es-419,es;q=0.9");
+                          String ref = referer;
+                          if (!ref.isEmpty()) {
+                              c.setRequestProperty("Referer", ref);
+                              try {
+                                  URL r = new URL(ref);
+                                  c.setRequestProperty("Origin", r.getProtocol() + "://" + r.getHost() + (r.getPort() > 0 ? ":" + r.getPort() : ""));
+                              } catch (Throwable e) {
+                                  // sin Origin
+                              }
+                          }
+                          code = c.getResponseCode();
+                          if (code == 429 || code >= 500) {
+                              continue;
+                          }
+                          if (code >= 400) {
+                              return new Object[] { Integer.valueOf(code), u, new byte[0] };
+                          }
+                          String finalUrl = c.getURL().toString();
+                          long declared = c.getContentLengthLong();
+                          boolean plain = c.getContentEncoding() == null;
+                          InputStream up = c.getInputStream();
+                          ByteArrayOutputStream bo = new ByteArrayOutputStream();
+                          byte[] buf = new byte[32768];
+                          int n;
+                          long total = 0;
+                          while ((n = up.read(buf)) != -1) {
+                              bo.write(buf, 0, n);
+                              total += n;
+                              if (total > 80L * 1024 * 1024) break;
+                          }
+                          up.close();
+                          byte[] data = bo.toByteArray();
+                          if (plain && declared >= 0 && data.length != declared) {
+                              continue; // descarga cortada: se reintenta
+                          }
+                          keep = true;
+                          return new Object[] { Integer.valueOf(code), finalUrl, data };
+                      } catch (Throwable e) {
+                          // se reintenta
+                      } finally {
+                          if (c != null && !keep) {
+                              try {
+                                  c.disconnect();
+                              } catch (Throwable e2) {
+                                  // nada
+                              }
+                          }
+                      }
+                  }
+                  return null;
+              }
+
+              private static String resolve(String base, String rel) {
+                  try {
+                      return new URL(new URL(base), rel).toString();
+                  } catch (Throwable t) {
+                      return rel;
+                  }
+              }
+
+              private static String rewrite(String text, String base) throws Exception {
+                  StringBuilder sb = new StringBuilder();
+                  String[] lines = text.split("\r?\n");
+                  boolean media = text.indexOf("#EXTINF") >= 0;
+                  String prevSeg = null;
+                  for (String l : lines) {
+                      String tr = l.trim();
+                      if (tr.isEmpty()) {
+                          sb.append("\n");
+                      } else if (tr.charAt(0) == '#') {
+                          Matcher m = URI_ATTR.matcher(tr);
+                          StringBuffer out = new StringBuffer();
+                          while (m.find()) {
+                              String abs = resolve(base, m.group(1));
+                              m.appendReplacement(out, Matcher.quoteReplacement("URI=\"" + proxied(abs) + "\""));
+                          }
+                          m.appendTail(out);
+                          sb.append(out).append("\n");
+                      } else {
+                          String abs = resolve(base, tr);
+                          if (media) {
+                              if (prevSeg != null) nextOf.put(prevSeg, abs);
+                              prevSeg = abs;
+                          }
+                          sb.append(proxied(abs)).append("\n");
+                      }
+                  }
+                  return sb.toString();
+              }
+
+              /** Quita la cabecera falsa de PNG: el video real empieza justo después del bloque IEND. */
+              static byte[] strip(byte[] d) {
+                  if (d.length < 64) return d;
+                  boolean png = (d[0] & 0xFF) == 0x89 && d[1] == 'P' && d[2] == 'N' && d[3] == 'G';
+                  if (!png) return d;
+                  int lim = Math.min(d.length - 8, 8192);
+                  int off = -1;
+                  for (int i = 8; i < lim; i++) {
+                      if (d[i] == 'I' && d[i + 1] == 'E' && d[i + 2] == 'N' && d[i + 3] == 'D') {
+                          off = i + 8;
+                          break;
+                      }
+                  }
+                  if (off < 0 || off >= d.length) {
+                      // sin IEND: se busca el primer paquete TS (0x47 cada 188 bytes)
+                      int lim2 = Math.min(d.length - 400, 8192);
+                      for (int i = 0; i < lim2; i++) {
+                          if (d[i] == 0x47 && d[i + 188] == 0x47 && d[i + 376] == 0x47) {
+                              off = i;
+                              break;
+                          }
+                      }
+                  }
+                  if (off <= 0 || off >= d.length) return d;
+                  byte[] r = new byte[d.length - off];
+                  System.arraycopy(d, off, r, 0, r.length);
+                  return r;
+              }
+          }
+          JAVA_PROXY
+          python3 - <<'PY'
+          PLUGIN = 'android/app/src/main/java/com/zineclick/app/ZinePlayerPlugin.java'
+          s = open(PLUGIN, encoding='utf-8').read()
+          old = 'Media m = new Media(libVLC, Uri.parse(url));'
+          assert s.count(old) == 1, 'No se encontró la línea que abre el video'
+          s = s.replace(old, 'Media m = new Media(libVLC, Uri.parse(retries > 0 ? ZineProxy.wrapAlways(url, referer, uagent) : ZineProxy.wrap(url, referer, uagent)));')
+          open(PLUGIN, 'w', encoding='utf-8').write(s)
+          print('Servidor local de video habilitado')
+          PY
+
+      - name: Mejora - ajustes de reproducción (calidad, audio y registro de trabas)
+        id: tune
+        if: steps.native.outcome == 'success'
+        continue-on-error: true
+        run: |
+          snap() { rm -rf "/tmp/snap_$1"; mkdir -p "/tmp/snap_$1"; cp -a android/app/src/main "/tmp/snap_$1/main"; cp android/app/build.gradle "/tmp/snap_$1/build.gradle"; }
+          snap tune
+          python3 - <<'PY'
+          import os
+
+          PKG = 'android/app/src/main/java/com/zineclick/app/'
+          PLUGIN = PKG + 'ZinePlayerPlugin.java'
+          PROXY = PKG + 'ZineProxy.java'
+
+
+          def load(p):
+              return open(p, encoding='utf-8').read()
+
+
+          def save(p, t):
+              open(p, 'w', encoding='utf-8').write(t)
+
+
+          def rep(s, old, new):
+              assert s.count(old) == 1, 'No se encontro (o esta repetido): ' + old
+              return s.replace(old, new)
+
+
+          LIFE = '    /* ---------------- ciclo de vida de la app ---------------- */\n'
+
+          TUNE = """
+              /* ---------------- ajustes de reproduccion (calidad automatica, pistas y cambio de audio) ---------------- */
+
+              /* Tope de la calidad "Automatica". Con 720 VLC no sube a 1080p y se traba menos; usa 0 para quitar el tope. */
+              private static final int AUTO_MAXH = 720;
+
+              private String trackNameOf(MediaPlayer.TrackDescription[] list, int id) {
+                  if (list == null) return null;
+                  for (int i = 0; i < list.length; i++) {
+                      if (list[i] != null && list[i].id == id) return list[i].name == null ? "" : list[i].name;
+                  }
+                  return null;
+              }
+
+              private int trackIdOf(MediaPlayer.TrackDescription[] list, String name, int fallback) {
+                  if (list == null || name == null) return fallback;
+                  for (int i = 0; i < list.length; i++) {
+                      if (list[i] != null && name.equals(list[i].name == null ? "" : list[i].name)) return list[i].id;
+                  }
+                  return fallback;
+              }
+
+              /* Antes de reiniciar el video (cambio de calidad) se anota que audio, subtitulo y velocidad habia. */
+              private void keepTracks() {
+                  try {
+                      final int aId = player.getAudioTrack();
+                      final int sId = player.getSpuTrack();
+                      final String aName = trackNameOf(player.getAudioTracks(), aId);
+                      final String sName = trackNameOf(player.getSpuTracks(), sId);
+                      final float rate = player.getRate();
+                      reapplyTracks(aId, aName, sId, sName, rate, 0);
+                  } catch (Throwable t) {
+                      // sin pistas anotadas: se queda con las de por defecto
+                  }
+              }
+
+              /* Cuando las pistas del video reiniciado aparecen, se vuelve a poner lo que habia (por nombre, no por numero). */
+              private void reapplyTracks(final int aId, final String aName, final int sId, final String sName, final float rate, final int tries) {
+                  handler.postDelayed(new Runnable() {
+                      @Override
+                      public void run() {
+                          if (player == null || !active || suspended) return;
+                          boolean done = false;
+                          try {
+                              MediaPlayer.TrackDescription[] at = player.getAudioTracks();
+                              if (at != null && at.length > 0) {
+                                  if (aName != null) {
+                                      int ia = trackIdOf(at, aName, aId);
+                                      if (player.getAudioTrack() != ia) player.setAudioTrack(ia);
+                                  }
+                                  MediaPlayer.TrackDescription[] st = player.getSpuTracks();
+                                  if (sName != null && st != null && st.length > 0) {
+                                      int is = trackIdOf(st, sName, sId);
+                                      if (player.getSpuTrack() != is) player.setSpuTrack(is);
+                                  }
+                                  if (rate > 0f && rate != 1.0f) player.setRate(rate);
+                                  android.util.Log.d("ZineTune", "pistas restauradas: audio=" + aName + " subs=" + sName + " (intento " + tries + ")");
+                                  done = true;
+                              }
+                          } catch (Throwable t) {
+                              // se reintenta
+                          }
+                          if (!done && tries < 25) reapplyTracks(aId, aName, sId, sName, rate, tries + 1);
+                      }
+                  }, 1000);
+              }
+
+              /* Tras cambiar de audio se fuerza un re-sincronizado: VLC reinicia la lectura y el sonido nuevo entra antes. */
+              private void nudgeAfterAudio() {
+                  handler.postDelayed(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              if (player == null || !active || suspended) return;
+                              long t = player.getTime();
+                              if (t > 3000) {
+                                  player.setTime(t);
+                                  android.util.Log.d("ZineTune", "re-sincronizado tras cambiar de audio en " + t);
+                              }
+                          } catch (Throwable e) {
+                              // sin efecto
+                          }
+                      }
+                  }, 300);
+              }
+
+          """
+
+          s = load(PLUGIN)
+          # 1) tope de calidad automatica
+          s = rep(s, '        if (qualityH > 0) m.addOption(":adaptive-maxheight=" + qualityH);\n',
+                  '        int capH = qualityH > 0 ? qualityH : AUTO_MAXH;\n        if (capH > 0) m.addOption(":adaptive-maxheight=" + capH);\n')
+          # 2) al cambiar la calidad se conservan audio, subtitulos y velocidad
+          s = rep(s, 'qualityH = h;', 'qualityH = h;\n                    if (player != null && active) keepTracks();')
+          # 3) al cambiar el audio se fuerza el re-sincronizado
+          s = rep(s, 'if (player != null) player.setAudioTrack(id);', 'if (player != null) { player.setAudioTrack(id); nudgeAfterAudio(); }')
+          # 4) registro de cuando VLC se queda sin datos (para ver las trabas en el siguiente log)
+          s = rep(s, 'buffering = e.getBuffering() < 100f;',
+                  'boolean zWasBuf = buffering;\n                buffering = e.getBuffering() < 100f;\n                if (zWasBuf != buffering) android.util.Log.d("ZineBuf", buffering ? "buffering: empieza a recargar" : "buffering: listo");')
+          # 5) registro de la ventana flotante (para ver que pasa al volver)
+          s = rep(s, 'public void pipChanged(boolean on) {',
+                  'public void pipChanged(boolean on) {\n        android.util.Log.d("ZinePip", "pipChanged on=" + on + " active=" + active + " suspended=" + suspended + " player=" + (player != null));')
+          s = rep(s, 'protected void handleOnStop() {',
+                  'protected void handleOnStop() {\n        android.util.Log.d("ZinePip", "handleOnStop active=" + active + " suspended=" + suspended);')
+          s = rep(s, 'protected void handleOnStart() {',
+                  'protected void handleOnStart() {\n        android.util.Log.d("ZinePip", "handleOnStart active=" + active + " suspended=" + suspended);')
+          s = rep(s, LIFE, TUNE + LIFE)
+
+          CACHE = """    /* ---- memoria de los ultimos trozos: al cambiar de audio/calidad o retroceder, VLC los vuelve a pedir ---- */
+              private static final java.util.LinkedHashMap<String, Object[]> cache = new java.util.LinkedHashMap<String, Object[]>(32, 0.75f, true);
+              private static long cacheBytes = 0;
+              private static final long CACHE_MAX = 40L * 1024 * 1024;
+
+              private static String tail(String u) {
+                  if (u == null) return "";
+                  int q = u.indexOf('?');
+                  String p = q >= 0 ? u.substring(0, q) : u;
+                  return p.length() > 48 ? "..." + p.substring(p.length() - 48) : p;
+              }
+
+              private static synchronized Object[] cacheGet(String u) {
+                  Object[] r = cache.get(u);
+                  if (r != null) android.util.Log.d("ZineProxy", "memoria: trozo ya descargado " + tail(u));
+                  return r;
+              }
+
+              private static synchronized void cachePut(String u, Object[] r) {
+                  try {
+                      if (r == null || r.length < 3 || ((Integer) r[0]).intValue() >= 400) return;
+                      byte[] d = (byte[]) r[2];
+                      if (d == null || d.length < 1024 || d.length > 16 * 1024 * 1024) return;
+                      if (d[0] == '#') return; // las listas .m3u8 siempre se piden de nuevo
+                      if (cache.containsKey(u)) return;
+                      cache.put(u, r);
+                      cacheBytes += d.length;
+                      java.util.Iterator<java.util.Map.Entry<String, Object[]>> it = cache.entrySet().iterator();
+                      while (cacheBytes > CACHE_MAX && it.hasNext()) {
+                          java.util.Map.Entry<String, Object[]> en = it.next();
+                          cacheBytes -= ((byte[]) en.getValue()[2]).length;
+                          it.remove();
+                      }
+                  } catch (Throwable e) {
+                      // la memoria de trozos es opcional
+                  }
+              }
+
+          """
+
+          if os.path.exists(PROXY):
+              p = load(PROXY)
+              p = rep(p, '    private static void prefetchNext(String cur) {', CACHE + '    private static void prefetchNext(String cur) {')
+              p = rep(p, 'if (r == null) r = download(u);', 'if (r == null) r = cacheGet(u);\n        if (r == null) r = download(u);\n        cachePut(u, r);')
+              p = rep(p, 'for (int attempt = 0; attempt < 6; attempt++) {', 'final long t0 = System.currentTimeMillis();\n        for (int attempt = 0; attempt < 6; attempt++) {')
+              p = rep(p, 'if (code == 429 || code >= 500) {',
+                      'if (code == 429 || code >= 500) {\n                    android.util.Log.w("ZineProxy", "HTTP " + code + " intento " + (attempt + 1) + " " + tail(u));')
+              p = rep(p, 'keep = true;',
+                      'keep = true;\n                android.util.Log.d("ZineProxy", "descargado " + (data.length / 1024) + "KB en " + (System.currentTimeMillis() - t0) + "ms (intento " + (attempt + 1) + ") " + tail(u));')
+              p = rep(p, '// se reintenta\n',
+                      'android.util.Log.w("ZineProxy", "fallo " + e + " (intento " + (attempt + 1) + ") " + tail(u));\n                // se reintenta\n')
+              save(PROXY, p)
+
+          save(PLUGIN, s)
+          print('Ajustes de reproduccion aplicados')
+          PY
+
+      - name: Mejora - arreglos (ventana flotante y calidad automática)
+        id: fix
+        if: steps.native.outcome == 'success'
+        continue-on-error: true
+        run: |
+          snap() { rm -rf "/tmp/snap_$1"; mkdir -p "/tmp/snap_$1"; cp -a android/app/src/main "/tmp/snap_$1/main"; cp android/app/build.gradle "/tmp/snap_$1/build.gradle"; }
+          snap fix
+          python3 - <<'PY'
+          PKG = 'android/app/src/main/java/com/zineclick/app/'
+          PLUGIN = PKG + 'ZinePlayerPlugin.java'
+          MAINACT = PKG + 'MainActivity.java'
+
+
+          def load(p):
+              return open(p, encoding='utf-8').read()
+
+
+          def save(p, t):
+              open(p, 'w', encoding='utf-8').write(t)
+
+
+          def rep(s, old, new):
+              assert s.count(old) == 1, 'No se encontro (o esta repetido): ' + old
+              return s.replace(old, new)
+
+
+          LIFE = '    /* ---------------- ciclo de vida de la app ---------------- */\n'
+
+          FIX = """
+              /* ---------------- arreglos de la ventana flotante ---------------- */
+
+              /* Antes, al entrar a la ventana flotante el telefono mandaba onStop y el reproductor se destruia y se
+                 volvia a crear desde cero (por eso salia pantalla negra con sonido). Ahora, si la ventana flotante
+                 esta activa o a punto de abrirse, onStop se ignora y el video sigue vivo. */
+              /* Si vuelve a quedar negro al regresar, probar con true (refresco viejo, una sola vez al salir). */
+              private static final boolean PIP_REFRESH = false;
+              private volatile boolean pipEntering = false;
+              private volatile boolean uiResumed = true;
+
+              public void pipWillEnter() {
+                  pipEntering = true;
+              }
+
+              private boolean pipKeep() {
+                  if (pipEntering) return true;
+                  try {
+                      Activity a = getActivity();
+                      return a != null && Build.VERSION.SDK_INT >= 24 && a.isInPictureInPictureMode();
+                  } catch (Throwable t) {
+                      return false;
+                  }
+              }
+
+              /* Si la ventana flotante se cierra con la X (y no se expande), la app queda detenida: ahi si se para el video. */
+              private void pipCheckClosed() {
+                  handler.postDelayed(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              if (player == null || !active || suspended) return;
+                              if (!uiResumed) handleOnStop();
+                          } catch (Throwable t) {
+                              // sin efecto
+                          }
+                      }
+                  }, 1000);
+              }
+
+              @Override
+              protected void handleOnPause() {
+                  uiResumed = false;
+              }
+
+              @Override
+              protected void handleOnResume() {
+                  uiResumed = true;
+              }
+
+          """
+
+          s = load(PLUGIN)
+          # 1) calidad automatica: tope de 480p (con 720p la fuente de LA Cartoon no alcanza y se traba)
+          s = rep(s, 'private static final int AUTO_MAXH = 720;', 'private static final int AUTO_MAXH = 480;')
+          # 2) onStop no destruye el video mientras la ventana flotante esta activa
+          s = rep(s, 'protected void handleOnStop() {',
+                  'protected void handleOnStop() {\n        if (pipKeep()) {\n            android.util.Log.d("ZinePip", "handleOnStop ignorado: ventana flotante");\n            return;\n        }')
+          # 3) al salir de la ventana flotante: se limpia la marca y se vigila si se cerro con la X
+          s = rep(s, 'public void pipChanged(boolean on) {',
+                  'public void pipChanged(boolean on) {\n        if (!on) {\n            pipEntering = false;\n            pipCheckClosed();\n        }')
+          # 4) el refresco de superficie ya no corre por defecto (provocaba errores de EGL al volver)
+          s = rep(s, 'handler.postDelayed(pipRefreshRun, 350);', 'if (PIP_REFRESH && !on) handler.postDelayed(pipRefreshRun, 500);')
+          s = rep(s, 'handler.postDelayed(pipRefreshRun, 1300);', '')
+          s = rep(s, LIFE, FIX + LIFE)
+          save(PLUGIN, s)
+
+          # 5) MainActivity: avisar al plugin cuando la ventana flotante realmente se pidio
+          m = load(MAINACT)
+          m = rep(m, 'enterPictureInPictureMode(b.build());', 'if (enterPictureInPictureMode(b.build())) z.pipWillEnter();')
+          save(MAINACT, m)
+          print('Arreglos aplicados')
+          PY
+
+      - name: Mejora - estilo de subtítulos (tamaño y fondo)
+        id: subs
+        if: steps.native.outcome == 'success'
+        continue-on-error: true
+        run: |
+          snap() { rm -rf "/tmp/snap_$1"; mkdir -p "/tmp/snap_$1"; cp -a android/app/src/main "/tmp/snap_$1/main"; cp android/app/build.gradle "/tmp/snap_$1/build.gradle"; }
+          snap subs
+          python3 - <<'PY'
+          PKG = 'android/app/src/main/java/com/zineclick/app/'
+          PLUGIN = PKG + 'ZinePlayerPlugin.java'
+
+
+          def rep(s, old, new):
+              assert s.count(old) == 1, 'No se encontro (o esta repetido): ' + old
+              return s.replace(old, new)
+
+
+          s = open(PLUGIN, encoding='utf-8').read()
+          # 1) la pagina manda el tamano y el fondo de los subtitulos al abrir el video
+          s = rep(s, 'private String uagent = "";', 'private String uagent = "";\n    private String subSize = "";\n    private String subBg = "";')
+          s = rep(s, 'final String ag = call.getString("userAgent", "");',
+                  'final String ag = call.getString("userAgent", "");\n        final String ssz = call.getString("subSize", "");\n        final String sbg = call.getString("subBg", "");')
+          s = rep(s, 'uagent = ag;', 'uagent = ag;\n                subSize = ssz;\n                subBg = sbg;')
+          # 2) opciones de VLC (tamano relativo: numero mas bajo = letra mas grande)
+          s = rep(s, 'args.add("--http-reconnect");', """args.add("--http-reconnect");
+                  final ArrayList<String> baseArgs = new ArrayList<String>(args);
+                  if (subSize != null && !subSize.isEmpty()) {
+                      int rel = 16;
+                      if ("s".equals(subSize)) rel = 20;
+                      else if ("l".equals(subSize)) rel = 12;
+                      else if ("xl".equals(subSize)) rel = 9;
+                      args.add("--freetype-rel-fontsize=" + rel);
+                  }
+                  if (subBg != null && !subBg.isEmpty()) {
+                      int op = 190;
+                      if ("shadow".equals(subBg)) op = 0;
+                      else if ("light".equals(subBg)) op = 110;
+                      else if ("solid".equals(subBg)) op = 255;
+                      args.add("--freetype-background-opacity=" + op);
+                      args.add("--freetype-background-color=0");
+                      if (op == 0) args.add("--freetype-shadow-opacity=200");
+                  }""")
+          # 3) si VLC no acepta alguna opcion, se inicia sin ellas (los subtitulos quedan con el estilo normal)
+          s = rep(s, 'libVLC = new LibVLC(a, args);', """try {
+                      libVLC = new LibVLC(a, args);
+                  } catch (Throwable t) {
+                      libVLC = new LibVLC(a, baseArgs);
+                  }""")
+          open(PLUGIN, 'w', encoding='utf-8').write(s)
+          print('Estilo de subtitulos habilitado')
+          PY
+
+      - name: Mejora - navegador oculto para plugins (zynora.browser.capture)
+        id: browser
+        if: steps.native.outcome == 'success'
+        continue-on-error: true
+        run: |
+          snap() { rm -rf "/tmp/snap_$1"; mkdir -p "/tmp/snap_$1"; cp -a android/app/src/main "/tmp/snap_$1/main"; cp android/app/build.gradle "/tmp/snap_$1/build.gradle"; }
+          snap browser
+          PKG_DIR=android/app/src/main/java/com/zineclick/app
+          test -f "$PKG_DIR/MainActivity.java"
+          cat > "$PKG_DIR/ZineBrowserPlugin.java" <<'JAVA_BROWSER'
+          package com.zineclick.app;
+
+          import android.app.Activity;
+          import android.os.Handler;
+          import android.os.Looper;
+          import android.view.ViewGroup;
+          import android.webkit.CookieManager;
+          import android.webkit.WebResourceRequest;
+          import android.webkit.WebResourceResponse;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+
+          import com.getcapacitor.JSArray;
+          import com.getcapacitor.JSObject;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+
+          import java.util.ArrayList;
+          import java.util.Collections;
+          import java.util.HashMap;
+          import java.util.HashSet;
+          import java.util.Iterator;
+          import java.util.List;
+          import java.util.Locale;
+          import java.util.Map;
+          import java.util.Set;
+          import java.util.concurrent.ExecutorService;
+          import java.util.concurrent.Executors;
+          import java.util.concurrent.Semaphore;
+          import java.util.concurrent.atomic.AtomicBoolean;
+
+          /**
+           * Navegador oculto para plugins (zynora.browser.capture).
+           * Abre una página en un WebView invisible, deja que ella misma pida su video y devuelve
+           * las direcciones de video (.m3u8, .mp4...) que vio pasar, con las cabeceras que usó.
+           */
+          @CapacitorPlugin(name = "ZineBrowser")
+          public class ZineBrowserPlugin extends Plugin {
+              private final Handler handler = new Handler(Looper.getMainLooper());
+              private final ExecutorService queueEx = Executors.newCachedThreadPool();
+              private final Semaphore slots = new Semaphore(4);
+
+              private static final String PLAY_JS = "(function(){try{var v=document.querySelectorAll('video');"
+                      + "for(var i=0;i<v.length;i++){v[i].muted=true;var p=v[i].play();if(p&&p.catch){p.catch(function(){});}}"
+                      + "var sel=['.jw-icon-display','.jw-display-icon-container','.vjs-big-play-button','.plyr__control--overlaid',"
+                      + "'.play-button','.btn-play','#play','.fp-play','.dplayer-play-icon','[class*=play]'];"
+                      + "for(var j=0;j<sel.length;j++){var e=document.querySelector(sel[j]);if(e){try{e.click();}catch(x){}}}"
+                      + "}catch(err){}})();";
+
+              private static String pathOf(String u) {
+                  String low = u.toLowerCase(Locale.ROOT);
+                  int q = low.indexOf('?');
+                  return q >= 0 ? low.substring(0, q) : low;
+              }
+
+              private static boolean isHls(String u) {
+                  return pathOf(u).contains(".m3u8");
+              }
+
+              private static boolean isMedia(String u) {
+                  String low = u.toLowerCase(Locale.ROOT);
+                  if (low.contains("doubleclick") || low.contains("googlesyndication") || low.contains("adservice")) return false;
+                  String p = pathOf(u);
+                  return p.contains(".m3u8") || p.endsWith(".mp4") || p.endsWith(".mpd") || p.endsWith(".webm") || p.endsWith(".mkv");
+              }
+
+              @PluginMethod
+              public void capture(final PluginCall call) {
+                  final String u = call.getString("url");
+                  if (u == null || !u.startsWith("http")) {
+                      call.reject("Falta la dirección");
+                      return;
+                  }
+                  final JSObject hj = call.getObject("headers");
+                  int t = call.getInt("timeoutMs", 10000);
+                  if (t < 2000) t = 2000;
+                  if (t > 15000) t = 15000;
+                  final int timeout = t;
+                  queueEx.execute(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              slots.acquire();
+                          } catch (InterruptedException e) {
+                              call.reject("cancelado");
+                              return;
+                          }
+                          final Job job = new Job(call, u, hj, timeout);
+                          getActivity().runOnUiThread(new Runnable() {
+                              @Override
+                              public void run() {
+                                  job.start();
+                              }
+                          });
+                      }
+                  });
+              }
+
+              private class Job {
+                  final PluginCall call;
+                  final String pageUrl;
+                  final int timeout;
+                  final JSObject extra;
+                  final AtomicBoolean done = new AtomicBoolean(false);
+                  final List<JSObject> found = Collections.synchronizedList(new ArrayList<JSObject>());
+                  final Set<String> seen = Collections.synchronizedSet(new HashSet<String>());
+                  WebView wv;
+                  ViewGroup parent;
+                  volatile boolean pageLoaded = false;
+                  String ua = "";
+                  final Runnable finishRun = new Runnable() {
+                      @Override
+                      public void run() {
+                          finish();
+                      }
+                  };
+
+                  Job(PluginCall call, String pageUrl, JSObject extra, int timeout) {
+                      this.call = call;
+                      this.pageUrl = pageUrl;
+                      this.extra = extra;
+                      this.timeout = timeout;
+                  }
+
+                  void runPlayJs() {
+                      try {
+                          if (done.get() || wv == null) return;
+                          wv.evaluateJavascript(PLAY_JS, null);
+                      } catch (Throwable t) {
+                          // sin efecto
+                      }
+                  }
+
+                  void start() {
+                      try {
+                          Activity a = getActivity();
+                          wv = new WebView(a);
+                          WebSettings s = wv.getSettings();
+                          s.setJavaScriptEnabled(true);
+                          s.setDomStorageEnabled(true);
+                          s.setMediaPlaybackRequiresUserGesture(false);
+                          s.setJavaScriptCanOpenWindowsAutomatically(false);
+                          s.setSupportMultipleWindows(false);
+                          s.setBlockNetworkImage(true);
+
+                          Map<String, String> hdr = new HashMap<String, String>();
+                          if (extra != null) {
+                              Iterator<String> it = extra.keys();
+                              while (it.hasNext()) {
+                                  String k = it.next();
+                                  String v = extra.optString(k, "");
+                                  if (v.isEmpty()) continue;
+                                  if ("user-agent".equalsIgnoreCase(k)) ua = v;
+                                  else hdr.put(k, v);
+                              }
+                          }
+                          if (ua.isEmpty()) ua = WebSettings.getDefaultUserAgent(a);
+                          s.setUserAgentString(ua);
+
+                          CookieManager cm = CookieManager.getInstance();
+                          cm.setAcceptCookie(true);
+                          cm.setAcceptThirdPartyCookies(wv, true);
+
+                          wv.setWebViewClient(new WebViewClient() {
+                              @Override
+                              public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                                  try {
+                                      final String u = request.getUrl().toString();
+                                      if (isMedia(u) && seen.add(u)) {
+                                          Map<String, String> rh = request.getRequestHeaders();
+                                          String ref = null;
+                                          String org = null;
+                                          if (rh != null) {
+                                              for (Map.Entry<String, String> e : rh.entrySet()) {
+                                                  String k = e.getKey();
+                                                  if ("referer".equalsIgnoreCase(k)) ref = e.getValue();
+                                                  else if ("origin".equalsIgnoreCase(k)) org = e.getValue();
+                                              }
+                                          }
+                                          if (ref == null || ref.isEmpty()) ref = pageUrl;
+                                          if (org == null || org.isEmpty()) {
+                                              try {
+                                                  java.net.URL pu = new java.net.URL(ref);
+                                                  org = pu.getProtocol() + "://" + pu.getHost() + (pu.getPort() > 0 ? ":" + pu.getPort() : "");
+                                              } catch (Throwable t) {
+                                                  org = "";
+                                              }
+                                          }
+                                          JSObject h = new JSObject();
+                                          h.put("User-Agent", ua);
+                                          h.put("Referer", ref);
+                                          if (!org.isEmpty()) h.put("Origin", org);
+                                          String ck = CookieManager.getInstance().getCookie(u);
+                                          if (ck != null && !ck.isEmpty()) h.put("Cookie", ck);
+                                          final JSObject item = new JSObject();
+                                          item.put("url", u);
+                                          item.put("headers", h);
+                                          final boolean hls = isHls(u);
+                                          handler.post(new Runnable() {
+                                              @Override
+                                              public void run() {
+                                                  if (done.get()) return;
+                                                  found.add(item);
+                                                  handler.postDelayed(finishRun, hls ? 300 : 2500);
+                                              }
+                                          });
+                                      }
+                                  } catch (Throwable t) {
+                                      // se ignora: la página sigue cargando normal
+                                  }
+                                  return null;
+                              }
+
+                              @Override
+                              public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                                  // después de cargar la página, se bloquean redirecciones (anuncios, ventanas)
+                                  return request.isForMainFrame() && pageLoaded;
+                              }
+
+                              @Override
+                              public void onPageFinished(WebView view, String url) {
+                                  pageLoaded = true;
+                                  runPlayJs();
+                                  handler.postDelayed(new Runnable() {
+                                      @Override
+                                      public void run() {
+                                          runPlayJs();
+                                      }
+                                  }, 1200);
+                                  handler.postDelayed(new Runnable() {
+                                      @Override
+                                      public void run() {
+                                          runPlayJs();
+                                      }
+                                  }, 3000);
+                                  handler.postDelayed(new Runnable() {
+                                      @Override
+                                      public void run() {
+                                          runPlayJs();
+                                      }
+                                  }, 5500);
+                              }
+                          });
+
+                          parent = (ViewGroup) getBridge().getWebView().getParent();
+                          parent.addView(wv, 0, new ViewGroup.LayoutParams(320, 180));
+                          wv.setAlpha(0.02f);
+                          handler.postDelayed(finishRun, timeout);
+                          wv.loadUrl(pageUrl, hdr);
+                      } catch (Throwable t) {
+                          finish();
+                      }
+                  }
+
+                  void finish() {
+                      if (!done.compareAndSet(false, true)) return;
+                      handler.removeCallbacks(finishRun);
+                      try {
+                          if (wv != null) {
+                              wv.stopLoading();
+                              wv.setWebViewClient(new WebViewClient());
+                              if (parent != null) parent.removeView(wv);
+                              wv.destroy();
+                          }
+                      } catch (Throwable t) {
+                          // se sigue liberando
+                      }
+                      wv = null;
+                      slots.release();
+                      JSArray arr = new JSArray();
+                      List<JSObject> copy = new ArrayList<JSObject>(found);
+                      for (JSObject o : copy) {
+                          if (isHls(o.optString("url", ""))) arr.put(o);
+                      }
+                      for (JSObject o : copy) {
+                          if (!isHls(o.optString("url", ""))) arr.put(o);
+                      }
+                      JSObject res = new JSObject();
+                      res.put("media", arr);
+                      call.resolve(res);
+                  }
+              }
+          }
+          JAVA_BROWSER
+          python3 - <<'PY'
+          p = 'android/app/src/main/java/com/zineclick/app/MainActivity.java'
+          s = open(p, encoding='utf-8').read()
+          old = 'registerPlugin(ZinePlayerPlugin.class);'
+          assert s.count(old) == 1, 'No se encontró registerPlugin(ZinePlayerPlugin.class)'
+          if 'ZineBrowserPlugin' not in s:
+              s = s.replace(old, old + '\n        registerPlugin(ZineBrowserPlugin.class);')
+          open(p, 'w', encoding='utf-8').write(s)
+          print('Navegador oculto registrado')
+          PY
+
+      - name: Compilar APK
+        id: build
+        continue-on-error: true
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Plan B-1 - compilar sin el navegador oculto
+        id: buildbr
+        if: steps.build.outcome == 'failure' && steps.browser.outcome != 'skipped'
+        continue-on-error: true
+        working-directory: android
+        run: |
+          restore() { rm -rf app/src/main; cp -a "/tmp/snap_$1/main" app/src/main; cp "/tmp/snap_$1/build.gradle" app/build.gradle; }
+          echo "::warning::El navegador oculto no compiló. Se genera el APK sin él."
+          test -d "/tmp/snap_browser"
+          restore browser
+          ./gradlew assembleDebug
+
+      - name: Plan B000 - compilar sin el estilo de subtítulos
+        id: buildsub
+        if: steps.build.outcome == 'failure' && steps.subs.outcome != 'skipped' && steps.buildbr.outcome != 'success'
+        continue-on-error: true
+        working-directory: android
+        run: |
+          restore() { rm -rf app/src/main; cp -a "/tmp/snap_$1/main" app/src/main; cp "/tmp/snap_$1/build.gradle" app/build.gradle; }
+          echo "::warning::El estilo de subtítulos no compiló. Se genera el APK sin él."
+          test -d "/tmp/snap_subs"
+          restore subs
+          ./gradlew assembleDebug
+
+      - name: Plan B00 - compilar sin los ajustes de reproducción
+        id: buildt
+        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.tune.outcome != 'skipped' && steps.buildbr.outcome != 'success'
+        continue-on-error: true
+        working-directory: android
+        run: |
+          restore() { rm -rf app/src/main; cp -a "/tmp/snap_$1/main" app/src/main; cp "/tmp/snap_$1/build.gradle" app/build.gradle; }
+          echo "::warning::Los ajustes de reproducción no compilaron. Se genera el APK sin ellos."
+          test -d "/tmp/snap_tune"
+          restore tune
+          ./gradlew assembleDebug
+
+      - name: Plan B0 - compilar sin el servidor local de video
+        id: buildp
+        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.buildt.outcome != 'success' && steps.proxy.outcome != 'skipped' && steps.buildbr.outcome != 'success'
+        continue-on-error: true
+        working-directory: android
+        run: |
+          restore() { rm -rf app/src/main; cp -a "/tmp/snap_$1/main" app/src/main; cp "/tmp/snap_$1/build.gradle" app/build.gradle; }
+          echo "::warning::El servidor local de video no compiló. Se genera el APK sin él."
+          test -d "/tmp/snap_proxy"
+          restore proxy
+          ./gradlew assembleDebug
+
+      - name: Plan B1 - compilar sin las miniaturas de VLC
+        id: build2
+        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.thumbs.outcome != 'skipped' && steps.buildbr.outcome != 'success'
+        continue-on-error: true
+        working-directory: android
+        run: |
+          restore() { rm -rf app/src/main; cp -a "/tmp/snap_$1/main" app/src/main; cp "/tmp/snap_$1/build.gradle" app/build.gradle; }
+          echo "::warning::Las miniaturas con VLC no compilaron. Se genera el APK sin ellas."
+          test -d "/tmp/snap_thumbs"
+          restore thumbs
+          ./gradlew assembleDebug
+
+
+      - name: Plan B2 - compilar sin Chromecast
+        id: build3
+        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.cast.outcome != 'skipped' && steps.buildbr.outcome != 'success'
+        continue-on-error: true
+        working-directory: android
+        run: |
+          restore() { rm -rf app/src/main; cp -a "/tmp/snap_$1/main" app/src/main; cp "/tmp/snap_$1/build.gradle" app/build.gradle; }
+          echo "::warning::Chromecast no compiló. Se genera el APK sin él."
+          test -d "/tmp/snap_cast"
+          restore cast
+          ./gradlew assembleDebug
+
+
+      - name: Plan B3 - compilar sin ventana flotante
+        id: build4
+        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.build3.outcome != 'success' && steps.pip.outcome != 'skipped' && steps.buildbr.outcome != 'success'
+        continue-on-error: true
+        working-directory: android
+        run: |
+          restore() { rm -rf app/src/main; cp -a "/tmp/snap_$1/main" app/src/main; cp "/tmp/snap_$1/build.gradle" app/build.gradle; }
+          echo "::warning::La ventana flotante no compiló. Se genera el APK sin ella."
+          test -d "/tmp/snap_pip"
+          restore pip
+          ./gradlew assembleDebug
+
+
+      - name: Plan B4 - compilar sin las mejoras del reproductor
+        id: build5
+        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.build3.outcome != 'success' && steps.build4.outcome != 'success' && steps.tracks.outcome != 'skipped' && steps.buildbr.outcome != 'success'
+        continue-on-error: true
+        working-directory: android
+        run: |
+          restore() { rm -rf app/src/main; cp -a "/tmp/snap_$1/main" app/src/main; cp "/tmp/snap_$1/build.gradle" app/build.gradle; }
+          echo "::warning::Ninguna mejora del reproductor compiló. Se genera el APK con el reproductor básico."
+          test -d "/tmp/snap_tracks"
+          restore tracks
+          ./gradlew assembleDebug
+
+
+      - name: Plan B - compilar sin el reproductor nativo
+        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.build3.outcome != 'success' && steps.build4.outcome != 'success' && steps.build5.outcome != 'success' && steps.buildbr.outcome != 'success'
+        working-directory: android
+        run: |
+          echo "::warning::El reproductor nativo no compiló. Se genera el APK sin él (el video se verá en el reproductor interno)."
+          PKG_DIR=app/src/main/java/com/zineclick/app
+          [ -f app/build.gradle.bak ] && cp app/build.gradle.bak app/build.gradle || true
+          [ -f app/src/main/AndroidManifest.xml.bak ] && cp app/src/main/AndroidManifest.xml.bak app/src/main/AndroidManifest.xml || true
+          [ -f "$PKG_DIR/MainActivity.java.bak" ] && cp "$PKG_DIR/MainActivity.java.bak" "$PKG_DIR/MainActivity.java" || true
+          rm -f "$PKG_DIR/ZinePlayerPlugin.java"
+          ./gradlew assembleDebug
+
+      - name: Verificar que el APK está firmado con la clave fija
+        run: |
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs "$APK" | tee /tmp/cert.txt
+          APK_SHA=$(grep -m1 "SHA-256 digest" /tmp/cert.txt | sed 's/.*: *//' | tr -d ': ' | tr 'A-F' 'a-f')
+          VC=$(grep -m1 "versionCode" android/app/build.gradle | tr -dc '0-9')
+          if [ "$APK_SHA" != "$KS_SHA_NORM" ]; then
+            echo "::error::El APK quedó firmado con OTRA clave ($APK_SHA). No se publicará."
+            exit 1
+          fi
+          cp "$APK" "Zynora-v1.0.${{ github.run_number }}.apk"
+          {
+            echo "### Zynora v1.0.${{ github.run_number }}"
+            echo "- versionCode: \`$VC\`"
+            echo "- Firma SHA-256: \`$APK_SHA\`"
+            echo "- Si esta huella es igual a la de la compilación anterior, esta versión se instala encima de la anterior."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Guardar APK
+        uses: actions/upload-artifact@v6
+        with:
+          name: Zynora-APK
+          path: Zynora-v1.0.${{ github.run_number }}.apk
+
+      - name: Publicar versión (para el aviso de actualización en la app)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v1.0.${{ github.run_number }}" "Zynora-v1.0.${{ github.run_number }}.apk" --title "Zynora v1.0.${{ github.run_number }}" --notes "Actualización de Zynora" --latest
