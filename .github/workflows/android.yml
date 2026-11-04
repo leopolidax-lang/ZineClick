@@ -2309,6 +2309,314 @@ jobs:
           print('Estilo de subtitulos habilitado')
           PY
 
+      - name: Mejora - navegador oculto para plugins (zynora.browser.capture)
+        id: browser
+        if: steps.native.outcome == 'success'
+        continue-on-error: true
+        run: |
+          snap() { rm -rf "/tmp/snap_$1"; mkdir -p "/tmp/snap_$1"; cp -a android/app/src/main "/tmp/snap_$1/main"; cp android/app/build.gradle "/tmp/snap_$1/build.gradle"; }
+          snap browser
+          PKG_DIR=android/app/src/main/java/com/zineclick/app
+          test -f "$PKG_DIR/MainActivity.java"
+          cat > "$PKG_DIR/ZineBrowserPlugin.java" <<'JAVA_BROWSER'
+          package com.zineclick.app;
+
+          import android.app.Activity;
+          import android.os.Handler;
+          import android.os.Looper;
+          import android.view.ViewGroup;
+          import android.webkit.CookieManager;
+          import android.webkit.WebResourceRequest;
+          import android.webkit.WebResourceResponse;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+
+          import com.getcapacitor.JSArray;
+          import com.getcapacitor.JSObject;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+
+          import java.util.ArrayList;
+          import java.util.Collections;
+          import java.util.HashMap;
+          import java.util.HashSet;
+          import java.util.Iterator;
+          import java.util.List;
+          import java.util.Locale;
+          import java.util.Map;
+          import java.util.Set;
+          import java.util.concurrent.ExecutorService;
+          import java.util.concurrent.Executors;
+          import java.util.concurrent.Semaphore;
+          import java.util.concurrent.atomic.AtomicBoolean;
+
+          /**
+           * Navegador oculto para plugins (zynora.browser.capture).
+           * Abre una página en un WebView invisible, deja que ella misma pida su video y devuelve
+           * las direcciones de video (.m3u8, .mp4...) que vio pasar, con las cabeceras que usó.
+           */
+          @CapacitorPlugin(name = "ZineBrowser")
+          public class ZineBrowserPlugin extends Plugin {
+              private final Handler handler = new Handler(Looper.getMainLooper());
+              private final ExecutorService queueEx = Executors.newCachedThreadPool();
+              private final Semaphore slots = new Semaphore(4);
+
+              private static final String PLAY_JS = "(function(){try{var v=document.querySelectorAll('video');"
+                      + "for(var i=0;i<v.length;i++){v[i].muted=true;var p=v[i].play();if(p&&p.catch){p.catch(function(){});}}"
+                      + "var sel=['.jw-icon-display','.jw-display-icon-container','.vjs-big-play-button','.plyr__control--overlaid',"
+                      + "'.play-button','.btn-play','#play','.fp-play','.dplayer-play-icon','[class*=play]'];"
+                      + "for(var j=0;j<sel.length;j++){var e=document.querySelector(sel[j]);if(e){try{e.click();}catch(x){}}}"
+                      + "}catch(err){}})();";
+
+              private static String pathOf(String u) {
+                  String low = u.toLowerCase(Locale.ROOT);
+                  int q = low.indexOf('?');
+                  return q >= 0 ? low.substring(0, q) : low;
+              }
+
+              private static boolean isHls(String u) {
+                  return pathOf(u).contains(".m3u8");
+              }
+
+              private static boolean isMedia(String u) {
+                  String low = u.toLowerCase(Locale.ROOT);
+                  if (low.contains("doubleclick") || low.contains("googlesyndication") || low.contains("adservice")) return false;
+                  String p = pathOf(u);
+                  return p.contains(".m3u8") || p.endsWith(".mp4") || p.endsWith(".mpd") || p.endsWith(".webm") || p.endsWith(".mkv");
+              }
+
+              @PluginMethod
+              public void capture(final PluginCall call) {
+                  final String u = call.getString("url");
+                  if (u == null || !u.startsWith("http")) {
+                      call.reject("Falta la dirección");
+                      return;
+                  }
+                  final JSObject hj = call.getObject("headers");
+                  int t = call.getInt("timeoutMs", 10000);
+                  if (t < 2000) t = 2000;
+                  if (t > 15000) t = 15000;
+                  final int timeout = t;
+                  queueEx.execute(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              slots.acquire();
+                          } catch (InterruptedException e) {
+                              call.reject("cancelado");
+                              return;
+                          }
+                          final Job job = new Job(call, u, hj, timeout);
+                          getActivity().runOnUiThread(new Runnable() {
+                              @Override
+                              public void run() {
+                                  job.start();
+                              }
+                          });
+                      }
+                  });
+              }
+
+              private class Job {
+                  final PluginCall call;
+                  final String pageUrl;
+                  final int timeout;
+                  final JSObject extra;
+                  final AtomicBoolean done = new AtomicBoolean(false);
+                  final List<JSObject> found = Collections.synchronizedList(new ArrayList<JSObject>());
+                  final Set<String> seen = Collections.synchronizedSet(new HashSet<String>());
+                  WebView wv;
+                  ViewGroup parent;
+                  volatile boolean pageLoaded = false;
+                  String ua = "";
+                  final Runnable finishRun = new Runnable() {
+                      @Override
+                      public void run() {
+                          finish();
+                      }
+                  };
+
+                  Job(PluginCall call, String pageUrl, JSObject extra, int timeout) {
+                      this.call = call;
+                      this.pageUrl = pageUrl;
+                      this.extra = extra;
+                      this.timeout = timeout;
+                  }
+
+                  void runPlayJs() {
+                      try {
+                          if (done.get() || wv == null) return;
+                          wv.evaluateJavascript(PLAY_JS, null);
+                      } catch (Throwable t) {
+                          // sin efecto
+                      }
+                  }
+
+                  void start() {
+                      try {
+                          Activity a = getActivity();
+                          wv = new WebView(a);
+                          WebSettings s = wv.getSettings();
+                          s.setJavaScriptEnabled(true);
+                          s.setDomStorageEnabled(true);
+                          s.setMediaPlaybackRequiresUserGesture(false);
+                          s.setJavaScriptCanOpenWindowsAutomatically(false);
+                          s.setSupportMultipleWindows(false);
+                          s.setBlockNetworkImage(true);
+
+                          Map<String, String> hdr = new HashMap<String, String>();
+                          if (extra != null) {
+                              Iterator<String> it = extra.keys();
+                              while (it.hasNext()) {
+                                  String k = it.next();
+                                  String v = extra.optString(k, "");
+                                  if (v.isEmpty()) continue;
+                                  if ("user-agent".equalsIgnoreCase(k)) ua = v;
+                                  else hdr.put(k, v);
+                              }
+                          }
+                          if (ua.isEmpty()) ua = WebSettings.getDefaultUserAgent(a);
+                          s.setUserAgentString(ua);
+
+                          CookieManager cm = CookieManager.getInstance();
+                          cm.setAcceptCookie(true);
+                          cm.setAcceptThirdPartyCookies(wv, true);
+
+                          wv.setWebViewClient(new WebViewClient() {
+                              @Override
+                              public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                                  try {
+                                      final String u = request.getUrl().toString();
+                                      if (isMedia(u) && seen.add(u)) {
+                                          Map<String, String> rh = request.getRequestHeaders();
+                                          String ref = null;
+                                          String org = null;
+                                          if (rh != null) {
+                                              for (Map.Entry<String, String> e : rh.entrySet()) {
+                                                  String k = e.getKey();
+                                                  if ("referer".equalsIgnoreCase(k)) ref = e.getValue();
+                                                  else if ("origin".equalsIgnoreCase(k)) org = e.getValue();
+                                              }
+                                          }
+                                          if (ref == null || ref.isEmpty()) ref = pageUrl;
+                                          if (org == null || org.isEmpty()) {
+                                              try {
+                                                  java.net.URL pu = new java.net.URL(ref);
+                                                  org = pu.getProtocol() + "://" + pu.getHost() + (pu.getPort() > 0 ? ":" + pu.getPort() : "");
+                                              } catch (Throwable t) {
+                                                  org = "";
+                                              }
+                                          }
+                                          JSObject h = new JSObject();
+                                          h.put("User-Agent", ua);
+                                          h.put("Referer", ref);
+                                          if (!org.isEmpty()) h.put("Origin", org);
+                                          String ck = CookieManager.getInstance().getCookie(u);
+                                          if (ck != null && !ck.isEmpty()) h.put("Cookie", ck);
+                                          final JSObject item = new JSObject();
+                                          item.put("url", u);
+                                          item.put("headers", h);
+                                          final boolean hls = isHls(u);
+                                          handler.post(new Runnable() {
+                                              @Override
+                                              public void run() {
+                                                  if (done.get()) return;
+                                                  found.add(item);
+                                                  handler.postDelayed(finishRun, hls ? 300 : 2500);
+                                              }
+                                          });
+                                      }
+                                  } catch (Throwable t) {
+                                      // se ignora: la página sigue cargando normal
+                                  }
+                                  return null;
+                              }
+
+                              @Override
+                              public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                                  // después de cargar la página, se bloquean redirecciones (anuncios, ventanas)
+                                  return request.isForMainFrame() && pageLoaded;
+                              }
+
+                              @Override
+                              public void onPageFinished(WebView view, String url) {
+                                  pageLoaded = true;
+                                  runPlayJs();
+                                  handler.postDelayed(new Runnable() {
+                                      @Override
+                                      public void run() {
+                                          runPlayJs();
+                                      }
+                                  }, 1200);
+                                  handler.postDelayed(new Runnable() {
+                                      @Override
+                                      public void run() {
+                                          runPlayJs();
+                                      }
+                                  }, 3000);
+                                  handler.postDelayed(new Runnable() {
+                                      @Override
+                                      public void run() {
+                                          runPlayJs();
+                                      }
+                                  }, 5500);
+                              }
+                          });
+
+                          parent = (ViewGroup) getBridge().getWebView().getParent();
+                          parent.addView(wv, 0, new ViewGroup.LayoutParams(320, 180));
+                          wv.setAlpha(0.02f);
+                          handler.postDelayed(finishRun, timeout);
+                          wv.loadUrl(pageUrl, hdr);
+                      } catch (Throwable t) {
+                          finish();
+                      }
+                  }
+
+                  void finish() {
+                      if (!done.compareAndSet(false, true)) return;
+                      handler.removeCallbacks(finishRun);
+                      try {
+                          if (wv != null) {
+                              wv.stopLoading();
+                              wv.setWebViewClient(new WebViewClient());
+                              if (parent != null) parent.removeView(wv);
+                              wv.destroy();
+                          }
+                      } catch (Throwable t) {
+                          // se sigue liberando
+                      }
+                      wv = null;
+                      slots.release();
+                      JSArray arr = new JSArray();
+                      List<JSObject> copy = new ArrayList<JSObject>(found);
+                      for (JSObject o : copy) {
+                          if (isHls(o.optString("url", ""))) arr.put(o);
+                      }
+                      for (JSObject o : copy) {
+                          if (!isHls(o.optString("url", ""))) arr.put(o);
+                      }
+                      JSObject res = new JSObject();
+                      res.put("media", arr);
+                      call.resolve(res);
+                  }
+              }
+          }
+          JAVA_BROWSER
+          python3 - <<'PY'
+          p = 'android/app/src/main/java/com/zineclick/app/MainActivity.java'
+          s = open(p, encoding='utf-8').read()
+          old = 'registerPlugin(ZinePlayerPlugin.class);'
+          assert s.count(old) == 1, 'No se encontró registerPlugin(ZinePlayerPlugin.class)'
+          if 'ZineBrowserPlugin' not in s:
+              s = s.replace(old, old + '\n        registerPlugin(ZineBrowserPlugin.class);')
+          open(p, 'w', encoding='utf-8').write(s)
+          print('Navegador oculto registrado')
+          PY
+
       - name: Compilar APK
         id: build
         continue-on-error: true
@@ -2317,9 +2625,21 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
+      - name: Plan B-1 - compilar sin el navegador oculto
+        id: buildbr
+        if: steps.build.outcome == 'failure' && steps.browser.outcome != 'skipped'
+        continue-on-error: true
+        working-directory: android
+        run: |
+          restore() { rm -rf app/src/main; cp -a "/tmp/snap_$1/main" app/src/main; cp "/tmp/snap_$1/build.gradle" app/build.gradle; }
+          echo "::warning::El navegador oculto no compiló. Se genera el APK sin él."
+          test -d "/tmp/snap_browser"
+          restore browser
+          ./gradlew assembleDebug
+
       - name: Plan B000 - compilar sin el estilo de subtítulos
         id: buildsub
-        if: steps.build.outcome == 'failure' && steps.subs.outcome != 'skipped'
+        if: steps.build.outcome == 'failure' && steps.subs.outcome != 'skipped' && steps.buildbr.outcome != 'success'
         continue-on-error: true
         working-directory: android
         run: |
@@ -2331,7 +2651,7 @@ jobs:
 
       - name: Plan B00 - compilar sin los ajustes de reproducción
         id: buildt
-        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.tune.outcome != 'skipped'
+        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.tune.outcome != 'skipped' && steps.buildbr.outcome != 'success'
         continue-on-error: true
         working-directory: android
         run: |
@@ -2343,7 +2663,7 @@ jobs:
 
       - name: Plan B0 - compilar sin el servidor local de video
         id: buildp
-        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.buildt.outcome != 'success' && steps.proxy.outcome != 'skipped'
+        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.buildt.outcome != 'success' && steps.proxy.outcome != 'skipped' && steps.buildbr.outcome != 'success'
         continue-on-error: true
         working-directory: android
         run: |
@@ -2355,7 +2675,7 @@ jobs:
 
       - name: Plan B1 - compilar sin las miniaturas de VLC
         id: build2
-        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.thumbs.outcome != 'skipped'
+        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.thumbs.outcome != 'skipped' && steps.buildbr.outcome != 'success'
         continue-on-error: true
         working-directory: android
         run: |
@@ -2368,7 +2688,7 @@ jobs:
 
       - name: Plan B2 - compilar sin Chromecast
         id: build3
-        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.cast.outcome != 'skipped'
+        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.cast.outcome != 'skipped' && steps.buildbr.outcome != 'success'
         continue-on-error: true
         working-directory: android
         run: |
@@ -2381,7 +2701,7 @@ jobs:
 
       - name: Plan B3 - compilar sin ventana flotante
         id: build4
-        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.build3.outcome != 'success' && steps.pip.outcome != 'skipped'
+        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.build3.outcome != 'success' && steps.pip.outcome != 'skipped' && steps.buildbr.outcome != 'success'
         continue-on-error: true
         working-directory: android
         run: |
@@ -2394,7 +2714,7 @@ jobs:
 
       - name: Plan B4 - compilar sin las mejoras del reproductor
         id: build5
-        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.build3.outcome != 'success' && steps.build4.outcome != 'success' && steps.tracks.outcome != 'skipped'
+        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.build3.outcome != 'success' && steps.build4.outcome != 'success' && steps.tracks.outcome != 'skipped' && steps.buildbr.outcome != 'success'
         continue-on-error: true
         working-directory: android
         run: |
@@ -2406,7 +2726,7 @@ jobs:
 
 
       - name: Plan B - compilar sin el reproductor nativo
-        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.build3.outcome != 'success' && steps.build4.outcome != 'success' && steps.build5.outcome != 'success'
+        if: steps.build.outcome == 'failure' && steps.buildsub.outcome != 'success' && steps.buildt.outcome != 'success' && steps.buildp.outcome != 'success' && steps.build2.outcome != 'success' && steps.build3.outcome != 'success' && steps.build4.outcome != 'success' && steps.build5.outcome != 'success' && steps.buildbr.outcome != 'success'
         working-directory: android
         run: |
           echo "::warning::El reproductor nativo no compiló. Se genera el APK sin él (el video se verá en el reproductor interno)."
