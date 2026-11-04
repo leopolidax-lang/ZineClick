@@ -10,7 +10,7 @@
 (function () {
   "use strict";
   var W = window, D = document;
-  API_MAX = 9, APP_VER = "1.1.0";
+  var API_MAX = 9, APP_VER = "1.1.0";
   /* Compatibilidad con plugins hechos antes de Zynora (formato antiguo): nombres que se siguen leyendo */
   var LEGACY = String.fromCharCode(107, 105, 110, 111);
   var LEGACY_MF = LEGACY + "-plugin.json", LEGACY_TOPIC = LEGACY + "-plugin", LEGACY_SKIP = new RegExp("^" + LEGACY + "tvapp\\/(" + LEGACY + "-plugins|" + LEGACY + "-light)$", "i"), HIDE = new RegExp("^" + LEGACY + "tvapp\\/" + LEGACY + "-plugin-archive$", "i");
