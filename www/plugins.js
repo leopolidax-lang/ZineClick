@@ -297,10 +297,22 @@
     window.addEventListener("unhandledrejection", function (e) { log("promesa rechazada: " + ((e && e.reason && e.reason.message) || e.reason)); });
   }
 
+  /* Lee el `export { local as publico, ... }` del plugin (los plugins empaquetados suelen exportar `search2 as search`).
+     Así se registra la función que el plugin EXPORTA y no otra interna que casualmente se llame igual. */
+  function exportMap(code) {
+    var map = {}, re = /^[ \t]*export\s*\{([^}]*)\}/gm, m, ID = /^[A-Za-z_$][\w$]*$/;
+    while ((m = re.exec(code))) {
+      m[1].split(",").forEach(function (part) {
+        var x = part.trim().split(/\s+as\s+/), local = x[0], pub = x[1] || x[0];
+        if (ID.test(local) && ID.test(pub)) map[pub] = local;
+      });
+    }
+    return map;
+  }
   function buildDoc(p, code, kv) {
     var cfg = JSON.stringify({ api: API_MAX, app: "zynora/" + APP_VER, lang: navigator.language || "es", kv: kv || {} }).replace(/</g, "\\u003c");
-    var names = ["search", "home", "browse", "episodes", "resolve", "details"];
-    var reg = "\n;try{var __z={};" + names.map(function (n) { return 'if(typeof ' + n + '==="function")__z.' + n + "=" + n + ";"; }).join("") + "window.__zplReady(__z);}catch(e){window.__zplFail(e&&e.message||e);}\n";
+    var names = ["search", "home", "browse", "episodes", "resolve", "details"], em = exportMap(String(code));
+    var reg = "\n;try{var __z={};" + names.map(function (n) { var l = em[n] || n; return 'if(typeof ' + l + '==="function")__z.' + n + "=" + l + ";"; }).join("") + "window.__zplReady(__z);}catch(e){window.__zplFail(e&&e.message||e);}\n";
     var safe = String(code).replace(/<\/script/gi, "<\\/script").replace(/<!--/g, "<\\!--");
     return '<!doctype html><html><head><meta charset="utf-8">' +
       '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\' \'unsafe-eval\'; connect-src \'none\'; img-src \'none\'; frame-src \'none\'; child-src \'none\'; form-action \'none\'; base-uri \'none\'">' +
