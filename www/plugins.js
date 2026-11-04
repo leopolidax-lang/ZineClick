@@ -122,7 +122,7 @@
     need(typeof m.entry === "string" && /^[A-Za-z0-9._\/-]{1,200}$/.test(m.entry) && m.entry.indexOf("..") < 0 && m.entry[0] !== "/" && /\.js$/.test(m.entry), "El campo «entry» no es válido (debe ser un archivo .js).");
     var fetchAny = m.fetchHosts === "any", streamAny = m.streamHosts === "any", streamList = Array.isArray(m.streamHosts) ? m.streamHosts : null;
     var hosts = m.hosts == null ? [] : m.hosts;
-    need(Array.isArray(hosts) && hosts.length <= 50 && hosts.every(validPattern), "El campo «hosts» tiene un nombre de sitio no válido.");
+    need(Array.isArray(hosts) && hosts.length <= 50 && hosts.every(validPattern), "El campo «hosts» tiene un sitio no válido: " + (Array.isArray(hosts) ? hosts.filter(function (x) { return !validPattern(x); }).join(", ") : "formato incorrecto") + ".");
     need(hosts.length >= 1 || fetchAny, "El campo «hosts» necesita al menos un sitio.");
     if (streamList) need(streamList.length <= 50 && streamList.every(validPattern), "El campo «streamHosts» tiene un nombre de sitio no válido.");
     need(Array.isArray(m.capabilities) && m.capabilities.every(function (c) { return KNOWN_CAPS.indexOf(c) >= 0; }), "El campo «capabilities» tiene una capacidad desconocida.");
