@@ -538,7 +538,6 @@ jobs:
                   if (!uagent.isEmpty()) m.addOption(":http-user-agent=" + uagent);
                   m.addOption(":ipv4-timeout=8000");
                   m.addOption(":network-caching=8000");
-                  m.addOption(":codec=avcodec,all"); // PRUEBA: decodificación por software (borra esta línea para volver al modo automático)
                   if (qualityH > 0) m.addOption(":adaptive-maxheight=" + qualityH);
                   player.setMedia(m);
                   m.release();
@@ -2077,6 +2076,30 @@ jobs:
                   }, 300);
               }
 
+              /* Tras recargar (buffering) a veces el audio sigue pero la imagen no: se repite el salto de lectura, como al retroceder a mano. */
+              private long lastBufNudge = 0;
+
+              private void nudgeAfterBuffer() {
+                  if (System.currentTimeMillis() - lastBufNudge < 15000) return;
+                  handler.postDelayed(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              if (player == null || !active || suspended || !player.isPlaying()) return;
+                              if (System.currentTimeMillis() - lastBufNudge < 15000) return;
+                              long t = player.getTime();
+                              if (t > 4000) {
+                                  lastBufNudge = System.currentTimeMillis();
+                                  player.setTime(t - 1000);
+                                  android.util.Log.d("ZineTune", "re-sincronizado tras buffering en " + t);
+                              }
+                          } catch (Throwable e) {
+                              // sin efecto
+                          }
+                      }
+                  }, 1200);
+              }
+
           """
 
           s = load(PLUGIN)
@@ -2089,7 +2112,7 @@ jobs:
           s = rep(s, 'if (player != null) player.setAudioTrack(id);', 'if (player != null) { player.setAudioTrack(id); nudgeAfterAudio(); }')
           # 4) registro de cuando VLC se queda sin datos (para ver las trabas en el siguiente log)
           s = rep(s, 'buffering = e.getBuffering() < 100f;',
-                  'boolean zWasBuf = buffering;\n                buffering = e.getBuffering() < 100f;\n                if (zWasBuf != buffering) android.util.Log.d("ZineBuf", buffering ? "buffering: empieza a recargar" : "buffering: listo");')
+                  'boolean zWasBuf = buffering;\n                buffering = e.getBuffering() < 100f;\n                if (zWasBuf != buffering) android.util.Log.d("ZineBuf", buffering ? "buffering: empieza a recargar" : "buffering: listo");\n                if (zWasBuf && !buffering) nudgeAfterBuffer();')
           # 5) registro de la ventana flotante (para ver que pasa al volver)
           s = rep(s, 'public void pipChanged(boolean on) {',
                   'public void pipChanged(boolean on) {\n        android.util.Log.d("ZinePip", "pipChanged on=" + on + " active=" + active + " suspended=" + suspended + " player=" + (player != null));')
