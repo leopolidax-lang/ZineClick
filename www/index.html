@@ -158,7 +158,13 @@ html.reduce-motion .zy-ss,html.reduce-motion .zy-sb{transition:none}
 #detailModal .syn.clamped{-webkit-mask-image:linear-gradient(#000,#000),linear-gradient(90deg,#000 calc(100% - 96px),transparent calc(100% - 58px));mask-image:linear-gradient(#000,#000),linear-gradient(90deg,#000 calc(100% - 96px),transparent calc(100% - 58px));-webkit-mask-size:100% calc(100% - 1.75em),100% 1.75em;mask-size:100% calc(100% - 1.75em),100% 1.75em;-webkit-mask-position:0 0,0 100%;mask-position:0 0,0 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
 .syn-more{bottom:-1px;background:rgba(88,90,102,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 
+
+/* --- Logotipo ZYNORA (prueba): Sora, ZYN en bold + ORA en light con degradado del símbolo y resplandor --- */
+html:not(#zy) .logo .wmt{font-family:"Sora","Inter",system-ui,sans-serif;font-size:19px;font-weight:700;letter-spacing:.18em;margin-right:-.18em;line-height:1;background:none;-webkit-background-clip:border-box;background-clip:border-box;color:#fff;display:inline-flex;align-items:baseline;filter:drop-shadow(0 0 10px rgba(122,162,255,.38)) drop-shadow(0 1px 6px rgba(0,0,0,.55))}
+html:not(#zy) .logo .wmt i{font-style:normal;font-weight:700;color:#fff}
+html:not(#zy) .logo .wmt b{font-weight:300;background:linear-gradient(90deg,#7fb2ff 0%,#a78bfa 55%,#ff7ad9 110%);-webkit-background-clip:text;background-clip:text;color:transparent}
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@300;700&display=swap">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="zlG" gradientUnits="userSpaceOnUse" x1="20" y1="72" x2="78" y2="33"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs></svg>
@@ -172,7 +178,7 @@ html.reduce-motion .zy-ss,html.reduce-motion .zy-sb{transition:none}
 <div class="app">
 <header>
   <button type="button" class="mn-burger" id="mnBurger" aria-label="Abrir menú" aria-expanded="false" aria-controls="mnDrawer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
-  <div class="logo"><div class="logo-mark"><img src="img/logo-symbol.png" alt="" draggable="false"></div><span class="wmt">ZYNORA</span></div>
+  <div class="logo"><div class="logo-mark"><img src="img/logo-symbol.png" alt="" draggable="false"></div><span class="wmt"><i>ZYN</i><b>ORA</b></span></div>
   <nav class="mn-nav">
     <button class="active" data-page="home" aria-label="Inicio" title="Inicio"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path class="fl" d="M4 11.2 12 4l8 7.2V19a1.5 1.5 0 0 1-1.5 1.5H15v-5.2a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5.2H5.5A1.5 1.5 0 0 1 4 19z"/></svg><span class="nl">Inicio</span></button>
     <button data-page="explore" aria-label="Explorar" title="Explorar"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path class="fl" d="m15.7 8.3-2.3 5.1-5.1 2.3 2.3-5.1z"/></svg><span class="nl">Explorar</span></button>
