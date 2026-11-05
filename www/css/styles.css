@@ -1131,3 +1131,67 @@ html[data-style] .rating,html[data-style] .det-grid dd{font-variant-numeric:tabu
 #rdPlayer .rd-actions{grid-template-columns:1.4fr 1fr;gap:10px;margin-top:12px}
 #rdPlayer .rd-actions .btn{min-height:50px;border-radius:999px}
 #rdPlayer .notice{background:none;border:0;padding:0 4px;margin-top:10px;text-align:center;color:#7d8aa8}
+
+
+/* =====================================================================
+   Zynora · banner compacto (Disney+), "Más" en sinopsis (Apple TV)
+   y fondo del banner (Paramount+, modo Elegante en celular)
+   ===================================================================== */
+
+/* --- Banner compacto en escritorio: más bajo, con los vecinos asomando --- */
+@media(min-width:701px){
+ html:not(#zy) .hc-track{padding:0 5.5%;gap:16px}
+ html:not(#zy) .hc-slide{height:clamp(250px,29vw,410px);border-radius:22px;opacity:.5;transform:scale(.97);transition:opacity .35s ease,transform .35s ease}
+ html:not(#zy) .hc-slide.on{opacity:1;transform:none}
+ html:not(#zy) .hc-copy{padding:34px 44px;max-width:560px}
+ html:not(#zy) .hc-copy h2{font-size:clamp(28px,3.2vw,44px)}
+ html:not(#zy) .hc-desc{display:none}
+ html:not(#zy) .hc-btns{margin-top:14px}
+ html:not(#zy) .hc-open,html:not(#zy) .hc-list{min-height:42px}
+ html:not(#zy) .hc-dots{margin-top:14px}
+ html:not(#zy) .hc-prev{left:1.2%}html:not(#zy) .hc-next{right:1.2%}
+}
+html.reduce-motion .hc-slide{transition:none!important}
+
+/* --- Sinopsis corta con botón "Más" --- */
+.syn-wrap{position:relative}
+#detailModal .syn{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.syn-more{position:absolute;right:0;bottom:0;height:25px;padding:0 13px;border:0;border-radius:999px;background:rgba(72,74,84,.96);color:#fff;font:inherit;font-size:12px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;-webkit-tap-highlight-color:transparent}
+.syn-more[hidden]{display:none}
+.syn-more:active{transform:scale(.94)}
+
+/* --- Hoja inferior con la sinopsis completa --- */
+.zy-sb{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .25s ease,visibility 0s linear .25s}
+.zy-sb.open{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .25s ease,visibility 0s}
+.zy-ss{position:fixed;z-index:61;left:0;right:0;bottom:0;margin:0 auto;width:min(640px,100%);max-height:78vh;display:flex;flex-direction:column;background:#1c1c1f;border-radius:24px 24px 0 0;box-shadow:0 -18px 60px rgba(0,0,0,.55);padding-bottom:env(safe-area-inset-bottom,0px);transform:translateY(104%);visibility:hidden;transition:transform .32s cubic-bezier(.2,.8,.2,1),visibility 0s linear .32s}
+.zy-ss.open{transform:none;visibility:visible;transition:transform .32s cubic-bezier(.2,.8,.2,1),visibility 0s}
+html[data-theme="amoled"] .zy-ss{background:#0c0c0e}
+.zy-ss-head{flex:none;touch-action:none;cursor:grab}
+.zy-ss-grab{width:42px;height:5px;border-radius:5px;background:rgba(255,255,255,.28);margin:10px auto 8px}
+.zy-ss h3{margin:6px 22px 16px;text-align:center;font-size:19px;font-weight:700;letter-spacing:-.2px}
+.zy-ss-body{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:0 22px 28px;font-size:17px;line-height:1.52;color:rgba(255,255,255,.88);white-space:pre-line}
+html.reduce-motion .zy-ss,html.reduce-motion .zy-sb{transition:none}
+
+/* --- Fondo del banner estilo Paramount+ (solo Elegante, celular) --- */
+.hc-bg{display:none}
+@media(max-width:700px){
+ html[data-style="elegant"] .hc-bg{display:block;position:absolute;z-index:0;pointer-events:none;overflow:hidden;
+  left:calc(50% - 50vw);width:100vw;top:calc(-1 * (var(--hh,64px) + 20px));height:calc(var(--hh,64px) + 20px + 118vw);
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 52%,rgba(0,0,0,.55) 76%,transparent 100%);mask-image:linear-gradient(180deg,#000 0%,#000 52%,rgba(0,0,0,.55) 76%,transparent 100%)}
+ html[data-style="elegant"] .hc-bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;opacity:0;transform:scale(1.05);transition:opacity .55s ease}
+ html[data-style="elegant"] .hc-bg img.on{opacity:1}
+ html[data-style="elegant"] .hc-bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,6,10,.42) 0%,rgba(5,6,10,.14) 34%,rgba(5,6,10,.5) 100%)}
+ html[data-style="elegant"] .hc-stage{position:relative;z-index:1}
+
+ /* la cabecera deja ver el fondo mientras estás arriba del todo */
+ html:not(#zy)[data-style="elegant"] header{transition:background-color .25s ease,border-color .25s ease,box-shadow .25s ease}
+ html:not(#zy)[data-style="elegant"].zy-hbg header{background:transparent;border-bottom-color:transparent;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+
+ /* tarjeta del banner: más angosta (se asoma la siguiente), con panel propio para que "sobresalga" el fondo */
+ html:not(#zy)[data-style="elegant"] .hc-track{padding:0 7%;gap:12px}
+ html:not(#zy)[data-style="elegant"] .hc-slide{background:#0b0e18;border-radius:22px;box-shadow:0 18px 44px rgba(0,0,0,.55);opacity:.55;transform:scale(.95);transition:opacity .3s ease,transform .3s ease}
+ html:not(#zy)[data-style="elegant"] .hc-slide.on{opacity:1;transform:none}
+ html:not(#zy)[data-style="elegant"] .hc-art{background:none;-webkit-mask-image:none;mask-image:none}
+ html:not(#zy)[data-style="elegant"] .hc-shade{background:linear-gradient(0deg,rgba(8,10,18,.98) 0%,rgba(8,10,18,.84) 24%,rgba(8,10,18,.22) 52%,transparent 74%);-webkit-mask-image:none;mask-image:none}
+ html:not(#zy)[data-style="elegant"] .hc-desc{display:none}
+}
