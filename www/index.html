@@ -89,6 +89,76 @@ body #pluginsPage h2{margin-bottom:12px}
 #settingsPage .st-grid>.st-card[hidden]{display:none!important}
 @media(min-width:720px){#settingsPage .st-tabs{grid-template-columns:repeat(6,auto);justify-content:start}#settingsPage .st-tabs button{padding:11px 18px}}
 </style>
+<style id="zyPatch">
+/* =====================================================================
+   Zynora · banner compacto (Disney+), "Más" en sinopsis (Apple TV)
+   y fondo del banner (Paramount+, modo Elegante en celular)
+   ===================================================================== */
+
+/* --- Banner compacto en escritorio: más bajo, con los vecinos asomando --- */
+@media(min-width:701px){
+ html:not(#zy) .hc-track{padding:0 5.5%;gap:16px}
+ html:not(#zy) .hc-slide{height:clamp(250px,29vw,410px);border-radius:22px;opacity:.5;transform:scale(.97);transition:opacity .35s ease,transform .35s ease}
+ html:not(#zy) .hc-slide.on{opacity:1;transform:none}
+ html:not(#zy) .hc-copy{padding:34px 44px;max-width:560px}
+ html:not(#zy) .hc-copy h2{font-size:clamp(28px,3.2vw,44px)}
+ html:not(#zy) .hc-desc{display:none!important}
+ html:not(#zy) .hc-btns{margin-top:14px}
+ html:not(#zy) .hc-open,html:not(#zy) .hc-list{min-height:42px}
+ html:not(#zy) .hc-dots{margin-top:14px}
+ html:not(#zy) .hc-prev{left:1.2%}html:not(#zy) .hc-next{right:1.2%}
+}
+html.reduce-motion .hc-slide{transition:none!important}
+
+/* --- Sinopsis corta con botón "Más" --- */
+.syn-wrap{position:relative}
+#detailModal .syn{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.syn-more{position:absolute;right:0;bottom:0;height:25px;padding:0 13px;border:0;border-radius:999px;background:rgba(72,74,84,.96);color:#fff;font:inherit;font-size:12px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;-webkit-tap-highlight-color:transparent}
+.syn-more[hidden]{display:none}
+.syn-more:active{transform:scale(.94)}
+
+/* --- Hoja inferior con la sinopsis completa --- */
+.zy-sb{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .25s ease,visibility 0s linear .25s}
+.zy-sb.open{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .25s ease,visibility 0s}
+.zy-ss{position:fixed;z-index:61;left:0;right:0;bottom:0;margin:0 auto;width:min(640px,100%);max-height:78vh;display:flex;flex-direction:column;background:#1c1c1f;border-radius:24px 24px 0 0;box-shadow:0 -18px 60px rgba(0,0,0,.55);padding-bottom:env(safe-area-inset-bottom,0px);transform:translateY(104%);visibility:hidden;transition:transform .32s cubic-bezier(.2,.8,.2,1),visibility 0s linear .32s}
+.zy-ss.open{transform:none;visibility:visible;transition:transform .32s cubic-bezier(.2,.8,.2,1),visibility 0s}
+html[data-theme="amoled"] .zy-ss{background:#0c0c0e}
+.zy-ss-head{flex:none;touch-action:none;cursor:grab}
+.zy-ss-grab{width:42px;height:5px;border-radius:5px;background:rgba(255,255,255,.28);margin:10px auto 8px}
+.zy-ss h3{margin:6px 22px 16px;text-align:center;font-size:19px;font-weight:700;letter-spacing:-.2px}
+.zy-ss-body{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:0 22px 28px;font-size:17px;line-height:1.52;color:rgba(255,255,255,.88);white-space:pre-line}
+html.reduce-motion .zy-ss,html.reduce-motion .zy-sb{transition:none}
+
+/* --- Fondo del banner estilo Paramount+ (solo Elegante, celular): la imagen continúa fuera de la tarjeta --- */
+.hc-bg{display:none}
+@media(max-width:700px){
+ html[data-style="elegant"] .hc{--zy-h:calc(var(--zy-d,84px) + 120vw)}
+ html[data-style="elegant"] .hc-bg{display:block;position:absolute;z-index:0;pointer-events:none;overflow:hidden;left:calc(50% - 50vw);width:100vw;top:calc(-1 * var(--zy-d,84px));height:var(--zy-h);
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 50%,rgba(0,0,0,.5) 74%,transparent 100%);mask-image:linear-gradient(180deg,#000 0%,#000 50%,rgba(0,0,0,.5) 74%,transparent 100%)}
+ html[data-style="elegant"] .hc-bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;transform:none;opacity:0;transition:opacity .5s ease}
+ html[data-style="elegant"] .hc-bg img.on{opacity:1}
+ html[data-style="elegant"] .hc-bg::after{content:"";position:absolute;left:0;right:0;top:0;height:110px;background:linear-gradient(180deg,rgba(5,6,10,.45),transparent)}
+ html[data-style="elegant"] .hc-stage{position:relative;z-index:1}
+
+ html:not(#zy)[data-style="elegant"] header{transition:background-color .25s ease,border-color .25s ease,box-shadow .25s ease}
+ html:not(#zy)[data-style="elegant"].zy-hbg header{background:transparent;border-bottom-color:transparent;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+
+ /* tarjeta a todo el ancho de pantalla (como Paramount+): 83% de ancho, la vecina se asoma */
+ html:not(#zy)[data-style="elegant"] .hc-track{margin:0 calc(50% - 50vw);padding:0 8.4vw;scroll-padding:0 8.4vw;gap:10px}
+ html:not(#zy)[data-style="elegant"] .hc-slide,html:not(#zy)[data-style="elegant"] .hc-slide.on{aspect-ratio:5/7;max-height:none;height:auto;background:#0b0e18;border-radius:20px;box-shadow:0 18px 44px rgba(0,0,0,.5);opacity:1;transform:none;transition:none}
+ /* la imagen de la tarjeta tiene el MISMO tamaño y posición que la del fondo: la tarjeta es una ventana */
+ html:not(#zy)[data-style="elegant"] .hc-art{background:none;-webkit-mask-image:none;mask-image:none}
+ html:not(#zy)[data-style="elegant"] .hc-art img{position:absolute;inset:auto;left:50%;top:calc(-1 * var(--zy-d,84px));width:100vw;max-width:none;height:var(--zy-h);transform:translateX(-50%);object-fit:cover;object-position:center top;transition:none}
+ html:not(#zy)[data-style="elegant"] .hc-shade{background:linear-gradient(0deg,rgba(8,10,18,.98) 0%,rgba(8,10,18,.84) 24%,rgba(8,10,18,.2) 50%,transparent 70%);-webkit-mask-image:none;mask-image:none}
+ html:not(#zy)[data-style="elegant"] .hc-desc{display:none!important}
+ html:not(#zy)[data-style="elegant"] .hc-btns .hc-open,html:not(#zy)[data-style="elegant"] .hc-btns .hc-list{flex:1;white-space:nowrap;padding:0 10px}
+}
+
+/* --- "Más": el final de la última línea se desvanece y el botón queda encima --- */
+#detailModal .syn.clamped{-webkit-mask-image:linear-gradient(#000,#000),linear-gradient(90deg,#000 calc(100% - 96px),transparent calc(100% - 58px));mask-image:linear-gradient(#000,#000),linear-gradient(90deg,#000 calc(100% - 96px),transparent calc(100% - 58px));-webkit-mask-size:100% calc(100% - 1.75em),100% 1.75em;mask-size:100% calc(100% - 1.75em),100% 1.75em;-webkit-mask-position:0 0,0 100%;mask-position:0 0,0 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+.syn-more{bottom:-1px;background:rgba(88,90,102,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+
+</style>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="zlG" gradientUnits="userSpaceOnUse" x1="20" y1="72" x2="78" y2="33"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs></svg>
@@ -582,8 +652,9 @@ function heroLogos(items){
 let heroSig="",heroIdx=0,heroTimer=null,heroTouch=0,heroInit=false,heroRaf=0;
 let heroBgFlip=0,heroBgSrc="";
 function heroOn(){const tr=document.getElementById("heroTrack");if(!tr)return;[...tr.children].forEach((s,k)=>s.classList.toggle("on",k===heroIdx))}
+function zyHeroD(){const hs=document.getElementById("heroSection"),st=hs&&hs.querySelector(".hc-stage");if(!st||hs.hidden)return;const d=Math.round(st.getBoundingClientRect().top+window.scrollY);if(String(d)!==hs.dataset.d){hs.dataset.d=d;hs.style.setProperty("--zy-d",d+"px")}}
 function heroBgSync(){
- const bg=document.getElementById("heroBg"),tr=document.getElementById("heroTrack");if(!bg||!tr)return;
+ zyHeroD();const bg=document.getElementById("heroBg"),tr=document.getElementById("heroTrack");if(!bg||!tr)return;
  const sl=tr.children[heroIdx];if(!sl)return;
  const im=sl.querySelector(".hc-art img"),so=sl.querySelector("picture source");if(!im)return;
  const mob=window.matchMedia("(max-width:700px)").matches;
@@ -1865,10 +1936,10 @@ zyInit();
 </script>
 <script>
 /* ===== Zynora: fondo del banner (Paramount+), botón "Más" (Apple TV) ===== */
-window.addEventListener("resize",()=>{heroBgSrc="";heroBgSync()});
+window.addEventListener("resize",()=>{heroBgSrc="";heroBgSync()});window.addEventListener("load",()=>setTimeout(zyHeroD,300));
 /* cabecera transparente arriba del todo en Inicio, para que se vea el fondo del banner */
 (function(){const R=document.documentElement;let on=false;
- function chk(){const hs=document.getElementById("heroSection"),hp=document.getElementById("homePage");
+ function chk(){try{zyHeroD()}catch(e){}const hs=document.getElementById("heroSection"),hp=document.getElementById("homePage");
   const v=!!(hs&&!hs.hidden&&hp&&!hp.classList.contains("hidden")&&window.scrollY<30&&!document.querySelector(".modal-wrap.open"));
   if(v!==on){on=v;R.classList.toggle("zy-hbg",v)}}
  window.addEventListener("scroll",chk,{passive:true});window.addEventListener("resize",chk);setInterval(chk,400);chk()})();
