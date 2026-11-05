@@ -19,7 +19,10 @@
   /* Plugins recomendados (puedes añadir más líneas con el mismo formato) */
   var RECOMMENDED = [
     { repo: "leopolidax-lang/mi-plugin", name: "Mi plugin", desc: "Plugin de leopolidax-lang para Zynora", color: "#64f4ff", cats: ["movies", "series"] },
-    { repo: "xuper-plugin/kino-plugin-plaviohd", name: "PlavioHD", desc: "Películas y series en HD (audio en inglés o hindi) y deportes en vivo", color: "#2DD4BF", cats: ["movies", "series"] }
+    { repo: "xuper-plugin/kino-plugin-plaviohd", name: "PlavioHD", desc: "Películas y series en HD (audio en inglés o hindi) y deportes en vivo", color: "#2DD4BF", cats: ["movies", "series"] },
+    { repo: "xuper-plugin/kino-plugin-latino", name: "Latino", desc: "Plugin de xuper-plugin para Zynora", color: "#F59E0B", cats: ["movies", "series"] },
+    { repo: "ice-dev-x/c_plus", name: "C Plus", desc: "Plugin de ice-dev-x para Zynora", color: "#6366F1", cats: ["movies", "series"] },
+    { repo: "baskettv23/Pelispanda", name: "Pelispanda", desc: "Plugin de baskettv23 para Zynora", color: "#10B981", cats: ["movies", "series"] }
   ];
   /* Temas de GitHub donde se buscan plugins de la comunidad */
   var TOPICS = ["zynora-plugin", LEGACY_TOPIC, LEGACY + "tv-plugin", LEGACY + "-plugins"];
@@ -783,6 +786,7 @@
     '.zpl-card{display:flex;flex-direction:column;gap:6px;padding:18px;border-radius:20px;background:linear-gradient(160deg,color-mix(in srgb,var(--c) 38%,#12141f),#12141f 85%);border:1px solid rgba(255,255,255,.06);min-width:0}' +
     '.zpl-ic{width:54px;height:54px;border-radius:14px;background:var(--c);display:grid;place-items:center;font-weight:800;font-size:24px;color:#fff;overflow:hidden;margin-bottom:6px}.zpl-ic img{width:100%;height:100%;object-fit:cover}' +
     '.zpl-card h4{margin:0;font-size:17px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '.zpl-repo{font-size:11.5px;color:#7f8aa6;font-family:ui-monospace,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:text;margin:-4px 0 8px}' +
     '.zpl-card p{margin:0;color:#aab3c9;font-size:13.5px;line-height:1.35;min-height:2.7em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
     '.zpl-tag{align-self:flex-start;padding:3px 10px;border-radius:8px;background:rgba(255,255,255,.1);color:#c8d0e6;font-size:12px;font-weight:600}.zpl-tag.w{background:rgba(255,184,77,.16);color:#ffb84d}' +
     '.zpl-btn{margin-top:auto;padding:12px;border-radius:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);font-weight:700;font-size:15px;text-align:center}.zpl-btn.pri{background:linear-gradient(100deg,var(--cyan,#64f4ff),color-mix(in srgb,var(--cyan,#64f4ff) 55%,#9da8ff));border-color:transparent;color:#071018;box-shadow:0 6px 22px rgba(var(--acc-rgb,100,244,255),.22)}.zpl-card p{margin-bottom:10px!important}' +
@@ -926,7 +930,7 @@
     if (cats.indexOf("adult") >= 0) return "";
     var q = norm(UI.q); if (q && norm(name + " " + desc).indexOf(q) < 0) return "";
     var st = p ? (p.noresp ? '<span class="zpl-tag w">No responde</span>' : p.pending ? '<span class="zpl-tag w">Actualización disponible</span>' : p.enabled === false ? '<span class="zpl-tag">Desactivado</span>' : "") : "";
-    return '<div class="zpl-card" style="--c:' + E(color) + '"><div class="zpl-ic">' + (icon ? '<img alt="" src="' + E(icon) + '">' : E(name.charAt(0).toUpperCase())) + "</div><h4>" + E(name) + "</h4><p>" + E(desc || en.repo) + "</p>" + st +
+    return '<div class="zpl-card" style="--c:' + E(color) + '"><div class="zpl-ic">' + (icon ? '<img alt="" src="' + E(icon) + '">' : E(name.charAt(0).toUpperCase())) + "</div><h4>" + E(name) + "</h4><p>" + E(desc || en.repo) + "</p>" + (p ? '<div class="zpl-repo" title="Repositorio de origen">' + E(p.repo) + "</div>" : "") + st +
       '<button class="zpl-btn' + (p ? "" : " pri") + '" data-a="' + (p ? "manage" : "install") + '" data-r="' + E(en.repo) + '">' + (p ? "Gestionar" : "Instalar") + "</button></div>";
   }
   var paintT = 0;
