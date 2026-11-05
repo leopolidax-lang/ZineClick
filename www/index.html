@@ -137,6 +137,7 @@ body #pluginsPage h2{margin-bottom:12px}
 <main id="homePage">
 
 <section class="hc" id="heroSection" aria-label="Tendencias destacadas" hidden>
+ <div class="hc-bg" id="heroBg" aria-hidden="true"><img alt="" decoding="async"><img alt="" decoding="async"></div>
  <div class="hc-stage">
   <div class="hc-track" id="heroTrack" tabindex="0"></div>
   <button class="hc-nav hc-prev" id="heroPrev" aria-label="Anterior">‹</button>
@@ -343,6 +344,8 @@ body #pluginsPage h2{margin-bottom:12px}
 </div>
 
 <div class="ex-sheet-back" id="exSheetBack"></div>
+<div class="zy-sb" id="synBack"></div>
+<aside class="zy-ss" id="synSheet" role="dialog" aria-modal="true" aria-labelledby="synTitle" aria-hidden="true"><div class="zy-ss-head" id="synHead"><div class="zy-ss-grab"></div><h3 id="synTitle"></h3></div><div class="zy-ss-body" id="synBody"></div></aside>
 <aside class="ex-sheet" id="exSheet" role="dialog" aria-modal="true" aria-labelledby="exSheetTitle" aria-hidden="true">
  <div class="ex-sheet-grab" aria-hidden="true"></div>
  <div class="ex-sheet-head"><h2 id="exSheetTitle">Filtros</h2><button type="button" id="exSheetClose" aria-label="Cerrar filtros"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" width="20" height="20"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
@@ -584,7 +587,7 @@ function heroPic(t,first){
  return `<picture><source media="(max-width:700px)" srcset="${esc(tall)}"><img src="${esc(wide)}" alt="" draggable="false" decoding="async"${first?"":' loading="lazy"'}></picture>`}
 function heroSlideW(){const tr=document.getElementById("heroTrack"),sl=tr.firstElementChild;return sl?sl.offsetWidth+(parseFloat(getComputedStyle(tr).columnGap)||12):0}
 function heroGo(i){const tr=document.getElementById("heroTrack"),n=tr.children.length;if(!n)return;i=Math.max(0,Math.min(n-1,i));tr.scrollTo({left:i*heroSlideW(),behavior:zyReduceMotion()?"auto":"smooth"})}
-function heroMark(){const tr=document.getElementById("heroTrack"),w=heroSlideW();if(!w)return;heroIdx=Math.max(0,Math.min(tr.children.length-1,Math.round(tr.scrollLeft/w)));document.querySelectorAll("#heroDots .hc-dot").forEach((d,k)=>{d.classList.toggle("on",k===heroIdx);d.setAttribute("aria-selected",k===heroIdx)})}
+function heroMark(){const tr=document.getElementById("heroTrack"),w=heroSlideW();if(!w)return;heroIdx=Math.max(0,Math.min(tr.children.length-1,Math.round(tr.scrollLeft/w)));document.querySelectorAll("#heroDots .hc-dot").forEach((d,k)=>{d.classList.toggle("on",k===heroIdx);d.setAttribute("aria-selected",k===heroIdx)});heroOn();heroBgSync()}
 function heroSetup(){
  const tr=document.getElementById("heroTrack");
  tr.addEventListener("scroll",()=>{cancelAnimationFrame(heroRaf);heroRaf=requestAnimationFrame(heroMark)},{passive:true});
@@ -612,7 +615,7 @@ function renderHero(){
   const pic=heroPic(t,i===0),meta=[`★ ${Number(t.rating||0).toFixed(1)}`,t.year||"",(t.genre||[]).slice(0,2).join(" / ")].filter(Boolean).map(esc).join(" · ");
   return `<article class="hc-slide" data-id="${esc(t.id)}" role="group" aria-roledescription="diapositiva" aria-label="${i+1} de ${items.length}: ${esc(t.title)}" style="--c1:${(t.colors||[])[0]||"#3b3f6b"};--c2:${(t.colors||[])[1]||"#12142b"}"><div class="hc-art">${pic}${pic?"":`<span class="hc-sym">${esc(t.emoji||"✦")}</span>`}</div><div class="hc-shade"></div><div class="hc-copy"><span class="hc-tag">${live?"#"+(i+1)+" en tendencia":"Destacado"} · ${esc(t.kind)}</span><h2>${esc(t.title)}</h2><div class="hc-meta">${meta}</div><p class="hc-desc">${esc(t.desc||"")}</p><div class="hc-btns"><span class="btn primary hc-open">Ver ficha</span><button type="button" class="hc-list" data-id="${esc(t.id)}" aria-pressed="false">+ Mi lista</button></div></div></article>`}).join("");
  document.getElementById("heroDots").innerHTML=items.map((t,i)=>`<button class="hc-dot${i===0?" on":""}" data-i="${i}" role="tab" aria-selected="${i===0}" aria-label="Ir al destacado ${i+1}"></button>`).join("");
- heroIdx=0;tr.scrollLeft=0;heroSyncList();heroLogos(items)}
+ heroIdx=0;tr.scrollLeft=0;heroSyncList();heroLogos(items);heroOn();heroBgSync()}
 function heroSyncList(){document.querySelectorAll("#heroTrack .hc-list").forEach(b=>{let on=false;try{on=getList("watchlist").map(String).includes(String(b.dataset.id))}catch(e){}b.textContent=on?"✓ En mi lista":"+ Mi lista";b.setAttribute("aria-pressed",on?"true":"false")})}
 {const _tl=toggleList;toggleList=function(){const r=_tl.apply(this,arguments);try{heroSyncList();if(arguments[0]==="watched")zyRefreshSeen()}catch(e){}return r}}
 /* Ficha: color de resplandor tomado del póster (solo se nota en el estilo Elegante) */
@@ -1135,7 +1138,7 @@ async function openDetail(id,fromBack){let t=findTitle(id);if(!t){const m=/^(mov
  const whereHtml=groups?groups+muted("Disponibilidad en "+esc(regionName(getRegion()))+" · datos de JustWatch vía TMDB."):muted("No hay información de plataformas confirmada para "+esc(regionName(getRegion()))+". Consulta la disponibilidad en tu país.");
  const sim=t.similar||[];
  const simHtml=sim.length?`<div class="cast-row">${sim.map(x=>`<button class="cc-card sim-card" onclick="openCredit('${x.mediaType==="tv"?"tv":"movie"}',${Number(x.id)})"><span class="cc-ph"><img src="https://image.tmdb.org/t/p/w185${esc(x.posterPath)}" alt="" loading="lazy"></span><b>${esc(x.title)}</b><small>★ ${Number(x.rating||0).toFixed(1)}</small></button>`).join("")}</div>`:muted("Conecta TMDB para ver títulos similares.");
- document.getElementById("modalBody").innerHTML=`<div class="meta"><span>${t.year||"Año desconocido"}</span><span class="dot">●</span><span>${esc(t.kind)}</span><span class="dot">●</span><span>★ ${Number(t.rating||0).toFixed(1)}</span>${t.runtime?`<span class="dot">●</span><span>${t.runtime} min</span>`:""}${t.seasons?`<span class="dot">●</span><span>${t.seasons} temporadas</span>`:""}</div><div class="tag-row">${(t.genre||[]).map(g=>`<span class="tag">${esc(g)}</span>`).join("")}</div><div class="det-actions det2"><button type="button" class="det-play" onclick="rdPlayFlow('${encodeURIComponent(t.title)}')"><svg class="di dp" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6a.6.6 0 0 0 .9.5l11-6.8a.6.6 0 0 0 0-1L8.9 4.7a.6.6 0 0 0-.9.5z"/></svg><span>Reproducir</span></button><div class="det-ics">${trailer?`<button type="button" class="det-ic" onclick="openTrailer('${encodeURIComponent(trailer.key)}')"><svg class="di" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.6"/><path class="fl" d="M10.2 9.4v5.2l4.4-2.6z"/></svg><span>Tráiler</span></button>`:`<button type="button" class="det-ic" onclick="youtubeSearch('${encodeURIComponent(t.title+" tráiler oficial")}')"><svg class="di" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.6"/><path class="fl" d="M10.2 9.4v5.2l4.4-2.6z"/></svg><span>Tráiler</span></button>`}<button type="button" class="det-ic" data-list="watchlist" onclick="toggleList('watchlist','${id1}')"><svg class="di" viewBox="0 0 24 24" aria-hidden="true"><g class="off"><path d="M12 5v14M5 12h14"/></g><g class="onn"><path d="M5 12.6l4.6 4.6L19 7.4"/></g></svg><span class="dl">Mi lista</span></button><button type="button" class="det-ic" data-list="watched" onclick="toggleList('watched','${id1}')"><svg class="di" viewBox="0 0 24 24" aria-hidden="true"><path class="fl" d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></svg><span class="dl">Ya vi</span></button><button type="button" class="det-ic" id="detRateBtn" aria-expanded="false" onclick="detailRateToggle()"><svg class="di" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10v11"/><path class="fl" d="M15 5.9 14 10h5.8a2 2 0 0 1 1.9 2.5l-2.3 8a2 2 0 0 1-1.9 1.5H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.8a2 2 0 0 0 1.8-1.1L12 2.5a3.1 3.1 0 0 1 3 3.4z"/></svg><span class="dl">Calificar</span></button>${t.tmdbId?`<button type="button" class="det-ic" onclick="addonOpen('${t.tmdbId}','${t.mediaType==="tv"?"tv":"movie"}','${encodeURIComponent(t.title)}')"><svg class="di" viewBox="0 0 24 24" aria-hidden="true"><path class="fl" d="M6 6h4.2a1.8 1.8 0 1 1 3.6 0H18v4.2a1.8 1.8 0 1 1 0 3.6V18h-4.2a1.8 1.8 0 1 0-3.6 0H6v-4.2a1.8 1.8 0 1 0 0-3.6z"/></svg><span>${(typeof addonCount==="function"&&addonCount())?"Addon":"Instalar addon"}</span></button>`:""}${t.tmdbId&&t.mediaType==="movie"&&msLoad()?`<button type="button" class="det-ic" onclick="msPlay('${t.tmdbId}','movie','${encodeURIComponent(t.title)}')"><svg class="di" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="17" height="6.5" rx="2"/><rect x="3.5" y="13.5" width="17" height="6.5" rx="2"/><path d="M7.5 7.25h.01M7.5 16.75h.01"/></svg><span>Mi servidor</span></button>`:""}</div><div class="det-rate" id="detRate" hidden><div class="det-stars" role="radiogroup" aria-label="Calificación">${[1,2,3,4,5].map(n=>`<button type="button" role="radio" aria-checked="false" aria-label="${n} de 5" data-n="${n}" onclick="detailRate(${n})">★</button>`).join("")}</div><button type="button" class="det-rate-x" onclick="detailRate(0)">Quitar</button></div></div><p class="syn">${esc(t.desc||"No hay sinopsis disponible.")}</p><div class="tabs" role="tablist">${T.map(([k,l],i)=>`<button class="tab${i?"":" on"}" role="tab" aria-selected="${i===0}" data-tab="${k}" onclick="detailTab('${k}')">${l}</button>`).join("")}</div><div class="tab-panel" data-panel="cast">${castHtml}</div><div class="tab-panel" data-panel="det" hidden>${detHtml}</div><div class="tab-panel" data-panel="where" hidden>${whereHtml}</div><div class="tab-panel" data-panel="sim" hidden>${simHtml}</div><div class="notice">${t.isLive?"Información consultada desde TMDB. La disponibilidad de proveedores depende de los datos regionales de TMDB.":"Ficha de muestra. Conecta TMDB para cargar información actualizada."} Para uso público, protege las credenciales con un backend.</div>`;
+ document.getElementById("modalBody").innerHTML=`<div class="meta"><span>${t.year||"Año desconocido"}</span><span class="dot">●</span><span>${esc(t.kind)}</span><span class="dot">●</span><span>★ ${Number(t.rating||0).toFixed(1)}</span>${t.runtime?`<span class="dot">●</span><span>${t.runtime} min</span>`:""}${t.seasons?`<span class="dot">●</span><span>${t.seasons} temporadas</span>`:""}</div><div class="tag-row">${(t.genre||[]).map(g=>`<span class="tag">${esc(g)}</span>`).join("")}</div><div class="det-actions det2"><button type="button" class="det-play" onclick="rdPlayFlow('${encodeURIComponent(t.title)}')"><svg class="di dp" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6a.6.6 0 0 0 .9.5l11-6.8a.6.6 0 0 0 0-1L8.9 4.7a.6.6 0 0 0-.9.5z"/></svg><span>Reproducir</span></button><div class="det-ics">${trailer?`<button type="button" class="det-ic" onclick="openTrailer('${encodeURIComponent(trailer.key)}')"><svg class="di" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.6"/><path class="fl" d="M10.2 9.4v5.2l4.4-2.6z"/></svg><span>Tráiler</span></button>`:`<button type="button" class="det-ic" onclick="youtubeSearch('${encodeURIComponent(t.title+" tráiler oficial")}')"><svg class="di" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.6"/><path class="fl" d="M10.2 9.4v5.2l4.4-2.6z"/></svg><span>Tráiler</span></button>`}<button type="button" class="det-ic" data-list="watchlist" onclick="toggleList('watchlist','${id1}')"><svg class="di" viewBox="0 0 24 24" aria-hidden="true"><g class="off"><path d="M12 5v14M5 12h14"/></g><g class="onn"><path d="M5 12.6l4.6 4.6L19 7.4"/></g></svg><span class="dl">Mi lista</span></button><button type="button" class="det-ic" data-list="watched" onclick="toggleList('watched','${id1}')"><svg class="di" viewBox="0 0 24 24" aria-hidden="true"><path class="fl" d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></svg><span class="dl">Ya vi</span></button><button type="button" class="det-ic" id="detRateBtn" aria-expanded="false" onclick="detailRateToggle()"><svg class="di" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10v11"/><path class="fl" d="M15 5.9 14 10h5.8a2 2 0 0 1 1.9 2.5l-2.3 8a2 2 0 0 1-1.9 1.5H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.8a2 2 0 0 0 1.8-1.1L12 2.5a3.1 3.1 0 0 1 3 3.4z"/></svg><span class="dl">Calificar</span></button>${t.tmdbId?`<button type="button" class="det-ic" onclick="addonOpen('${t.tmdbId}','${t.mediaType==="tv"?"tv":"movie"}','${encodeURIComponent(t.title)}')"><svg class="di" viewBox="0 0 24 24" aria-hidden="true"><path class="fl" d="M6 6h4.2a1.8 1.8 0 1 1 3.6 0H18v4.2a1.8 1.8 0 1 1 0 3.6V18h-4.2a1.8 1.8 0 1 0-3.6 0H6v-4.2a1.8 1.8 0 1 0 0-3.6z"/></svg><span>${(typeof addonCount==="function"&&addonCount())?"Addon":"Instalar addon"}</span></button>`:""}${t.tmdbId&&t.mediaType==="movie"&&msLoad()?`<button type="button" class="det-ic" onclick="msPlay('${t.tmdbId}','movie','${encodeURIComponent(t.title)}')"><svg class="di" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="17" height="6.5" rx="2"/><rect x="3.5" y="13.5" width="17" height="6.5" rx="2"/><path d="M7.5 7.25h.01M7.5 16.75h.01"/></svg><span>Mi servidor</span></button>`:""}</div><div class="det-rate" id="detRate" hidden><div class="det-stars" role="radiogroup" aria-label="Calificación">${[1,2,3,4,5].map(n=>`<button type="button" role="radio" aria-checked="false" aria-label="${n} de 5" data-n="${n}" onclick="detailRate(${n})">★</button>`).join("")}</div><button type="button" class="det-rate-x" onclick="detailRate(0)">Quitar</button></div></div><div class="syn-wrap"><p class="syn" id="detSyn">${esc(t.desc||"No hay sinopsis disponible.")}</p><button type="button" class="syn-more" id="detSynMore" hidden onclick="zySynOpen()">Más</button></div><div class="tabs" role="tablist">${T.map(([k,l],i)=>`<button class="tab${i?"":" on"}" role="tab" aria-selected="${i===0}" data-tab="${k}" onclick="detailTab('${k}')">${l}</button>`).join("")}</div><div class="tab-panel" data-panel="cast">${castHtml}</div><div class="tab-panel" data-panel="det" hidden>${detHtml}</div><div class="tab-panel" data-panel="where" hidden>${whereHtml}</div><div class="tab-panel" data-panel="sim" hidden>${simHtml}</div><div class="notice">${t.isLive?"Información consultada desde TMDB. La disponibilidad de proveedores depende de los datos regionales de TMDB.":"Ficha de muestra. Conecta TMDB para cargar información actualizada."} Para uso público, protege las credenciales con un backend.</div>`;
  detailId=id1;curPerson=null;document.getElementById("modalFav").hidden=false;syncDetail();
  document.getElementById("detailModal").classList.add("open");document.querySelector("#detailModal .modal").scrollTop=0}
 async function openPerson(personId,fromBack){
@@ -1154,7 +1157,7 @@ async function openCredit(mediaType,tmdbId){
   titleReg.set(String(t.id),t);titles.unshift(t);openDetail(t.id);
  }catch(e){toast(errMsg(e,"No se pudo abrir ese título."));}
 }
-function closeModal(){detailId=null;curPerson=null;navStack=[];document.getElementById("detailModal").classList.remove("open")}
+function closeModal(){try{zySynClose(true)}catch(e){}detailId=null;curPerson=null;navStack=[];document.getElementById("detailModal").classList.remove("open")}
 /* Historial interno de la ficha: título → filmografía → otro título … y de vuelta, recordando la pestaña */
 function navCurTab(){const b=document.querySelector("#modalBody .tab.on");return b?b.dataset.tab:"cast"}
 function navPushCurrent(newId){
@@ -1172,7 +1175,7 @@ async function modalBack(){
  A.addListener("backButton",ev=>{
   const z=document.getElementById("zamRoot");
   if((z&&!z.hidden)||document.documentElement.classList.contains("znp-on"))return;
-  const xs=document.getElementById("exSheet");if(xs&&xs.classList.contains("open")){zyCloseExSheet();return}
+  const ss=document.getElementById("synSheet");if(ss&&ss.classList.contains("open")){zySynClose();return}const xs=document.getElementById("exSheet");if(xs&&xs.classList.contains("open")){zyCloseExSheet();return}
   if(document.getElementById("detailModal").classList.contains("open")){modalBack();return}
   if(ev&&ev.canGoBack)history.back();else if(A.exitApp)A.exitApp()})}catch(e){}})();
 document.getElementById("detailModal").addEventListener("click",e=>{if(e.target.id==="detailModal")closeModal()});
@@ -1846,6 +1849,51 @@ zyInit();
  timer=setTimeout(finish,reduce?1200:2700);
  setTimeout(finish,5000);
 })();
+</script>
+<script>
+/* ===== Zynora: fondo del banner (Paramount+), botón "Más" (Apple TV) ===== */
+let heroBgFlip=0,heroBgSrc="";
+function heroOn(){const tr=document.getElementById("heroTrack");if(!tr)return;[...tr.children].forEach((s,k)=>s.classList.toggle("on",k===heroIdx))}
+function heroBgSync(){
+ const bg=document.getElementById("heroBg"),tr=document.getElementById("heroTrack");if(!bg||!tr)return;
+ const sl=tr.children[heroIdx];if(!sl)return;
+ const im=sl.querySelector(".hc-art img"),so=sl.querySelector("picture source");if(!im)return;
+ const mob=window.matchMedia("(max-width:700px)").matches;
+ const src=(mob&&so&&so.srcset)||im.currentSrc||im.src;
+ if(!src||src===heroBgSrc)return;heroBgSrc=src;
+ const imgs=bg.querySelectorAll("img");heroBgFlip^=1;
+ const nx=imgs[heroBgFlip],pv=imgs[heroBgFlip^1];
+ const show=()=>{nx.classList.add("on");pv.classList.remove("on")};
+ nx.onload=show;nx.src=src;if(nx.complete&&nx.naturalWidth)show()}
+window.addEventListener("resize",()=>{heroBgSrc="";heroBgSync()});
+/* cabecera transparente arriba del todo en Inicio, para que se vea el fondo del banner */
+(function(){const R=document.documentElement;let on=false;
+ function chk(){const hs=document.getElementById("heroSection"),hp=document.getElementById("homePage");
+  const v=!!(hs&&!hs.hidden&&hp&&!hp.classList.contains("hidden")&&window.scrollY<30&&!document.querySelector(".modal-wrap.open"));
+  if(v!==on){on=v;R.classList.toggle("zy-hbg",v)}}
+ window.addEventListener("scroll",chk,{passive:true});window.addEventListener("resize",chk);setInterval(chk,400);chk()})();
+/* sinopsis: si no cabe en 3 líneas aparece "Más" y abre una hoja desde abajo */
+(function(){
+ const ro=window.ResizeObserver?new ResizeObserver(es=>es.forEach(e=>{const s=e.target,b=document.getElementById("detSynMore");if(!b||s.id!=="detSyn")return;b.hidden=!(s.scrollHeight>s.clientHeight+1)})):null;
+ const mb=document.getElementById("modalBody");
+ if(mb&&ro)new MutationObserver(()=>{const s=document.getElementById("detSyn");if(s)ro.observe(s)}).observe(mb,{childList:true})})();
+function zySynOpen(){
+ const s=document.getElementById("detSyn");if(!s)return;
+ document.getElementById("synTitle").textContent=document.getElementById("modalTitle").textContent||"";
+ document.getElementById("synBody").textContent=s.textContent;document.getElementById("synBody").scrollTop=0;
+ const sh=document.getElementById("synSheet");sh.style.transform="";
+ document.getElementById("synBack").classList.add("open");sh.classList.add("open");sh.setAttribute("aria-hidden","false")}
+function zySynClose(){
+ const sh=document.getElementById("synSheet"),bk=document.getElementById("synBack");if(!sh||!bk)return;
+ sh.style.transform="";sh.style.transition="";bk.classList.remove("open");sh.classList.remove("open");sh.setAttribute("aria-hidden","true")}
+(function(){
+ const bk=document.getElementById("synBack"),sh=document.getElementById("synSheet"),hd=document.getElementById("synHead");if(!bk||!sh||!hd)return;
+ bk.addEventListener("click",()=>zySynClose());
+ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&sh.classList.contains("open")){e.stopPropagation();zySynClose()}},true);
+ let y0=0,dy=0,drag=false;
+ hd.addEventListener("touchstart",e=>{y0=e.touches[0].clientY;dy=0;drag=true;sh.style.transition="none"},{passive:true});
+ hd.addEventListener("touchmove",e=>{if(!drag)return;dy=Math.max(0,e.touches[0].clientY-y0);sh.style.transform="translateY("+dy+"px)"},{passive:true});
+ hd.addEventListener("touchend",()=>{if(!drag)return;drag=false;sh.style.transition="";if(dy>80)zySynClose();else sh.style.transform=""})})();
 </script>
 <script src="addon-menu.js"></script>
 <script src="native-player.js"></script>
