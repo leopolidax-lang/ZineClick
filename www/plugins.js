@@ -18,7 +18,8 @@
 
   /* Plugins recomendados (puedes añadir más líneas con el mismo formato) */
   var RECOMMENDED = [
-    { repo: "leopolidax-lang/mi-plugin", name: "Mi plugin", desc: "Plugin de leopolidax-lang para Zynora", color: "#64f4ff", cats: ["movies", "series"] }
+    { repo: "leopolidax-lang/mi-plugin", name: "Mi plugin", desc: "Plugin de leopolidax-lang para Zynora", color: "#64f4ff", cats: ["movies", "series"] },
+    { repo: "xuper-plugin/kino-plugin-plaviohd", name: "PlavioHD", desc: "Películas y series en HD (audio en inglés o hindi) y deportes en vivo", color: "#2DD4BF", cats: ["movies", "series"] }
   ];
   /* Temas de GitHub donde se buscan plugins de la comunidad */
   var TOPICS = ["zynora-plugin", LEGACY_TOPIC, LEGACY + "tv-plugin", LEGACY + "-plugins"];
