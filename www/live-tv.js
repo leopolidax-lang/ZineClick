@@ -129,16 +129,24 @@
     var m = $("zlvMore"); if (m) m.onclick = function () { load(true); };
   }
 
+  function isNative() { try { return !!(W.ZNP && W.ZNP.available && W.ZNP.available()); } catch (e) { return false; } }
   async function play(c) {
     if (!c) return;
     say("Abriendo «" + c.title + "»…");
     try {
       var r = await live().resolve(S.pid, c.ref);
-      if (typeof W.rdPlay !== "function") throw new Error("No se encontró el reproductor de la app.");
+      /* Un canal en vivo no es una película: sin contexto, para que el menú de fuentes no intente «probar otra» al fallar */
+      W._addonCtx = null;
+      W.__zplHdr = r.headers && Object.keys(r.headers).length ? r.headers : null;
       S.playing = true; $("zlv").classList.remove("on");
+      if (isNative()) { if (W.ZNP.open(r.rawUrl, c.title, null, null)) return; }
+      if (typeof W.rdPlay !== "function") throw new Error("No se encontró el reproductor de la app.");
       W.rdPlay({ download: r.url }, c.title);
-    } catch (e) { S.playing = false; say("No se pudo abrir el canal: " + ((e && e.message) || e)); }
+    } catch (e) { S.playing = false; if (S.open) $("zlv").classList.add("on"); say("No se pudo abrir el canal: " + ((e && e.message) || e)); }
   }
+
+  /* El reproductor nativo avisa con «znp:closed»: volvemos a la lista de canales */
+  function backToList() { if (S.playing && S.open) { S.playing = false; var z = $("zlv"); if (z) z.classList.add("on"); } }
 
   /* Al cerrar el reproductor volvemos a la lista de canales */
   function hookPlayer() {
@@ -164,7 +172,7 @@
     }
   }
 
-  function boot() { css(); addButtons(); hookPlayer(); setInterval(function () { addButtons(); hookPlayer(); }, 2500); }
+  function boot() { css(); D.addEventListener("znp:closed", backToList); addButtons(); hookPlayer(); setInterval(function () { addButtons(); hookPlayer(); }, 2500); }
   if (D.readyState === "loading") D.addEventListener("DOMContentLoaded", boot); else boot();
   W.ZLive = { open: open, close: close };
 })();

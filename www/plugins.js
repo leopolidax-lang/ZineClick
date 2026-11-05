@@ -1105,7 +1105,7 @@
     search: async function (pid, q) { var r = await callPlugin(liveOf(pid), "liveSearch", { query: String(q || "").slice(0, 100) }); return liveList(r); },
     resolve: async function (pid, ref) {
       var p = liveOf(pid), st = cleanStream(p, await callPlugin(p, "resolve", String(ref)), "live");
-      return { url: mediaUrl(st.url, st.headers), rawUrl: st.url, mime: st.mime };
+      return { url: mediaUrl(st.url, st.headers), rawUrl: st.url, headers: st.headers || {}, mime: st.mime };
     }
   };
   function liveList(r) {
