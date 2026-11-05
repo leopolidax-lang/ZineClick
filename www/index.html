@@ -37,7 +37,7 @@
 <script src="supabase.js"></script>
 <script src="config.js"></script>
 <script src="sync.js"></script>
-<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/styles.css?v=zy2">
 <style>/* En tendencia, Explorar y Mis listas: sin el título sobre el póster ni debajo */
 #trendingGrid .poster .poster-name,#trendingGrid .card h3,#exploreGrid .poster .poster-name,#exploreGrid .card h3,#listsGrid .poster .poster-name,#listsGrid .card h3{display:none!important}
 /* Estrenos: solo sin el título sobre el póster */
@@ -580,6 +580,19 @@ function heroLogos(items){
   im.src="https://image.tmdb.org/t/p/w500"+v.l})})}
 /* ===== Portada deslizable (estilo Netflix) ===== */
 let heroSig="",heroIdx=0,heroTimer=null,heroTouch=0,heroInit=false,heroRaf=0;
+let heroBgFlip=0,heroBgSrc="";
+function heroOn(){const tr=document.getElementById("heroTrack");if(!tr)return;[...tr.children].forEach((s,k)=>s.classList.toggle("on",k===heroIdx))}
+function heroBgSync(){
+ const bg=document.getElementById("heroBg"),tr=document.getElementById("heroTrack");if(!bg||!tr)return;
+ const sl=tr.children[heroIdx];if(!sl)return;
+ const im=sl.querySelector(".hc-art img"),so=sl.querySelector("picture source");if(!im)return;
+ const mob=window.matchMedia("(max-width:700px)").matches;
+ const src=(mob&&so&&so.srcset)||im.currentSrc||im.src;
+ if(!src||src===heroBgSrc)return;heroBgSrc=src;
+ const imgs=bg.querySelectorAll("img");heroBgFlip^=1;
+ const nx=imgs[heroBgFlip],pv=imgs[heroBgFlip^1];
+ const show=()=>{nx.classList.add("on");pv.classList.remove("on")};
+ nx.onload=show;nx.src=src;if(nx.complete&&nx.naturalWidth)show()}
 function heroItems(){const base=heroPool.length?heroPool:[...titles].sort((x,y)=>y.rating-x.rating);return base.slice(0,7)}
 function heroPic(t,first){
  if(!t.backdropPath&&!t.posterPath)return "";
@@ -1852,19 +1865,6 @@ zyInit();
 </script>
 <script>
 /* ===== Zynora: fondo del banner (Paramount+), botón "Más" (Apple TV) ===== */
-let heroBgFlip=0,heroBgSrc="";
-function heroOn(){const tr=document.getElementById("heroTrack");if(!tr)return;[...tr.children].forEach((s,k)=>s.classList.toggle("on",k===heroIdx))}
-function heroBgSync(){
- const bg=document.getElementById("heroBg"),tr=document.getElementById("heroTrack");if(!bg||!tr)return;
- const sl=tr.children[heroIdx];if(!sl)return;
- const im=sl.querySelector(".hc-art img"),so=sl.querySelector("picture source");if(!im)return;
- const mob=window.matchMedia("(max-width:700px)").matches;
- const src=(mob&&so&&so.srcset)||im.currentSrc||im.src;
- if(!src||src===heroBgSrc)return;heroBgSrc=src;
- const imgs=bg.querySelectorAll("img");heroBgFlip^=1;
- const nx=imgs[heroBgFlip],pv=imgs[heroBgFlip^1];
- const show=()=>{nx.classList.add("on");pv.classList.remove("on")};
- nx.onload=show;nx.src=src;if(nx.complete&&nx.naturalWidth)show()}
 window.addEventListener("resize",()=>{heroBgSrc="";heroBgSync()});
 /* cabecera transparente arriba del todo en Inicio, para que se vea el fondo del banner */
 (function(){const R=document.documentElement;let on=false;
@@ -1874,7 +1874,7 @@ window.addEventListener("resize",()=>{heroBgSrc="";heroBgSync()});
  window.addEventListener("scroll",chk,{passive:true});window.addEventListener("resize",chk);setInterval(chk,400);chk()})();
 /* sinopsis: si no cabe en 3 líneas aparece "Más" y abre una hoja desde abajo */
 (function(){
- const ro=window.ResizeObserver?new ResizeObserver(es=>es.forEach(e=>{const s=e.target,b=document.getElementById("detSynMore");if(!b||s.id!=="detSyn")return;b.hidden=!(s.scrollHeight>s.clientHeight+1)})):null;
+ const ro=window.ResizeObserver?new ResizeObserver(es=>es.forEach(e=>{const s=e.target,b=document.getElementById("detSynMore");if(!b||s.id!=="detSyn")return;const o=s.scrollHeight>s.clientHeight+1;b.hidden=!o;s.classList.toggle("clamped",o)})):null;
  const mb=document.getElementById("modalBody");
  if(mb&&ro)new MutationObserver(()=>{const s=document.getElementById("detSyn");if(s)ro.observe(s)}).observe(mb,{childList:true})})();
 function zySynOpen(){
