@@ -22,9 +22,10 @@
       "#zlv button{font:inherit;color:inherit;cursor:pointer}" +
       "#zlv .zx{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:8px 14px;font-weight:700}" +
       "#zlv .zbar{display:flex;gap:8px;padding:0 16px 10px;flex-wrap:wrap}" +
-      "#zlv select,#zlv input{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:12px;color:inherit;padding:10px 12px;font:inherit;min-width:0}" +
+      "#zlv input{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:12px;color:inherit;padding:10px 12px;font:inherit;min-width:0}" +
       "#zlv input{flex:1;min-width:140px}" +
       "#zlv .zcats{display:flex;gap:8px;overflow-x:auto;padding:0 16px 12px;scrollbar-width:none}" +
+      "#zlv .zpls .zcat{border-style:dashed}" +
       "#zlv .zcat{flex:none;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);white-space:nowrap}" +
       "#zlv .zcat.on{background:linear-gradient(100deg,#64f4ff,#9da8ff);color:#071018;border-color:transparent;font-weight:700}" +
       "#zlv .zbody{flex:1;overflow:auto;padding:0 16px 24px}" +
@@ -43,11 +44,10 @@
     if ($("zlv")) return;
     var d = D.createElement("div"); d.id = "zlv"; d.setAttribute("role", "dialog"); d.setAttribute("aria-label", "TV en vivo");
     d.innerHTML = '<div class="zh"><h2>TV en vivo</h2><button type="button" class="zx" id="zlvX">✕ Cerrar</button></div>' +
-      '<div class="zbar"><select id="zlvPl" aria-label="Plugin"></select><input id="zlvQ" type="search" placeholder="Buscar canal…" autocomplete="off"></div>' +
-      '<div class="zcats" id="zlvCats"></div><div class="zbody" id="zlvBody"></div>';
+      '<div class="zbar"><input id="zlvQ" type="search" placeholder="Buscar canal…" autocomplete="off"></div>' +
+      '<div class="zcats zpls" id="zlvPls" hidden></div><div class="zcats" id="zlvCats"></div><div class="zbody" id="zlvBody"></div>';
     D.body.appendChild(d);
     $("zlvX").onclick = close;
-    $("zlvPl").onchange = function () { S.pid = this.value; S.cat = ""; S.q = ""; $("zlvQ").value = ""; loadCats(); };
     var t = null;
     $("zlvQ").oninput = function () { var v = this.value; clearTimeout(t); t = setTimeout(function () { S.q = v.trim(); S.cursor = null; S.items = []; if (S.q) { markCat(""); load(false); } else if (S.cat) load(false); else paintBody(); }, 450); };
     D.addEventListener("keydown", function (e) { if (e.key === "Escape" && S.open && !S.playing) close(); });
@@ -57,10 +57,10 @@
     css(); shell();
     var L = live();
     if (!L) { say("TV en vivo no está disponible (falta plugins.js)"); return; }
-    var all = L.plugins(), sel = $("zlvPl");
+    var all = L.plugins(), pls = $("zlvPls");
     $("zlv").classList.add("on"); S.open = true;
     try { if ($("mnDrawer") && D.documentElement.classList.contains("mn-open")) $("mnClose").click(); } catch (e) {}
-    sel.hidden = true; $("zlvQ").hidden = true; $("zlvCats").innerHTML = "";
+    pls.hidden = true; $("zlvQ").hidden = true; $("zlvCats").innerHTML = "";
     msg("Buscando plugins de TV en vivo…");
     var ok = [], bad = [];
     for (var i = 0; i < all.length; i++) {
@@ -74,10 +74,16 @@
         : "Ningún plugin instalado ofrece TV en vivo.<br>Instala uno con la capacidad «channels» (por ejemplo PlavioHD) desde Plugins.");
       return;
     }
-    sel.innerHTML = ok.map(function (p) { return '<option value="' + E(p.id) + '">' + E(p.name) + "</option>"; }).join("");
-    sel.hidden = ok.length < 2; $("zlvQ").hidden = false;
     if (!S.pid || !ok.some(function (p) { return p.id === S.pid; })) { S.pid = ok[0].id; S.cat = ""; }
-    sel.value = S.pid;
+    $("zlvQ").hidden = false; pls.hidden = ok.length < 2;
+    pls.innerHTML = ok.map(function (p) { return '<button type="button" class="zcat' + (p.id === S.pid ? " on" : "") + '" data-p="' + E(p.id) + '">' + E(p.name) + "</button>"; }).join("");
+    Array.prototype.forEach.call(pls.querySelectorAll(".zcat"), function (b) {
+      b.onclick = function () {
+        S.pid = b.dataset.p; S.cat = ""; S.q = ""; $("zlvQ").value = "";
+        Array.prototype.forEach.call(pls.querySelectorAll(".zcat"), function (x) { x.classList.toggle("on", x === b); });
+        loadCats();
+      };
+    });
     loadCats();
   }
   function close() { S.open = false; S.playing = false; var z = $("zlv"); if (z) z.classList.remove("on"); }
