@@ -80,7 +80,7 @@
       if (meta.type === "tv" && (finished || time >= 60000)) watchedHook(meta);
       if (!old && time < 20000) return;
       var base = Object.assign({}, old || {}, {
-        key: meta.key, tmdbId: meta.tmdbId, type: meta.type, title: meta.title, poster: meta.poster, backdrop: meta.backdrop,
+        key: meta.key, tmdbId: meta.tmdbId, type: meta.type, title: meta.title, poster: meta.poster || (old && old.poster) || "", backdrop: meta.backdrop || (old && old.backdrop) || "",
         s: meta.s, e: meta.e, epName: meta.epName || "", src: meta.src || (old && old.src) || null, ts: Date.now()
       });
       /* Mientras sigues en los créditos del mismo episodio se conserva el "siguiente" ya calculado.
@@ -948,6 +948,24 @@
         '<div class="zcw-meta"><div class="zcw-tx"><b>' + E(en.title) + "</b>" + (en.type === "tv" ? "<span>T" + cs + ":E" + ce + (cn ? " " + E(cn) : "") + "</span>" : "") + '</div>' +
         '<button type="button" class="zcw-dots" data-more aria-label="Más opciones"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg></button></div></div>';
     }).join("") + "</div>";
+    try { fillArt(list); } catch (x) {}
+  }
+
+  /* Entradas guardadas sin póster ni fondo (portada gris): se piden a TMDB una vez y se guardan */
+  var ARTTRY = {};
+  function fillArt(list) {
+    var miss = list.filter(function (en) { return en && en.tmdbId && !en.backdrop && !en.poster && !ARTTRY[en.key]; }).slice(0, 12);
+    if (!miss.length || typeof W.tmdb !== "function") return;
+    miss.forEach(function (en) { ARTTRY[en.key] = 1; });
+    Promise.all(miss.map(function (en) {
+      return W.tmdb("/" + (en.type === "tv" ? "tv" : "movie") + "/" + en.tmdbId).then(function (d) {
+        return d ? { key: en.key, poster: d.poster_path || "", backdrop: d.backdrop_path || "" } : null;
+      }).catch(function () { return null; });
+    })).then(function (rs) {
+      var m = cwAll(), n = 0;
+      rs.forEach(function (r) { if (r && (r.poster || r.backdrop) && m[r.key]) { m[r.key].poster = r.poster; m[r.key].backdrop = r.backdrop; n++; } });
+      if (n) { cwSave(m); refreshRow(); }
+    });
   }
 
   /* En pantalla completa nativa solo se ve el elemento que entra en fullscreen: llevamos el logo de carga dentro */

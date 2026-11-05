@@ -394,7 +394,7 @@
   }
   function buildDoc(p, code, kv) {
     var cfg = JSON.stringify({ api: API_MAX, app: "zynora/" + APP_VER, lang: navigator.language || "es", kv: kv || {} }).replace(/</g, "\\u003c");
-    var names = ["search", "home", "browse", "episodes", "resolve", "details"], em = exportMap(String(code));
+    var names = ["search", "home", "browse", "episodes", "resolve", "details", "liveCategories", "liveChannels", "liveSearch"], em = exportMap(String(code));
     var reg = "\n;try{var __z={};" + names.map(function (n) { var l = em[n] || n; return 'if(typeof ' + l + '==="function")__z.' + n + "=" + l + ";"; }).join("") + "window.__zplReady(__z);}catch(e){window.__zplFail(e&&e.message||e);}\n";
     var safe = String(code).replace(/<\/script/gi, "<\\/script").replace(/<!--/g, "<\\!--");
     return '<!doctype html><html><head><meta charset="utf-8">' +
