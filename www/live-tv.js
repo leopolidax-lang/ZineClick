@@ -53,22 +53,30 @@
     D.addEventListener("keydown", function (e) { if (e.key === "Escape" && S.open && !S.playing) close(); });
   }
 
-  function open() {
+  async function open() {
     css(); shell();
     var L = live();
     if (!L) { say("TV en vivo no está disponible (falta plugins.js)"); return; }
-    var pls = L.plugins();
-    var sel = $("zlvPl");
-    sel.innerHTML = pls.map(function (p) { return '<option value="' + E(p.id) + '">' + E(p.name) + "</option>"; }).join("");
+    var all = L.plugins(), sel = $("zlvPl");
     $("zlv").classList.add("on"); S.open = true;
-    try { var dr = $("mnDrawer"); if (dr && D.documentElement.classList.contains("mn-open")) $("mnClose").click(); } catch (e) {}
-    if (!pls.length) {
-      $("zlvCats").innerHTML = ""; sel.hidden = true; $("zlvQ").hidden = true;
-      $("zlvBody").innerHTML = '<div class="zmsg">Ningún plugin instalado ofrece TV en vivo.<br>Instala uno que tenga la capacidad «channels» (por ejemplo PlavioHD) desde Plugins.</div>';
+    try { if ($("mnDrawer") && D.documentElement.classList.contains("mn-open")) $("mnClose").click(); } catch (e) {}
+    sel.hidden = true; $("zlvQ").hidden = true; $("zlvCats").innerHTML = "";
+    msg("Buscando plugins de TV en vivo…");
+    var ok = [], bad = [];
+    for (var i = 0; i < all.length; i++) {
+      var ex = await L.exports(all[i].id);
+      if (ex.indexOf("liveCategories") >= 0 && ex.indexOf("liveChannels") >= 0) ok.push(all[i]);
+      else bad.push(all[i].name + (ex.length ? " (exporta: " + ex.join(", ") + ")" : ""));
+    }
+    if (!ok.length) {
+      msg(all.length
+        ? "Ningún plugin instalado es compatible con la TV en vivo de Zynora.<br>Necesitan exportar «liveCategories» y «liveChannels».<br><small>" + E(bad.join(" · ")) + "</small>"
+        : "Ningún plugin instalado ofrece TV en vivo.<br>Instala uno con la capacidad «channels» (por ejemplo PlavioHD) desde Plugins.");
       return;
     }
-    sel.hidden = pls.length < 2; $("zlvQ").hidden = false;
-    if (!S.pid || !pls.some(function (p) { return p.id === S.pid; })) { S.pid = pls[0].id; S.cat = ""; }
+    sel.innerHTML = ok.map(function (p) { return '<option value="' + E(p.id) + '">' + E(p.name) + "</option>"; }).join("");
+    sel.hidden = ok.length < 2; $("zlvQ").hidden = false;
+    if (!S.pid || !ok.some(function (p) { return p.id === S.pid; })) { S.pid = ok[0].id; S.cat = ""; }
     sel.value = S.pid;
     loadCats();
   }

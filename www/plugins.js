@@ -1099,6 +1099,7 @@
   function liveOf(pid) { var p = byId(pid); if (!p || !active(p) || p.caps.indexOf("channels") < 0) throw new Error("Ese plugin no ofrece TV en vivo o no está activo."); return p; }
   var LIVE = {
     plugins: livePlugins,
+    exports: async function (pid) { try { var ex = await rtOf(liveOf(pid)).start(); return Array.isArray(ex) ? ex : []; } catch (e) { return []; } },
     categories: async function (pid) { var r = await callPlugin(liveOf(pid), "liveCategories", null); return (Array.isArray(r) ? r : (r && r.items) || []).filter(function (c) { return c && typeof c.id === "string" && typeof c.title === "string"; }).slice(0, 100).map(function (c) { return { id: c.id, title: c.title.slice(0, 80) }; }); },
     channels: async function (pid, categoryId, cursor) { var r = await callPlugin(liveOf(pid), "liveChannels", { categoryId: categoryId, cursor: cursor || null }); return liveList(r); },
     search: async function (pid, q) { var r = await callPlugin(liveOf(pid), "liveSearch", { query: String(q || "").slice(0, 100) }); return liveList(r); },
