@@ -106,6 +106,7 @@
     if (u.username || u.password || (u.port && u.port !== "443")) throw ferr("host_not_allowed", "host no permitido: " + u.host, u.hostname);
     var h = u.hostname.toLowerCase(), ok = hostMatches(h, p.hosts);
     if (!ok && mode === "stream") ok = (p.streamAny && validHostName(h)) || (Array.isArray(p.streamList) && hostMatches(h, p.streamList));
+    if (!ok && mode === "live") ok = (p.streamAny && validHostName(h)) || (Array.isArray(p.streamList) && hostMatches(h, p.streamList)) || (p.liveAny && validHostName(h)) || (Array.isArray(p.liveList) && hostMatches(h, p.liveList));
     if (!ok && mode === "fetch") ok = p.fetchAny && validHostName(h);
     if (!ok) throw ferr("host_not_allowed", "host no permitido: " + h, h);
     return u;
@@ -144,7 +145,7 @@
       id: m.id, name: m.name.trim(), version: m.version, apiVersion: m.apiVersion, entry: m.entry, hosts: hosts.map(function (h) { return h.toLowerCase(); }),
       caps: caps, color: m.color || "", icon: typeof m.icon === "string" && /^[A-Za-z0-9._\/-]{1,200}$/.test(m.icon) && m.icon.indexOf("..") < 0 ? m.icon : "",
       description: cut(m.description, 300), author: cut(m.author, 60), homepage: cut(m.homepage, 200), categories: cats,
-      fetchAny: fetchAny, streamAny: streamAny, streamList: streamList, catalogOnly: catalogOnly, browser: m.browser === true
+      fetchAny: fetchAny, streamAny: streamAny, streamList: streamList, liveAny: m.liveStreamHosts === "any", liveList: Array.isArray(m.liveStreamHosts) ? m.liveStreamHosts.filter(validPattern).slice(0, 300) : null, catalogOnly: catalogOnly, browser: m.browser === true
     };
   }
   function cmpVer(a, b) {
@@ -225,6 +226,48 @@
       });
     }
     var log = function () { post({ k: "log", a: Array.prototype.slice.call(arguments).map(fmt).join(" ").slice(0, 2000) }); };
+    /* kino.meta: ficha de un título (ids, póster, géneros, episodios) armada con TMDB. Los plugins de Kino la esperan. */
+    var IMG = "https://image.tmdb.org/t/p/";
+    function tImg(p, sz) { return p ? IMG + sz + p : ""; }
+    async function metaFn(o) {
+      o = o || {};
+      var ids = o.ids || {}, isTv = o.type === "series" || o.type === "tv" || o.type === "show";
+      var lang = o.lang || (CFG.lang && String(CFG.lang)) || "es";
+      if (lang.length === 2) lang = lang === "es" ? "es-MX" : lang;
+      var tmdbId = Number(ids.tmdb) || 0, imdb = ids.imdb ? String(ids.imdb) : "";
+      if (!tmdbId && imdb) {
+        var f = await api.tmdb("/find/" + imdb, { external_source: "imdb_id" });
+        var a = f && (isTv ? f.tv_results : f.movie_results), b = f && (isTv ? f.movie_results : f.tv_results);
+        var hit = (a && a[0]) || (b && b[0]);
+        if (hit) { tmdbId = hit.id; if (!(a && a[0])) isTv = !isTv; }
+      }
+      if (!tmdbId) return null;
+      var d = await api.tmdb("/" + (isTv ? "tv" : "movie") + "/" + tmdbId, { language: lang, append_to_response: "external_ids" });
+      if (!d || !d.id) return null;
+      var ext = d.external_ids || {};
+      var out = {
+        ids: { tmdb: d.id, imdb: d.imdb_id || ext.imdb_id || imdb || null },
+        title: d.title || d.name || "", originalTitle: d.original_title || d.original_name || "",
+        poster: tImg(d.poster_path, "w500"), backdrop: tImg(d.backdrop_path, "w1280"),
+        overview: d.overview || "", genres: (d.genres || []).map(function (g) { return g.name; }),
+        year: parseInt(String(d.release_date || d.first_air_date || "").slice(0, 4), 10) || 0,
+        runtimeMinutes: d.runtime || (d.episode_run_time && d.episode_run_time[0]) || 0
+      };
+      if (isTv) {
+        var eps = [], seasons = (d.seasons || []).filter(function (s) { return s.season_number >= 1; }).slice(0, 40);
+        for (var i = 0; i < seasons.length; i += 4) {
+          var chunk = seasons.slice(i, i + 4);
+          var rs = await Promise.all(chunk.map(function (s) { return api.tmdb("/tv/" + tmdbId + "/season/" + s.season_number, { language: lang }).catch(function () { return null; }); }));
+          rs.forEach(function (r, j) {
+            ((r && r.episodes) || []).forEach(function (e) {
+              eps.push({ season: chunk[j].season_number, number: e.episode_number, title: e.name || "", overview: e.overview || "", still: tImg(e.still_path, "w300"), airDate: e.air_date || "" });
+            });
+          });
+        }
+        out.episodes = eps;
+      }
+      return out;
+    }
     var api = {
       apiVersion: CFG.api, appVersion: CFG.app, lang: CFG.lang, device: "phone",
       fetch: function (url, o) {
@@ -264,7 +307,19 @@
       config: { get: function (k) { var n = "cfg_" + String(k); return Object.prototype.hasOwnProperty.call(kv, n) ? kv[n] : null; } },
       log: log,
       error: function (code, message, o) { return mkErr({ code: code, message: message || code, userMessage: o && o.userMessage }); },
+      meta: metaFn,
       rank: {
+        filterRelevant: function (items, titles) {
+          function n(x) { return String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim(); }
+          var toks = [];
+          (titles || []).forEach(function (t) { n(t).split(" ").forEach(function (w) { if (w.length > 2 && toks.indexOf(w) < 0) toks.push(w); }); });
+          if (!toks.length) return items || [];
+          var kept = (items || []).filter(function (it) {
+            var h = " " + n((it && it.title) + " " + ((it && it.originalTitle) || "")) + " ";
+            return toks.some(function (w) { return h.indexOf(" " + w) >= 0; });
+          });
+          return kept.length ? kept : (items || []);
+        },
         shortQuery: function (q) {
           q = String(q || "").replace(/\s+/g, " ").trim();
           var i = q.search(/\s[:\-\u2013\u2014]\s/);
@@ -549,11 +604,11 @@
     return out;
   }
   function norm(s) { return String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim(); }
-  function cleanStream(p, st) {
+  function cleanStream(p, st, mode) {
     if (!st || typeof st !== "object" || typeof st.url !== "string") throw new Error("El plugin no devolvió un enlace de video.");
     var bad = ["drm", "license", "licenseUrl", "drmLicenseUrl", "keySystem", "widevine"];
     if (bad.some(function (k) { return st[k] != null; })) throw new Error("Este video usa protección DRM y no se puede reproducir.");
-    try { checkUrl(p, st.url, "stream"); } catch (e) { throw new Error("El plugin devolvió un enlace de un sitio que no declaró (" + (e.khost || "desconocido") + ")."); }
+    try { checkUrl(p, st.url, mode || "stream"); } catch (e) { throw new Error("El plugin devolvió un enlace de un sitio que no declaró (" + (e.khost || "desconocido") + ")."); }
     var h = {}, n = 0;
     Object.keys(st.headers || {}).forEach(function (k) {
       if (n >= 20 || !/^[A-Za-z0-9-]{1,64}$/.test(k) || /^(host|content-length|transfer-encoding|connection)$/i.test(k)) return;
@@ -1039,7 +1094,27 @@
   if (D.readyState === "loading") D.addEventListener("DOMContentLoaded", boot); else boot();
   setTimeout(function () { restoreCode().catch(noop); }, 4000);
 
+  /* =============== TV en vivo (capacidad «channels») =============== */
+  function livePlugins() { return all().filter(function (p) { return active(p) && p.caps.indexOf("channels") >= 0; }).map(function (p) { return { id: p.id, name: p.name, color: p.color || "" }; }); }
+  function liveOf(pid) { var p = byId(pid); if (!p || !active(p) || p.caps.indexOf("channels") < 0) throw new Error("Ese plugin no ofrece TV en vivo o no está activo."); return p; }
+  var LIVE = {
+    plugins: livePlugins,
+    categories: async function (pid) { var r = await callPlugin(liveOf(pid), "liveCategories", null); return (Array.isArray(r) ? r : (r && r.items) || []).filter(function (c) { return c && typeof c.id === "string" && typeof c.title === "string"; }).slice(0, 100).map(function (c) { return { id: c.id, title: c.title.slice(0, 80) }; }); },
+    channels: async function (pid, categoryId, cursor) { var r = await callPlugin(liveOf(pid), "liveChannels", { categoryId: categoryId, cursor: cursor || null }); return liveList(r); },
+    search: async function (pid, q) { var r = await callPlugin(liveOf(pid), "liveSearch", { query: String(q || "").slice(0, 100) }); return liveList(r); },
+    resolve: async function (pid, ref) {
+      var p = liveOf(pid), st = cleanStream(p, await callPlugin(p, "resolve", String(ref)), "live");
+      return { url: mediaUrl(st.url, st.headers), rawUrl: st.url, mime: st.mime };
+    }
+  };
+  function liveList(r) {
+    var items = (r && Array.isArray(r.items) ? r.items : []).filter(function (i) { return i && typeof i.ref === "string" && typeof i.title === "string" && !i.adult; }).slice(0, 200)
+      .map(function (i) { return { id: String(i.id || i.ref).slice(0, 120), ref: i.ref.slice(0, 300), title: i.title.slice(0, 120), logo: typeof i.logo === "string" && /^https:\/\//.test(i.logo) ? i.logo : "" }; });
+    return { items: items, next: r && r.next != null ? String(r.next).slice(0, 100) : null };
+  }
+
   W.ZPL = {
+    live: LIVE,
     count: function () { return sources().length; },
     reload: reloadFromAccount, list: all, find: find, resolveFor: resolveFor, open: open, install: install, uninstall: uninstall, mediaUrl: mediaUrl, showTab: showTab,
     _t: { checkManifest: checkManifest, parseSpec: parseSpec, validHostName: validHostName, hostMatches: hostMatches, checkUrl: checkUrl, cleanItem: cleanItem, cleanStream: cleanStream, cmpVer: cmpVer, buildDoc: buildDoc, pluginFetch: pluginFetch, zplBoot: zplBoot }
