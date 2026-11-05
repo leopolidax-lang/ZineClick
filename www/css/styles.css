@@ -1096,6 +1096,7 @@ html[data-style] .rating,html[data-style] .det-grid dd{font-variant-numeric:tabu
 .card.cap .poster .tag-seen::before{content:"✓";font-size:12px;font-weight:800;color:#fff}
 
 /* Reproductor: la caja nace ya con proporción 16:9 (antes salía pequeña y se estiraba al cargar los metadatos, porque Plyr envuelve el <video> y la regla ">video" dejaba de aplicarse). El tope de altura es el mismo 65vh que ya usaba el video, así los controles quedan dentro de la caja. */
-#rdPlayer:not(.rd-full) .rd-stage{aspect-ratio:16/9;max-height:65vh}
+#rdPlayer:not(.rd-full) .rd-stage{aspect-ratio:16/9;max-height:max(220px,min(65vh,calc(100vh - 290px)));max-height:max(220px,min(65vh,calc(100dvh - 290px)))}
+@media(min-width:701px){#rdPlayer:not(.rd-full) .rd-stage{margin-left:auto;margin-right:auto}}
 #rdPlayer:not(.rd-full) .rd-stage .plyr,#rdPlayer:not(.rd-full) .rd-stage .plyr__video-wrapper{height:100%}
 #rdPlayer:not(.rd-full) .rd-stage video{width:100%;height:100%;object-fit:contain;background:#000}
