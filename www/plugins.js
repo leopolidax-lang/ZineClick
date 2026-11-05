@@ -260,6 +260,30 @@
       config: { get: function (k) { var n = "cfg_" + String(k); return Object.prototype.hasOwnProperty.call(kv, n) ? kv[n] : null; } },
       log: log,
       error: function (code, message, o) { return mkErr({ code: code, message: message || code, userMessage: o && o.userMessage }); },
+      rank: {
+        shortQuery: function (q) {
+          q = String(q || "").replace(/\s+/g, " ").trim();
+          var i = q.search(/\s[:\-\u2013\u2014]\s/);
+          if (i > 2) q = q.slice(0, i);
+          return q.slice(0, 80);
+        },
+        sortBySimilarity: function (items, titles) {
+          function n(s) { return String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim(); }
+          var ts = (titles || []).map(n).filter(Boolean);
+          function score(it) {
+            var t = n(it && it.title), best = 3;
+            ts.forEach(function (w) {
+              if (t === w) best = Math.min(best, 0);
+              else if (t.indexOf(w) === 0) best = Math.min(best, 1);
+              else if (t.indexOf(w) >= 0 || w.indexOf(t) >= 0) best = Math.min(best, 2);
+            });
+            return best;
+          }
+          return (items || []).map(function (it, i) { return { it: it, s: score(it), i: i }; })
+            .sort(function (a, b) { return a.s - b.s || a.i - b.i; })
+            .map(function (x) { return x.it; });
+        }
+      },
       sleep: function (ms) { return new Promise(function (r) { setTimeout(r, Math.min(Math.max(+ms || 0, 0), 5000)); }); }
     };
     try { log.report = function () {}; } catch (e) {}
