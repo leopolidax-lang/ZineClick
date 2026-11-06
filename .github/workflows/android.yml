@@ -2649,13 +2649,996 @@ jobs:
           print('Navegador oculto registrado')
           PY
 
+      - name: Mejora - ExoPlayer (reproductor principal; VLC queda de respaldo)
+        id: exo
+        if: steps.native.outcome == 'success'
+        continue-on-error: true
+        run: |
+          snap() { rm -rf "/tmp/snap_$1"; mkdir -p "/tmp/snap_$1"; cp -a android/app/src/main "/tmp/snap_$1/main"; cp android/app/build.gradle "/tmp/snap_$1/build.gradle"; }
+          snap exo
+          restore_exo() { rm -rf android/app/src/main; cp -a /tmp/snap_exo/main android/app/src/main; cp /tmp/snap_exo/build.gradle android/app/build.gradle; echo "::warning::ExoPlayer no se pudo instalar. Se queda solo VLC."; }
+          trap restore_exo ERR
+          PKG_DIR=android/app/src/main/java/com/zineclick/app
+          test -f "$PKG_DIR/ZinePlayerPlugin.java"
+          test -f "$PKG_DIR/MainActivity.java"
+          cat > "$PKG_DIR/ZineExoPlugin.java" <<'JAVA_EXO'
+          package com.zineclick.app;
+
+          import android.app.Activity;
+          import android.content.pm.ActivityInfo;
+          import android.graphics.Bitmap;
+          import android.graphics.Color;
+          import android.media.MediaMetadataRetriever;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.os.Handler;
+          import android.os.Looper;
+          import android.util.Base64;
+          import android.util.Rational;
+          import android.view.Gravity;
+          import android.view.ViewGroup;
+          import android.view.WindowManager;
+          import android.webkit.WebView;
+          import android.widget.FrameLayout;
+
+          import androidx.core.view.WindowCompat;
+          import androidx.core.view.WindowInsetsCompat;
+          import androidx.core.view.WindowInsetsControllerCompat;
+          import androidx.media3.common.AudioAttributes;
+          import androidx.media3.common.C;
+          import androidx.media3.common.Format;
+          import androidx.media3.common.MediaItem;
+          import androidx.media3.common.MimeTypes;
+          import androidx.media3.common.PlaybackException;
+          import androidx.media3.common.PlaybackParameters;
+          import androidx.media3.common.Player;
+          import androidx.media3.common.TrackSelectionOverride;
+          import androidx.media3.common.TrackSelectionParameters;
+          import androidx.media3.common.Tracks;
+          import androidx.media3.common.util.UnstableApi;
+          import androidx.media3.datasource.DefaultDataSource;
+          import androidx.media3.datasource.DefaultHttpDataSource;
+          import androidx.media3.exoplayer.DefaultLoadControl;
+          import androidx.media3.exoplayer.DefaultRenderersFactory;
+          import androidx.media3.exoplayer.ExoPlayer;
+          import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
+          import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
+          import androidx.media3.ui.AspectRatioFrameLayout;
+          import androidx.media3.ui.CaptionStyleCompat;
+          import androidx.media3.ui.PlayerView;
+          import androidx.media3.ui.SubtitleView;
+
+          import com.getcapacitor.JSArray;
+          import com.getcapacitor.JSObject;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+
+          import java.io.ByteArrayOutputStream;
+          import java.util.ArrayList;
+          import java.util.HashMap;
+          import java.util.Locale;
+          import java.util.concurrent.ExecutorService;
+          import java.util.concurrent.Executors;
+
+          /**
+           * Reproductor ExoPlayer (Media3) sin pantalla propia: el video se dibuja DETRÁS del WebView
+           * y los controles son HTML (native-player.js). Mismos métodos y eventos que ZinePlayer (VLC),
+           * para que la página pueda cambiar de uno a otro.
+           */
+          @UnstableApi
+          @CapacitorPlugin(name = "ZineExo")
+          public class ZineExoPlugin extends Plugin {
+              private ExoPlayer player;
+              private PlayerView view;
+              private FrameLayout box;
+              private ViewGroup parent;
+              private final Handler handler = new Handler(Looper.getMainLooper());
+              private final ExecutorService thumbEx = Executors.newSingleThreadExecutor();
+              private String url = "";
+              private String referer = "";
+              private String uagent = "";
+              private String subSize = "";
+              private String subBg = "";
+              private String aspect = "fit";
+              private boolean active = false;
+              private boolean suspended = false;
+              private boolean wasPlaying = true;
+              private boolean audioChecked = false;
+              private int retries = 0;
+              private int qualityH = 0;
+              private volatile boolean pipEntering = false;
+              private volatile boolean uiResumed = true;
+              private MediaMetadataRetriever mmr;
+              private String mmrUrl = "";
+              private boolean mmrFailed = false;
+
+              private static final String DEFAULT_UA =
+                      "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36";
+
+              private void ui(Runnable r) {
+                  Activity a = getActivity();
+                  if (a != null) a.runOnUiThread(r);
+              }
+
+              /* ---------------- estado hacia la página ---------------- */
+
+              private void pushState() {
+                  try {
+                      if (!active || suspended || player == null) return;
+                      int st = player.getPlaybackState();
+                      JSObject o = new JSObject();
+                      o.put("time", Math.max(player.getCurrentPosition(), 0L));
+                      o.put("length", Math.max(player.getDuration(), 0L));
+                      o.put("playing", player.getPlayWhenReady() && st != Player.STATE_ENDED && st != Player.STATE_IDLE);
+                      o.put("buffering", st == Player.STATE_BUFFERING);
+                      notifyListeners("znpState", o);
+                  } catch (Throwable t) {
+                      // se ignora: el próximo ciclo lo reintenta
+                  }
+              }
+
+              private final Runnable ticker = new Runnable() {
+                  @Override
+                  public void run() {
+                      pushState();
+                      if (active) handler.postDelayed(this, 500);
+                  }
+              };
+
+              private final Player.Listener listener = new Player.Listener() {
+                  @Override
+                  public void onPlaybackStateChanged(int state) {
+                      if (state == Player.STATE_ENDED) {
+                          notifyListeners("znpEnded", new JSObject());
+                      } else if (state == Player.STATE_READY) {
+                          retries = 0;
+                      }
+                      pushState();
+                  }
+
+                  @Override
+                  public void onIsPlayingChanged(boolean isPlaying) {
+                      pushState();
+                  }
+
+                  @Override
+                  public void onTracksChanged(Tracks tracks) {
+                      checkSupport(tracks);
+                  }
+
+                  @Override
+                  public void onPlayerError(PlaybackException e) {
+                      handleError(e);
+                  }
+              };
+
+              /* Si el teléfono no puede decodificar el audio o el video del archivo, se avisa para pasar a VLC. */
+              private void checkSupport(Tracks tracks) {
+                  if (audioChecked || !active) return;
+                  try {
+                      boolean hasAudio = false, audioOk = false, hasVideo = false, videoOk = false;
+                      for (Tracks.Group g : tracks.getGroups()) {
+                          for (int i = 0; i < g.length; i++) {
+                              if (g.getType() == C.TRACK_TYPE_AUDIO) {
+                                  hasAudio = true;
+                                  if (g.isTrackSupported(i)) audioOk = true;
+                              } else if (g.getType() == C.TRACK_TYPE_VIDEO) {
+                                  hasVideo = true;
+                                  if (g.isTrackSupported(i)) videoOk = true;
+                              }
+                          }
+                      }
+                      if ((hasAudio && !audioOk) || (hasVideo && !videoOk)) {
+                          audioChecked = true;
+                          JSObject o = new JSObject();
+                          o.put("message", hasAudio && !audioOk ? "ExoPlayer: audio no compatible" : "ExoPlayer: video no compatible");
+                          notifyListeners("znpError", o);
+                      } else if (hasAudio || hasVideo) {
+                          audioChecked = true;
+                      }
+                  } catch (Throwable t) {
+                      // sin efecto
+                  }
+              }
+
+              private void handleError(PlaybackException e) {
+                  if (!active || player == null) return;
+                  if (!suspended && retries < 2) {
+                      retries++;
+                      final long rt = Math.max(player.getCurrentPosition(), 0L);
+                      handler.postDelayed(new Runnable() {
+                          @Override
+                          public void run() {
+                              try {
+                                  if (player == null || !active || suspended) return;
+                                  loadMedia(rt, true);
+                              } catch (Throwable t) {
+                                  // si el reintento falla, el siguiente error avisa a la página
+                              }
+                          }
+                      }, 800);
+                      return;
+                  }
+                  JSObject o = new JSObject();
+                  o.put("message", "ExoPlayer no pudo reproducir este video (" + e.getErrorCodeName() + ")");
+                  notifyListeners("znpError", o);
+              }
+
+              /* ---------------- pantalla, orientación, barras ---------------- */
+
+              private void immersive(boolean on) {
+                  Activity a = getActivity();
+                  if (a == null) return;
+                  try {
+                      WindowInsetsControllerCompat c = WindowCompat.getInsetsController(a.getWindow(), a.getWindow().getDecorView());
+                      if (c == null) return;
+                      if (on) {
+                          c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                          c.hide(WindowInsetsCompat.Type.systemBars());
+                      } else {
+                          c.show(WindowInsetsCompat.Type.systemBars());
+                      }
+                      if (Build.VERSION.SDK_INT >= 28) {
+                          WindowManager.LayoutParams lp = a.getWindow().getAttributes();
+                          lp.layoutInDisplayCutoutMode = on
+                                  ? WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                                  : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT;
+                          a.getWindow().setAttributes(lp);
+                      }
+                  } catch (Throwable t) {
+                      // las barras del sistema no son críticas
+                  }
+              }
+
+              private void restoreWindow() {
+                  Activity a = getActivity();
+                  if (a == null) return;
+                  try {
+                      a.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+                      a.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                      immersive(false);
+                      WebView wv = getBridge().getWebView();
+                      if (wv != null) wv.setBackgroundColor(Color.BLACK);
+                  } catch (Throwable t) {
+                      // idem
+                  }
+              }
+
+              private void applyAspect() {
+                  if (view == null || box == null) return;
+                  try {
+                      FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) view.getLayoutParams();
+                      boolean ratio = "16:9".equals(aspect) || "4:3".equals(aspect);
+                      if (ratio) {
+                          float r = "16:9".equals(aspect) ? 16f / 9f : 4f / 3f;
+                          int bw = box.getWidth(), bh = box.getHeight();
+                          if (bw > 0 && bh > 0) {
+                              if ((float) bw / (float) bh > r) {
+                                  lp.height = bh;
+                                  lp.width = Math.round(bh * r);
+                              } else {
+                                  lp.width = bw;
+                                  lp.height = Math.round(bw / r);
+                              }
+                          }
+                          view.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);
+                      } else {
+                          lp.width = ViewGroup.LayoutParams.MATCH_PARENT;
+                          lp.height = ViewGroup.LayoutParams.MATCH_PARENT;
+                          if ("zoom".equals(aspect)) view.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
+                          else if ("fill".equals(aspect)) view.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);
+                          else view.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
+                      }
+                      lp.gravity = Gravity.CENTER;
+                      view.setLayoutParams(lp);
+                  } catch (Throwable t) {
+                      // sin efecto
+                  }
+              }
+
+              private void applySubStyle() {
+                  if (view == null) return;
+                  try {
+                      SubtitleView sv = view.getSubtitleView();
+                      if (sv == null) return;
+                      float f = 0.0533f;
+                      if ("s".equals(subSize)) f = 0.042f;
+                      else if ("l".equals(subSize)) f = 0.07f;
+                      else if ("xl".equals(subSize)) f = 0.09f;
+                      int bg = Color.TRANSPARENT;
+                      int edge = CaptionStyleCompat.EDGE_TYPE_OUTLINE;
+                      if ("shadow".equals(subBg)) {
+                          edge = CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW;
+                      } else if ("light".equals(subBg)) {
+                          bg = Color.argb(110, 0, 0, 0);
+                          edge = CaptionStyleCompat.EDGE_TYPE_NONE;
+                      } else if ("normal".equals(subBg)) {
+                          bg = Color.argb(170, 0, 0, 0);
+                          edge = CaptionStyleCompat.EDGE_TYPE_NONE;
+                      } else if ("solid".equals(subBg)) {
+                          bg = Color.argb(255, 0, 0, 0);
+                          edge = CaptionStyleCompat.EDGE_TYPE_NONE;
+                      }
+                      sv.setApplyEmbeddedStyles(false);
+                      sv.setApplyEmbeddedFontSizes(false);
+                      sv.setFractionalTextSize(f);
+                      sv.setStyle(new CaptionStyleCompat(Color.WHITE, bg, Color.TRANSPARENT, edge, Color.BLACK, null));
+                  } catch (Throwable t) {
+                      // sin efecto
+                  }
+              }
+
+              /* ---------------- abrir el video ---------------- */
+
+              /* Las listas de rpmvid/cubeembed pasan por el servidor local (ZineProxy) si existe en esta compilación. */
+              private String proxied(String u, boolean always) {
+                  try {
+                      Class<?> c = Class.forName("com.zineclick.app.ZineProxy");
+                      java.lang.reflect.Method m = c.getMethod(always ? "wrapAlways" : "wrap", String.class, String.class, String.class);
+                      Object r = m.invoke(null, u, referer, uagent);
+                      return r instanceof String ? (String) r : u;
+                  } catch (Throwable t) {
+                      return u;
+                  }
+              }
+
+              private MediaItem buildItem(boolean always) {
+                  String low = url.toLowerCase(Locale.ROOT);
+                  MediaItem.Builder b = new MediaItem.Builder().setUri(Uri.parse(proxied(url, always)));
+                  if (low.contains(".m3u8")) b.setMimeType(MimeTypes.APPLICATION_M3U8);
+                  else if (low.contains(".mpd")) b.setMimeType(MimeTypes.APPLICATION_MPD);
+                  return b.build();
+              }
+
+              private void loadMedia(long startAt, boolean always) {
+                  if (player == null) return;
+                  player.setMediaItem(buildItem(always && url.toLowerCase(Locale.ROOT).contains(".m3u8")), Math.max(startAt, 0L));
+                  player.prepare();
+                  player.setPlayWhenReady(true);
+              }
+
+              private void startPlayback(String u) {
+                  teardown();
+                  Activity a = getActivity();
+                  WebView wv = getBridge().getWebView();
+                  parent = (ViewGroup) wv.getParent();
+                  box = new FrameLayout(a);
+                  box.setBackgroundColor(Color.BLACK);
+                  view = new PlayerView(a);
+                  view.setUseController(false);
+                  view.setShutterBackgroundColor(Color.BLACK);
+                  box.addView(view, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER));
+                  parent.addView(box, 0, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                  wv.setBackgroundColor(Color.TRANSPARENT);
+                  a.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+                  a.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                  immersive(true);
+
+                  url = u;
+                  aspect = "fit";
+                  active = true;
+                  suspended = false;
+                  audioChecked = false;
+                  retries = 0;
+                  qualityH = 0;
+                  pipEntering = false;
+
+                  DefaultHttpDataSource.Factory http = new DefaultHttpDataSource.Factory()
+                          .setAllowCrossProtocolRedirects(true)
+                          .setConnectTimeoutMs(15000)
+                          .setReadTimeoutMs(25000)
+                          .setUserAgent(uagent.isEmpty() ? DEFAULT_UA : uagent);
+                  if (!referer.isEmpty()) {
+                      HashMap<String, String> h = new HashMap<String, String>();
+                      h.put("Referer", referer);
+                      http.setDefaultRequestProperties(h);
+                  }
+                  DefaultMediaSourceFactory msf = new DefaultMediaSourceFactory(a)
+                          .setDataSourceFactory(new DefaultDataSource.Factory(a, http));
+                  DefaultRenderersFactory rf = new DefaultRenderersFactory(a)
+                          .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+                          .setEnableDecoderFallback(true);
+                  DefaultLoadControl lc = new DefaultLoadControl.Builder()
+                          .setBufferDurationsMs(30000, 120000, 2500, 5000)
+                          .build();
+                  player = new ExoPlayer.Builder(a, rf)
+                          .setMediaSourceFactory(msf)
+                          .setTrackSelector(new DefaultTrackSelector(a))
+                          .setLoadControl(lc)
+                          .setHandleAudioBecomingNoisy(true)
+                          .build();
+                  player.setAudioAttributes(new AudioAttributes.Builder()
+                          .setUsage(C.USAGE_MEDIA)
+                          .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                          .build(), true);
+                  player.addListener(listener);
+                  view.setPlayer(player);
+                  applySubStyle();
+                  applyAspect();
+                  loadMedia(0, false);
+                  handler.removeCallbacks(ticker);
+                  handler.post(ticker);
+              }
+
+              private void teardown() {
+                  active = false;
+                  suspended = false;
+                  handler.removeCallbacksAndMessages(null);
+                  final ExoPlayer old = player;
+                  player = null;
+                  try {
+                      if (view != null) view.setPlayer(null);
+                  } catch (Throwable t) {
+                      // se sigue liberando el resto
+                  }
+                  try {
+                      if (old != null) {
+                          old.removeListener(listener);
+                          old.stop();
+                          old.release();
+                      }
+                  } catch (Throwable t) {
+                      // idem
+                  }
+                  try {
+                      if (box != null && parent != null) parent.removeView(box);
+                  } catch (Throwable t) {
+                      // idem
+                  }
+                  box = null;
+                  view = null;
+                  thumbEx.execute(new Runnable() {
+                      @Override
+                      public void run() {
+                          closeRetriever();
+                      }
+                  });
+              }
+
+              /* ---------------- métodos que llama la página ---------------- */
+
+              @PluginMethod
+              public void play(final PluginCall call) {
+                  final String u = call.getString("url");
+                  final String rf = call.getString("referer", "");
+                  final String ag = call.getString("userAgent", "");
+                  final String ssz = call.getString("subSize", "");
+                  final String sbg = call.getString("subBg", "");
+                  if (u == null || u.isEmpty()) {
+                      call.reject("Falta el enlace");
+                      return;
+                  }
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              referer = rf == null ? "" : rf;
+                              uagent = ag == null ? "" : ag;
+                              subSize = ssz == null ? "" : ssz;
+                              subBg = sbg == null ? "" : sbg;
+                              startPlayback(u);
+                              call.resolve();
+                          } catch (Throwable t) {
+                              teardown();
+                              restoreWindow();
+                              call.reject("No se pudo iniciar ExoPlayer: " + t.getMessage());
+                          }
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void stop(final PluginCall call) {
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          teardown();
+                          restoreWindow();
+                          call.resolve();
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void togglePlay(final PluginCall call) {
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          if (player != null) {
+                              if (call.hasOption("play")) {
+                                  player.setPlayWhenReady(call.getBoolean("play", true));
+                              } else {
+                                  player.setPlayWhenReady(!player.getPlayWhenReady());
+                              }
+                              pushState();
+                          }
+                          call.resolve();
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void seekTo(final PluginCall call) {
+                  final double ms = call.getDouble("ms", 0.0);
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          if (player != null) player.seekTo((long) Math.max(ms, 0));
+                          call.resolve();
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void seekBy(final PluginCall call) {
+                  final double ms = call.getDouble("ms", 0.0);
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          if (player != null) {
+                              long len = player.getDuration();
+                              long t = player.getCurrentPosition() + (long) ms;
+                              if (t < 0) t = 0;
+                              if (len > 0 && t > len - 500) t = len - 500;
+                              player.seekTo(Math.max(t, 0L));
+                          }
+                          call.resolve();
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void setRate(final PluginCall call) {
+                  final double r = call.getDouble("rate", 1.0);
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          if (player != null) player.setPlaybackParameters(new PlaybackParameters((float) r));
+                          call.resolve();
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void setAspect(final PluginCall call) {
+                  final String m = call.getString("mode", "fit");
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          aspect = m == null ? "fit" : m;
+                          applyAspect();
+                          call.resolve();
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void setQuality(final PluginCall call) {
+                  final int h = call.getInt("height", 0);
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              qualityH = h;
+                              if (player != null) {
+                                  TrackSelectionParameters.Builder b = player.getTrackSelectionParameters().buildUpon();
+                                  b.setMaxVideoSize(Integer.MAX_VALUE, h > 0 ? h : Integer.MAX_VALUE);
+                                  player.setTrackSelectionParameters(b.build());
+                              }
+                          } catch (Throwable t) {
+                              // se queda con la calidad anterior
+                          }
+                          call.resolve();
+                      }
+                  });
+              }
+
+              /* pistas: el id es la posición en la lista (en subtítulos y audio, -1 = desactivado) */
+              private ArrayList<Tracks.Group> groupsOf(int type, ArrayList<Integer> idx) {
+                  ArrayList<Tracks.Group> out = new ArrayList<Tracks.Group>();
+                  if (player == null) return out;
+                  for (Tracks.Group g : player.getCurrentTracks().getGroups()) {
+                      if (g.getType() != type) continue;
+                      for (int i = 0; i < g.length; i++) {
+                          out.add(g);
+                          idx.add(i);
+                      }
+                  }
+                  return out;
+              }
+
+              private void pickTrack(int type, int id) {
+                  if (player == null) return;
+                  TrackSelectionParameters.Builder b = player.getTrackSelectionParameters().buildUpon();
+                  if (id < 0) {
+                      b.setTrackTypeDisabled(type, true);
+                  } else {
+                      ArrayList<Integer> idx = new ArrayList<Integer>();
+                      ArrayList<Tracks.Group> gs = groupsOf(type, idx);
+                      if (id >= gs.size()) return;
+                      b.setTrackTypeDisabled(type, false);
+                      b.setOverrideForType(new TrackSelectionOverride(gs.get(id).getMediaTrackGroup(), idx.get(id)));
+                  }
+                  player.setTrackSelectionParameters(b.build());
+              }
+
+              @PluginMethod
+              public void setAudio(final PluginCall call) {
+                  final int id = call.getInt("id", -1);
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              pickTrack(C.TRACK_TYPE_AUDIO, id);
+                          } catch (Throwable t) {
+                              // sin efecto
+                          }
+                          call.resolve();
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void setSubtitle(final PluginCall call) {
+                  final int id = call.getInt("id", -1);
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              pickTrack(C.TRACK_TYPE_TEXT, id);
+                          } catch (Throwable t) {
+                              // sin efecto
+                          }
+                          call.resolve();
+                      }
+                  });
+              }
+
+              private static String codecName(String mime) {
+                  if (mime == null) return "";
+                  if (MimeTypes.AUDIO_E_AC3_JOC.equals(mime)) return "Atmos";
+                  if (MimeTypes.AUDIO_E_AC3.equals(mime)) return "EAC3";
+                  if (MimeTypes.AUDIO_AC3.equals(mime)) return "AC3";
+                  if (MimeTypes.AUDIO_AAC.equals(mime)) return "AAC";
+                  if (MimeTypes.AUDIO_OPUS.equals(mime)) return "Opus";
+                  if (MimeTypes.AUDIO_TRUEHD.equals(mime)) return "TrueHD";
+                  if (MimeTypes.AUDIO_FLAC.equals(mime)) return "FLAC";
+                  if (MimeTypes.AUDIO_MPEG.equals(mime)) return "MP3";
+                  if (mime.startsWith("audio/vnd.dts")) return "DTS";
+                  return "";
+              }
+
+              private static String chName(int n) {
+                  if (n <= 0) return "";
+                  if (n == 1) return "1.0";
+                  if (n == 2) return "2.0";
+                  if (n == 6) return "5.1";
+                  if (n == 8) return "7.1";
+                  return n + "ch";
+              }
+
+              /* El nombre termina con [Idioma] para que la página reconozca el idioma igual que con VLC. */
+              private String trackName(Format f, int n, boolean audio) {
+                  String lang = f.language;
+                  String langName = "";
+                  boolean latino = false;
+                  if (lang != null && !lang.isEmpty() && !"und".equals(lang)) {
+                      Locale loc = Locale.forLanguageTag(lang);
+                      langName = loc.getDisplayLanguage(Locale.ENGLISH);
+                      if (langName == null || langName.isEmpty()) langName = lang;
+                      String rg = loc.getCountry();
+                      if ("es".equals(loc.getLanguage()) && rg != null && !rg.isEmpty() && !"ES".equals(rg)) latino = true;
+                  }
+                  StringBuilder sb = new StringBuilder();
+                  if (f.label != null && !f.label.isEmpty()) sb.append(f.label);
+                  else if (!langName.isEmpty()) sb.append(langName).append(latino ? " (Latino)" : "");
+                  else sb.append(audio ? "Audio " : "Subtítulo ").append(n + 1);
+                  if (audio) {
+                      String cd = codecName(f.sampleMimeType), ch = chName(f.channelCount);
+                      String ex = (cd + " " + ch).trim();
+                      if (!ex.isEmpty()) sb.append(" · ").append(ex);
+                  }
+                  if ((f.selectionFlags & C.SELECTION_FLAG_FORCED) != 0) sb.append(" · Forzado");
+                  if (!langName.isEmpty()) sb.append(" [").append(langName).append("]");
+                  return sb.toString();
+              }
+
+              private void fillTracks(JSArray out, int type, boolean audio, JSObject res, String curKey) {
+                  JSObject off = new JSObject();
+                  off.put("id", -1);
+                  off.put("name", audio ? "Disable" : "Disable");
+                  out.put(off);
+                  int cur = -1;
+                  ArrayList<Integer> idx = new ArrayList<Integer>();
+                  ArrayList<Tracks.Group> gs = groupsOf(type, idx);
+                  for (int k = 0; k < gs.size(); k++) {
+                      Tracks.Group g = gs.get(k);
+                      int i = idx.get(k);
+                      JSObject t = new JSObject();
+                      t.put("id", k);
+                      t.put("name", trackName(g.getTrackFormat(i), k, audio));
+                      out.put(t);
+                      if (g.isTrackSelected(i)) cur = k;
+                  }
+                  res.put(curKey, cur);
+              }
+
+              @PluginMethod
+              public void getTracks(final PluginCall call) {
+                  ui(new Runnable() {
+                      @Override
+                      public void run() {
+                          JSObject res = new JSObject();
+                          JSArray audio = new JSArray();
+                          JSArray subs = new JSArray();
+                          try {
+                              if (player != null) {
+                                  fillTracks(audio, C.TRACK_TYPE_AUDIO, true, res, "audioCurrent");
+                                  fillTracks(subs, C.TRACK_TYPE_TEXT, false, res, "subCurrent");
+                                  /* sin pistas reales: la lista queda vacía para que la página lo reintente */
+                                  if (audio.length() <= 1) audio = new JSArray();
+                                  if (subs.length() <= 1) subs = new JSArray();
+                              }
+                          } catch (Throwable t) {
+                              // se devuelven las listas que se hayan podido leer
+                          }
+                          res.put("quality", qualityH);
+                          res.put("audio", audio);
+                          res.put("subs", subs);
+                          call.resolve(res);
+                      }
+                  });
+              }
+
+              /* ---------------- vista previa de escenas (al deslizar la barra) ---------------- */
+
+              private synchronized MediaMetadataRetriever retriever(String u) {
+                  if (!u.equals(mmrUrl)) {
+                      closeRetriever();
+                      mmrUrl = u;
+                      mmrFailed = false;
+                  }
+                  if (mmrFailed || u.isEmpty()) return null;
+                  if (mmr == null) {
+                      try {
+                          MediaMetadataRetriever r = new MediaMetadataRetriever();
+                          HashMap<String, String> h = new HashMap<String, String>();
+                          if (!referer.isEmpty()) h.put("Referer", referer);
+                          r.setDataSource(u, h);
+                          mmr = r;
+                      } catch (Throwable t) {
+                          mmrFailed = true;
+                          mmr = null;
+                      }
+                  }
+                  return mmr;
+              }
+
+              private synchronized void closeRetriever() {
+                  try {
+                      if (mmr != null) mmr.release();
+                  } catch (Throwable t) {
+                      // idem
+                  }
+                  mmr = null;
+                  mmrUrl = "";
+              }
+
+              @PluginMethod
+              public void getThumb(final PluginCall call) {
+                  final double ms = call.getDouble("ms", 0.0);
+                  final String u = url;
+                  thumbEx.execute(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              MediaMetadataRetriever r = retriever(u);
+                              if (r == null) {
+                                  call.resolve(new JSObject());
+                                  return;
+                              }
+                              Bitmap bmp = r.getFrameAtTime((long) (Math.max(ms, 0) * 1000), MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+                              if (bmp == null) {
+                                  call.resolve(new JSObject());
+                                  return;
+                              }
+                              int w = 320;
+                              int h = Math.max(1, bmp.getHeight() * w / Math.max(1, bmp.getWidth()));
+                              Bitmap sm = Bitmap.createScaledBitmap(bmp, w, h, true);
+                              ByteArrayOutputStream bo = new ByteArrayOutputStream();
+                              sm.compress(Bitmap.CompressFormat.JPEG, 60, bo);
+                              if (sm != bmp) bmp.recycle();
+                              JSObject o = new JSObject();
+                              o.put("data", "data:image/jpeg;base64," + Base64.encodeToString(bo.toByteArray(), Base64.NO_WRAP));
+                              call.resolve(o);
+                          } catch (Throwable t) {
+                              call.resolve(new JSObject());
+                          }
+                      }
+                  });
+              }
+
+              /* ---------------- ventana flotante (imagen en imagen) ---------------- */
+
+              public boolean wantsPip() {
+                  return active && !suspended && player != null;
+              }
+
+              public Rational pipRatio() {
+                  return new Rational(16, 9);
+              }
+
+              public void pipWillEnter() {
+                  pipEntering = true;
+              }
+
+              public void pipChanged(boolean on) {
+                  JSObject o = new JSObject();
+                  o.put("on", on);
+                  notifyListeners("znpPip", o);
+                  if (!on) {
+                      pipEntering = false;
+                      /* si la ventana flotante se cerró con la X (la app queda detenida), se pausa el video */
+                      handler.postDelayed(new Runnable() {
+                          @Override
+                          public void run() {
+                              try {
+                                  if (player == null || !active || suspended) return;
+                                  if (!uiResumed) handleOnStop();
+                              } catch (Throwable t) {
+                                  // sin efecto
+                              }
+                          }
+                      }, 1000);
+                  }
+              }
+
+              private boolean pipKeep() {
+                  if (pipEntering) return true;
+                  try {
+                      Activity a = getActivity();
+                      return a != null && Build.VERSION.SDK_INT >= 24 && a.isInPictureInPictureMode();
+                  } catch (Throwable t) {
+                      return false;
+                  }
+              }
+
+              /* ---------------- ciclo de vida de la app ---------------- */
+
+              @Override
+              protected void handleOnPause() {
+                  uiResumed = false;
+              }
+
+              @Override
+              protected void handleOnResume() {
+                  uiResumed = true;
+              }
+
+              @Override
+              protected void handleOnStop() {
+                  if (pipKeep()) return;
+                  if (active && !suspended && player != null) {
+                      try {
+                          wasPlaying = player.getPlayWhenReady();
+                          player.setPlayWhenReady(false);
+                      } catch (Throwable t) {
+                          // idem
+                      }
+                      suspended = true;
+                  }
+              }
+
+              @Override
+              protected void handleOnStart() {
+                  if (active && suspended && player != null) {
+                      suspended = false;
+                      try {
+                          if (wasPlaying) player.setPlayWhenReady(true);
+                      } catch (Throwable t) {
+                          // idem
+                      }
+                  }
+              }
+
+              @Override
+              protected void handleOnDestroy() {
+                  teardown();
+              }
+          }
+          JAVA_EXO
+          python3 - <<'PY'
+          import re
+          PKG = 'android/app/src/main/java/com/zineclick/app/'
+
+          # 1) dependencias de ExoPlayer (Media3)
+          p = 'android/app/build.gradle'
+          s = open(p, encoding='utf-8').read()
+          if 'media3-exoplayer' not in s:
+              M = '1.5.1'
+              deps = "dependencies {"
+              for mod in ('media3-exoplayer', 'media3-exoplayer-hls', 'media3-exoplayer-dash', 'media3-ui'):
+                  deps += "\n    implementation 'androidx.media3:%s:%s'" % (mod, M)
+              assert 'dependencies {' in s, 'No se encontro dependencies en build.gradle'
+              s = s.replace('dependencies {', deps, 1)
+              open(p, 'w', encoding='utf-8').write(s)
+
+          # 2) permitir enlaces http (algunas fuentes no usan https)
+          m = 'android/app/src/main/AndroidManifest.xml'
+          t = open(m, encoding='utf-8').read()
+          i = t.find('<application')
+          assert i > 0, 'No se encontro <application> en el manifest'
+          j = t.find('>', i)
+          if 'usesCleartextTraffic' not in t[i:j]:
+              t = t[:j] + '\n        android:usesCleartextTraffic="true"' + t[j:]
+              open(m, 'w', encoding='utf-8').write(t)
+
+          # 3) registrar el plugin en MainActivity
+          a = PKG + 'MainActivity.java'
+          s = open(a, encoding='utf-8').read()
+          old = 'registerPlugin(ZinePlayerPlugin.class);'
+          assert s.count(old) == 1, 'No se encontro registerPlugin(ZinePlayerPlugin.class)'
+          if 'ZineExoPlugin' not in s:
+              s = s.replace(old, old + '\n        registerPlugin(ZineExoPlugin.class);')
+
+          # 4) ventana flotante con ExoPlayer (opcional: si no encaja, ExoPlayer funciona igual sin ella)
+          A1 = 'super.onUserLeaveHint();'
+          A2 = 'super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);'
+          if 'PictureInPictureParams' in s and s.count(A1) == 1 and s.count(A2) == 1 and 'getPlugin("ZineExo")' not in s:
+              B1 = A1 + """
+                  try {
+                      com.getcapacitor.PluginHandle eh = getBridge() != null ? getBridge().getPlugin("ZineExo") : null;
+                      if (eh != null && Build.VERSION.SDK_INT >= 26) {
+                          ZineExoPlugin ex = (ZineExoPlugin) eh.getInstance();
+                          if (ex != null && ex.wantsPip()) {
+                              PictureInPictureParams.Builder eb = new PictureInPictureParams.Builder();
+                              eb.setAspectRatio(ex.pipRatio());
+                              if (enterPictureInPictureMode(eb.build())) ex.pipWillEnter();
+                              return;
+                          }
+                      }
+                  } catch (Throwable t) {
+                      // sin ventana flotante con ExoPlayer
+                  }"""
+              B2 = A2 + """
+                  try {
+                      com.getcapacitor.PluginHandle eh2 = getBridge() != null ? getBridge().getPlugin("ZineExo") : null;
+                      if (eh2 != null) {
+                          ZineExoPlugin ex2 = (ZineExoPlugin) eh2.getInstance();
+                          if (ex2 != null) ex2.pipChanged(isInPictureInPictureMode);
+                      }
+                  } catch (Throwable t) {
+                      // idem
+                  }"""
+              s = s.replace(A1, B1).replace(A2, B2)
+          else:
+              print('Aviso: ventana flotante con ExoPlayer no aplicada (MainActivity distinta a la esperada)')
+          open(a, 'w', encoding='utf-8').write(s)
+          print('ExoPlayer instalado')
+          PY
+
+
       - name: Compilar APK
         id: build
         continue-on-error: true
         working-directory: android
+        env:
+          EXO_OUT: ${{ steps.exo.outcome }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          if ! ./gradlew assembleDebug; then
+            if [ "$EXO_OUT" = "success" ] && [ -d /tmp/snap_exo ]; then
+              echo "::warning::Con ExoPlayer no compiló. Se genera el APK sin él (queda VLC)."
+              rm -rf app/src/main
+              cp -a /tmp/snap_exo/main app/src/main
+              cp /tmp/snap_exo/build.gradle app/build.gradle
+              ./gradlew assembleDebug
+            else
+              exit 1
+            fi
+          fi
 
       - name: Plan B-1 - compilar sin el navegador oculto
         id: buildbr
