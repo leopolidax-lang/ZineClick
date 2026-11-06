@@ -6,7 +6,15 @@
   var W = window, D = document;
   function isNative() { try { return !!(W.Capacitor && W.Capacitor.isNativePlatform && W.Capacitor.isNativePlatform()); } catch (e) { return false; } }
   if (!isNative()) return;
-  function plug() { var c = W.Capacitor, p = c && c.Plugins && c.Plugins.ZinePlayer; return p && p.play ? p : null; }
+  /* Dos motores: ExoPlayer (ZineExo, principal) y VLC (ZinePlayer, respaldo). El de cada reproducción queda en "engine". */
+  var engine = "vlc", vlcFor = "";
+  function vlcP() { var c = W.Capacitor, p = c && c.Plugins && c.Plugins.ZinePlayer; return p && p.play ? p : null; }
+  function exoP() { var c = W.Capacitor, p = c && c.Plugins && c.Plugins.ZineExo; return p && p.play ? p : null; }
+  function plug() { return engine === "exo" && exoP() ? exoP() : vlcP(); }
+  function engPref() { try { var s = JSON.parse(localStorage.getItem("zy_settings_v1") || "null"); return s && s.engine === "vlc" ? "vlc" : "exo"; } catch (e) { return "exo"; } }
+  /* muestra en Ajustes la opción de reproductor (solo existe en la app Android con ExoPlayer) */
+  function showEngineRow() { try { var r = D.getElementById("stEngineRow"); if (r && exoP()) r.style.display = ""; } catch (e) {} }
+  showEngineRow(); D.addEventListener("DOMContentLoaded", showEngineRow); setTimeout(showEngineRow, 1500); setTimeout(showEngineRow, 5000);
   function noop() {}
   function say(m) { try { if (typeof W.toast === "function") W.toast(m); } catch (e) {} }
 
@@ -288,7 +296,20 @@
     return (h ? h + ":" + (m < 10 ? "0" : "") + m : m) + ":" + (x < 10 ? "0" : "") + x;
   }
   function $(id) { return D.getElementById(id); }
-  function call(m, a) { var p = plug(); if (!p || !p[m]) return Promise.reject(new Error("sin plugin")); return p[m](a || {}); }
+  /* si ExoPlayer no puede con el video (audio no compatible, formato raro), se continúa con VLC en el mismo minuto */
+  function toVlc(why) {
+    if (!isOpen || engine !== "exo") return false;
+    var t = st.time, title = curTitle, url = curUrl, mt = meta, fb = fallback;
+    vlcFor = url;
+    if (why) say(why);
+    close(true);
+    setTimeout(function () { open(url, title, fb, mt, t, "vlc"); }, 250);
+    return true;
+  }
+  function call(m, a) {
+    if (engine === "exo" && /^(castList|castTo|tvList|tvTo)$/.test(m)) { toVlc("Para transmitir a la tele se usa VLC"); return Promise.reject(new Error("transmitir")); }
+    var p = plug(); if (!p || !p[m]) return Promise.reject(new Error("sin plugin")); return p[m](a || {});
+  }
   /* duración real; si la fuente no la da (algunos addons), se usa la de TMDB para que la barra avance */
   function eff() { return st.length > 0 ? st.length : ((meta && meta.rt) || 0); }
   function isTv() { return !!(W._addonCtx && W._addonCtx.type === "tv"); }
@@ -873,9 +894,11 @@
   }
 
   /* ---------- eventos que manda el plugin nativo ---------- */
-  function listen(p) {
-    if (listening || !p.addListener) return;
+  function listen() {
+    if (listening) return;
     listening = true;
+    [vlcP(), exoP()].forEach(function (p) {
+    if (!p || !p.addListener) return;
     p.addListener("znpState", function (s) {
       if (!isOpen || !s) return;
       st.time = Number(s.time) || 0; st.length = Number(s.length) || 0; st.playing = !!s.playing; st.buffering = !!s.buffering;
@@ -899,6 +922,7 @@
     });
     p.addListener("znpEnded", function () {
       if (!isOpen) return;
+      if (engine === "exo" && Date.now() - openAt < 45000 && st.time < 20000 && toVlc("")) return;
       if (Date.now() - openAt < 45000 && st.time < 20000 && W.ZAM && W.ZAM.playFailed) { meta = null; close(true); W.ZAM.playFailed(); return; } /* terminó al instante: la fuente no sirve */
       var tv = isTv(); st.time = st.length; try { if (meta && W.ZCW) W.ZCW.progress(meta, st.length, st.length, true); } catch (e) {} meta = null;
       if (sleepEnd) { sleepClear(); close(true); if (W.ZAM && W.ZAM.goHome) W.ZAM.goHome(); say("Temporizador: reproducción cerrada"); return; }
@@ -923,15 +947,18 @@
     });
     p.addListener("znpError", function () {
       if (!isOpen) return;
+      if (toVlc("ExoPlayer no pudo con este video; se prueba con VLC")) return;
       /* la fuente falló nada más abrir: se descarta y el menú prueba la siguiente (igual que cuando termina al instante) */
       if (Date.now() - openAt < 45000 && st.time < 20000 && W.ZAM && W.ZAM.playFailed) { meta = null; close(true); W.ZAM.playFailed(); return; }
       var fb = fallback; close(true);
       if (fb) { say("VLC no pudo con esta fuente; se usa el reproductor interno"); try { var pn = D.getElementById("addonStreamsPanel"); if (pn) pn.hidden = true; } catch (e2) {} fb(); } else say("No se pudo reproducir este video. Prueba otra fuente.");
     });
+    });
   }
 
   /* ---------- abrir y cerrar ---------- */
-  function open(url, title, fb, mt, startMs) {
+  function open(url, title, fb, mt, startMs, force) {
+    engine = force || (engPref() === "exo" && exoP() && vlcFor !== url ? "exo" : "vlc");
     var p = plug(); if (!p) return false;
     build(); listen(p);
     meta = mt || null; thumbC = {}; thumbBusy = false; thumbOk = true; thumbFail = 0; thumbWant = -1;
@@ -950,6 +977,7 @@
     isOpen = true; root.hidden = false; D.documentElement.classList.add("znp-on");
     cwPill(); paint(); showUi(); attachBack();
     p.play({ subSize: (eleg() && subSt) ? subSt.size : "", subBg: (eleg() && subSt) ? subSt.bg : "", url: url, title: curTitle, referer: (W.__zplHdr && (W.__zplHdr.Referer || W.__zplHdr.referer)) || "", userAgent: (W.__zplHdr && (W.__zplHdr["User-Agent"] || W["__zplHdr"]["user-agent"])) || "" }).catch(function (e) {
+      if (engine === "exo") { vlcFor = url; close(false); setTimeout(function () { open(url, title, fb, mt, startMs, "vlc"); }, 50); return; }
       var f = fallback; close(false);
       if (f) { say("No se pudo abrir el reproductor nativo; se usa el interno"); f(); }
       else alert("No se pudo abrir el reproductor: " + ((e && e.message) || e));
@@ -979,5 +1007,5 @@
     if (open(url, title, null)) return;
     if (origVlc) return origVlc.apply(this, arguments);
   };
-  W.ZNP = { open: open, close: close, available: function () { return !!plug(); } };
+  W.ZNP = { open: open, close: close, available: function () { return !!(vlcP() || exoP()); } };
 })();

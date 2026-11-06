@@ -349,6 +349,8 @@ html:not(#zy) .logo .wmt b{font-weight:300;background:linear-gradient(90deg,#7fb
     <div class="st-seg" role="radiogroup" aria-label="Tamaño de las tarjetas" data-key="cards"><button type="button" role="radio" aria-checked="false" data-val="compact">Compactas</button><button type="button" role="radio" aria-checked="false" data-val="normal">Normales</button><button type="button" role="radio" aria-checked="false" data-val="large">Grandes</button></div></div>
    <div class="st-row"><div class="st-lab"><b>Estilo de carga del reproductor</b><small>Animación que aparece mientras carga el video.</small></div>
     <div class="st-seg st-seg-grid" role="radiogroup" aria-label="Estilo de carga del reproductor" data-key="loader"><button type="button" role="radio" aria-checked="false" data-val="trace">Trazo de luz</button><button type="button" role="radio" aria-checked="false" data-val="pulse">Pulso</button><button type="button" role="radio" aria-checked="false" data-val="build">Ensamblado</button><button type="button" role="radio" aria-checked="false" data-val="edge">Borde de luz</button><button type="button" role="radio" aria-checked="false" data-val="zorro">Z</button></div></div>
+   <div class="st-row" id="stEngineRow" style="display:none"><div class="st-lab"><b>Reproductor de video (Android)</b><small>ExoPlayer es más ligero y fluido. VLC reproduce más formatos de audio y sirve para transmitir a la tele. Si ExoPlayer no puede con un video, Zynora pasa sola a VLC.</small></div>
+    <div class="st-seg" role="radiogroup" aria-label="Reproductor de video" data-key="engine"><button type="button" role="radio" aria-checked="false" data-val="exo">ExoPlayer</button><button type="button" role="radio" aria-checked="false" data-val="vlc">VLC</button></div></div>
   </section>
   <div class="st-card" id="addonCard" style="margin-top: 16px;">
     <h2>Proveedores y Addons Externos</h2>
@@ -1674,7 +1676,7 @@ function toggleRouSound(){rouSound=!rouSound;try{localStorage.setItem("cc_rou_so
    Usa su propia clave "zy_settings_v1". No lee ni modifica ninguna clave existente
    (listas, caché, gustos, credenciales, región...). Restablecer solo borra esa clave. */
 var ZY_VERSION="1.0",zyKey="zy_settings_v1",zySettings=null,zyGenreList=[],zyResetTimer=null,zyPrev="home";
-var zyDefaults={amoled:false,style:"vivid",accent:"cyan",reduceMotion:false,bgTrailer:false,cards:"normal",loader:"pulse",kind:"both",genres:[],sort:"year",prioritize:true,srcLangs:[],autoSrc:true};
+var zyDefaults={amoled:false,style:"vivid",accent:"cyan",reduceMotion:false,bgTrailer:false,cards:"normal",loader:"pulse",kind:"both",genres:[],sort:"year",prioritize:true,srcLangs:[],autoSrc:true,engine:"exo"};
 var zyLangList=[["latino","Latino 💃🏻"],["multi","Multi"],["espanol","Español (España)"],["ingles","Inglés"],["frances","Francés"],["portugues","Portugués"],["italiano","Italiano"],["aleman","Alemán"],["japones","Japonés"],["coreano","Coreano"],["ruso","Ruso"],["chino","Chino"],["hindi","Hindi"]];
 function zySystemReduce(){try{return window.matchMedia("(prefers-reduced-motion: reduce)").matches}catch(e){return false}}
 function zyReduceMotion(){return document.documentElement.classList.contains("reduce-motion")}
@@ -1693,6 +1695,7 @@ function zySanitize(r){
   d.prioritize=r.prioritize!==false;
   d.srcLangs=Array.isArray(r.srcLangs)?[...new Set(r.srcLangs.filter(x=>zyLangList.some(l=>l[0]===x)))]:[];
   d.autoSrc=r.autoSrc!==false;
+  d.engine=r.engine==="vlc"?"vlc":"exo";
   return d}
 function zyLoad(){try{return zySanitize(JSON.parse(localStorage.getItem(zyKey)||"null"))}catch(e){return zySanitize(null)}}
 function zySave(){try{localStorage.setItem(zyKey,JSON.stringify(zySettings));return true}catch(e){toast("No se pudo guardar este ajuste en el dispositivo.");return false}}
