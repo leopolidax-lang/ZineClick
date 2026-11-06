@@ -159,9 +159,9 @@ html.reduce-motion .zy-ss,html.reduce-motion .zy-sb{transition:none}
  html[data-style="elegant"] .hc{--zy-h:calc(var(--zy-d,140px) + clamp(250px,29vw,410px) + clamp(36px,4vw,64px))}
  html[data-style="elegant"] .hc-bg{display:block;position:absolute;z-index:0;pointer-events:none;overflow:hidden;left:calc(50% - 50vw);width:100vw;top:calc(-1 * var(--zy-d,140px));height:var(--zy-h);
   -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 58%,rgba(0,0,0,.5) 80%,transparent 100%);mask-image:linear-gradient(180deg,#000 0%,#000 58%,rgba(0,0,0,.5) 80%,transparent 100%)}
- html[data-style="elegant"] .hc-bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 20%;transform:none;opacity:0;transition:opacity .5s ease}
+ html[data-style="elegant"] .hc-bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 20%;transform:scale(1.05);filter:blur(3px);opacity:0;transition:opacity .5s ease}
  html[data-style="elegant"] .hc-bg img.on{opacity:1}
- html[data-style="elegant"] .hc-bg::after{content:"";position:absolute;left:0;right:0;top:0;height:110px;background:linear-gradient(180deg,rgba(5,6,10,.45),transparent)}
+ html[data-style="elegant"] .hc-bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,6,10,.55) 0%,rgba(5,6,10,.42) 40%,rgba(5,6,10,.46) 100%)}
  html[data-style="elegant"] .hc-stage{position:relative;z-index:1}
 
  /* la cabecera deja ver el fondo mientras estás arriba del todo */
@@ -169,10 +169,10 @@ html.reduce-motion .zy-ss,html.reduce-motion .zy-sb{transition:none}
  html:not(#zy)[data-style="elegant"].zy-hbg header{background:transparent;border-bottom-color:transparent;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
 
  /* la tarjeta es una ventana: su imagen tiene el MISMO tamaño y posición que la del fondo */
- html:not(#zy)[data-style="elegant"] .hc-slide{background:#0b0e18;box-shadow:0 18px 44px rgba(0,0,0,.5);border-radius:22px}
+ html:not(#zy)[data-style="elegant"] .hc-slide{background:#0b0e18;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 10px 22px -4px rgba(0,0,0,.6);border-radius:22px}
  html:not(#zy)[data-style="elegant"] .hc-art{background:none;-webkit-mask-image:none;mask-image:none}
  html:not(#zy)[data-style="elegant"] .hc-art img{position:absolute;inset:auto;left:50%;top:calc(-1 * var(--zy-d,140px));width:100vw;max-width:none;height:var(--zy-h);transform:translateX(-50%);object-fit:cover;object-position:center 20%;transition:none}
- html:not(#zy)[data-style="elegant"] .hc-shade{background:linear-gradient(0deg,rgba(8,10,18,.95) 0%,rgba(8,10,18,.6) 24%,transparent 58%),linear-gradient(90deg,rgba(8,10,18,.6) 0%,transparent 55%);-webkit-mask-image:none;mask-image:none}
+ html:not(#zy)[data-style="elegant"] .hc-shade{background:linear-gradient(0deg,rgba(8,10,18,.82) 0%,rgba(8,10,18,.36) 22%,transparent 46%),linear-gradient(90deg,rgba(8,10,18,.45) 0%,transparent 45%);-webkit-mask-image:none;mask-image:none}
 }
 
 /* --- "Más": el final de la última línea se desvanece y el botón queda encima --- */
