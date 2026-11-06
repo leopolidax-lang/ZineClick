@@ -206,6 +206,21 @@
     '.zep-tx em{font-style:normal;color:#8f9ab5;font-size:13.5px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
     '.zep-msg{padding:26px 6px;text-align:center;color:#9aa6c1;margin:0}' +
     '.zep-hint{margin:16px 0 0;text-align:center;color:#7f8aa6;font-size:12px}' +
+    '.zep-n{font-weight:800;margin-right:2px}.zep-play{display:none}' +
+    '.zep-tx small{order:3;letter-spacing:.3px}' +
+    '@media(min-width:701px){' +
+    '.zep-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:30px 20px;padding:8px 4px}' +
+    '.zep-row{flex-direction:column;align-items:stretch;gap:12px;cursor:pointer}' +
+    '.zep-th{flex:none;width:100%;max-width:none;border-radius:10px;transition:transform .25s,box-shadow .25s}' +
+    '.zep-tx{flex:none;gap:6px}' +
+    '.zep-tx b{font-size:15.5px;font-weight:500;line-height:1.25}' +
+    '.zep-tx em{-webkit-line-clamp:3;font-size:13.5px}' +
+    '.zep-play{display:block;position:absolute;right:12px;bottom:12px;width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.6);border:1.5px solid rgba(255,255,255,.9);opacity:0;transform:scale(.85);transition:opacity .2s,transform .2s}' +
+    '.zep-play:after{content:\"\";position:absolute;left:15px;top:11px;border-left:11px solid #fff;border-top:7px solid transparent;border-bottom:7px solid transparent}' +
+    '.zep-row:hover .zep-th{transform:scale(1.04);box-shadow:0 14px 34px rgba(0,0,0,.6)}' +
+    '.zep-row:hover .zep-th.seen{box-shadow:0 0 0 2px #b46bff,0 14px 34px rgba(0,0,0,.6)}' +
+    '.zep-row:hover .zep-play{opacity:1;transform:none}' +
+    '}' +
     '#zacWrap .zac-sec{margin:0 0 6px}#zacWrap .zac-sec[hidden]{display:none}' +
     '#zacWrap .zac-sub{display:block;color:#8f9ab5;font-size:12px;margin-top:3px}' +
     '#zacWrap .zac-row{display:flex;gap:14px;overflow-x:auto;padding:22px 14px 26px;margin:-20px -14px -14px;scroll-padding-inline:14px;scrollbar-width:none}#zacWrap .zac-row::-webkit-scrollbar{display:none}' +
@@ -360,7 +375,7 @@
     var k = id + ":" + n;
     if (EPC[k]) return Promise.resolve(EPC[k]);
     return W.tmdb("/tv/" + id + "/season/" + n).then(function (d) {
-      return (d.episodes || []).map(function (e) { return { n: e.episode_number, name: e.name || "", still: e.still_path || "", runtime: e.runtime || 0, overview: e.overview || "" }; });
+      return (d.episodes || []).map(function (e) { return { n: e.episode_number, name: e.name || "", still: e.still_path || "", runtime: e.runtime || 0, overview: e.overview || "", date: e.air_date || "" }; });
     }).catch(function () { return []; }).then(function (l) {
       if (!l.length) { l = [{ n: 1, name: "", still: "", runtime: 0, overview: "" }]; }
       return (EPC[k] = l);
@@ -749,12 +764,16 @@
     var l = await epList(z.t.tmdbId, view);
     if (z.view !== view) return;
     list.innerHTML = l.map(function (e) {
-      var lab = (view === 0 ? "Especial" : "T" + view) + " · E" + e.n;
+      var lab = (view === 0 ? "Especial" : "T" + view) + " E" + e.n;
+      var dt = "";
+      if (e.date) { try { dt = new Date(e.date + "T12:00:00").toLocaleDateString("es", { day: "numeric", month: "short", year: "numeric" }); } catch (x) { dt = ""; } }
+      var meta = [e.runtime ? e.runtime + " MIN" : "", dt].filter(Boolean).join(" · ");
       return '<button type="button" class="zep-row" data-e="' + e.n + '">' +
         '<span class="zep-th' + (isSeen(z.t.tmdbId, view, e.n) ? " seen" : "") + '">' +
-        (e.still ? '<img loading="lazy" alt="" draggable="false" src="' + TM + "w300" + E(e.still) + '">' : E(String(e.n))) + "</span>" +
-        '<span class="zep-tx"><small>' + lab + (e.runtime ? " · " + e.runtime + " min" : "") + "</small><b>" + E(e.name || "Episodio " + e.n) + "</b>" +
-        (e.overview ? "<em>" + E(e.overview) + "</em>" : "") + "</span></button>";
+        (e.still ? '<img loading="lazy" alt="" draggable="false" src="' + TM + "w500" + E(e.still) + '">' : E(String(e.n))) + '<i class="zep-play"></i></span>' +
+        '<span class="zep-tx"><b><span class="zep-n">' + lab + "</span> " + E(e.name || "Episodio " + e.n) + "</b>" +
+        (e.overview ? "<em>" + E(e.overview) + "</em>" : "") +
+        (meta ? "<small>" + meta + "</small>" : "") + "</span></button>";
     }).join("");
   }
   function refreshSeen(panel) {
