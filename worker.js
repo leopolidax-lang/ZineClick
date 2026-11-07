@@ -356,14 +356,15 @@ async function doTranslate(req, origin, env) {
   let j;
   try { j = await req.json(); } catch (e) { throw new HttpError(400, "JSON no válido"); }
   const lines = j && j.lines;
-  if (!Array.isArray(lines) || !lines.length || lines.length > 120) throw new HttpError(400, "líneas no válidas");
+  if (!Array.isArray(lines) || !lines.length || lines.length > 200) throw new HttpError(400, "líneas no válidas");
   let total = 0;
   const clean = lines.map((x) => { const t = String(x == null ? "" : x).slice(0, 600); total += t.length; return t; });
-  if (total > 24000) throw new HttpError(413, "bloque demasiado grande");
+  if (total > 40000) throw new HttpError(413, "bloque demasiado grande");
   const title = String(j.title || "").replace(/[\r\n]+/g, " ").slice(0, 120);
   const text = (title ? "Título de la película o serie: " + title + "\n\n" : "") + JSON.stringify(clean);
   const main = String((env && env.GEMINI_MODEL) || "").trim() || "gemini-3.8-flash";
-  const models = main === "gemini-3.6-flash" ? [main] : [main, "gemini-3.6-flash"];
+  const fb = "gemini-3.5-flash-lite"; /* respaldo con más cuota gratuita si el principal está saturado */
+  const models = main === fb ? [main] : [main, fb];
   let lastStatus = 502, lastMsg = "sin respuesta";
   for (const m of models) {
     let skip = false;
@@ -390,7 +391,7 @@ async function doTranslate(req, origin, env) {
       lastStatus = 502; lastMsg = "respuesta de la IA incompleta" + (why ? " (" + why + ")" : "");
     }
   }
-  throw new HttpError(lastStatus === 429 ? 429 : 502, lastMsg);
+  throw new HttpError(lastStatus === 429 || lastStatus === 503 ? 429 : 502, lastMsg);
 }
 
 /* ---------- entrada ---------- */
