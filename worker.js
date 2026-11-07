@@ -9,6 +9,9 @@
    3) GET  /api/tmdb/3/... → consulta TMDB con el secreto TMDB_TOKEN (así el sitio y la app no necesitan que
                      el usuario pegue su propia credencial). Solo lectura y solo rutas de catálogo.
 
+   4) POST /api/translate → traduce líneas de subtítulos al español con Gemini, usando el secreto GEMINI_API_KEY
+                     (opcional: GEMINI_MODEL para cambiar de modelo). La clave nunca llega al navegador ni a GitHub.
+
    Seguridad: solo atiende a las páginas listadas en la variable ALLOWED_ORIGINS, solo https, solo puerto 443
    y nunca a direcciones IP ni a nombres internos. Si ALLOWED_ORIGINS está vacía, rechaza todo. */
 
@@ -308,6 +311,86 @@ async function doTmdb(req, url, origin, env) {
   });
 }
 
+/* ---------- POST /api/translate ---------- */
+const TR_SYS =
+  "Eres un traductor profesional de subtítulos de cine y series. Recibirás un arreglo JSON de líneas de subtítulos (normalmente en inglés) " +
+  "y debes devolver un arreglo JSON con EXACTAMENTE la misma cantidad de elementos: la traducción de cada línea, en la misma posición, al español latinoamericano natural. " +
+  "Reglas: 1) Traducción adaptada, no literal: usa los modismos y expresiones que diría un hispanohablante en esa situación. " +
+  "2) NO censures: conserva las groserías, insultos y el lenguaje vulgar con la misma fuerza y naturalidad (sin asteriscos ni suavizar). " +
+  "3) Mantén el tono, el humor y el registro de cada personaje. 4) Conserva los nombres propios y los saltos de línea (\\n). " +
+  "5) Frases cortas y fáciles de leer en pantalla. 6) Si una línea es solo música, símbolos o números, déjala igual. " +
+  "7) Cada línea es parte de una conversación continua: úsala como contexto de las demás. Responde solo con el arreglo JSON, sin explicaciones.";
+const TR_SAFETY = ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT"]
+  .map((c) => ({ category: c, threshold: "BLOCK_NONE" }));
+
+async function geminiCall(key, model, text, full) {
+  const gc = { responseMimeType: "application/json", responseSchema: { type: "ARRAY", items: { type: "STRING" } } };
+  if (full) gc.thinkingConfig = { thinkingLevel: "low" };
+  return fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: TR_SYS }] },
+      contents: [{ role: "user", parts: [{ text }] }],
+      generationConfig: gc,
+      safetySettings: TR_SAFETY
+    })
+  });
+}
+
+export function parseGemini(j, n) {
+  const parts = (j && j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || [];
+  const txt = parts.map((p) => (p && typeof p.text === "string" ? p.text : "")).join("").replace(/^```(?:json)?\s*|\s*```$/g, "").trim();
+  if (!txt) return null;
+  let arr;
+  try { arr = JSON.parse(txt); } catch (e) { return null; }
+  if (!Array.isArray(arr) || arr.length !== n) return null;
+  return arr.map((x) => String(x == null ? "" : x));
+}
+
+async function doTranslate(req, origin, env) {
+  const key = String((env && env.GEMINI_API_KEY) || "").trim();
+  if (!key) throw new HttpError(500, "falta el secreto GEMINI_API_KEY en el Worker");
+  let j;
+  try { j = await req.json(); } catch (e) { throw new HttpError(400, "JSON no válido"); }
+  const lines = j && j.lines;
+  if (!Array.isArray(lines) || !lines.length || lines.length > 120) throw new HttpError(400, "líneas no válidas");
+  let total = 0;
+  const clean = lines.map((x) => { const t = String(x == null ? "" : x).slice(0, 600); total += t.length; return t; });
+  if (total > 24000) throw new HttpError(413, "bloque demasiado grande");
+  const title = String(j.title || "").replace(/[\r\n]+/g, " ").slice(0, 120);
+  const text = (title ? "Título de la película o serie: " + title + "\n\n" : "") + JSON.stringify(clean);
+  const main = String((env && env.GEMINI_MODEL) || "").trim() || "gemini-3.8-flash";
+  const models = main === "gemini-3.6-flash" ? [main] : [main, "gemini-3.6-flash"];
+  let lastStatus = 502, lastMsg = "sin respuesta";
+  for (const m of models) {
+    let skip = false;
+    for (const full of [true, false]) {
+      if (skip) break;
+      let r;
+      try { r = await geminiCall(key, m, text, full); } catch (e) { lastMsg = "no se pudo conectar con Gemini"; skip = true; continue; }
+      if (r.status !== 200) {
+        lastStatus = r.status;
+        let d = ""; try { const e = await r.json(); d = (e && e.error && e.error.message) || ""; } catch (x) { /* nada */ }
+        lastMsg = "Gemini respondió " + r.status + (d ? ": " + d.slice(0, 160) : "");
+        if (r.status !== 400) skip = true;
+        continue;
+      }
+      let g = null;
+      try { g = await r.json(); } catch (e) { /* nada */ }
+      const out = parseGemini(g, clean.length);
+      if (out) {
+        return new Response(JSON.stringify({ lines: out }), {
+          status: 200, headers: { "content-type": "application/json", "cache-control": "no-store", ...corsHeaders(origin) }
+        });
+      }
+      const why = g && ((g.promptFeedback && g.promptFeedback.blockReason) || (g.candidates && g.candidates[0] && g.candidates[0].finishReason));
+      lastStatus = 502; lastMsg = "respuesta de la IA incompleta" + (why ? " (" + why + ")" : "");
+    }
+  }
+  throw new HttpError(lastStatus === 429 ? 429 : 502, lastMsg);
+}
+
 /* ---------- entrada ---------- */
 export default {
   async fetch(req, env) {
@@ -321,6 +404,7 @@ export default {
       if (url.pathname === "/") return new Response("Zynora proxy OK", { status: 200, headers: { "content-type": "text/plain" } });
       if (!ok) throw new HttpError(403, "origen no permitido (revisa ALLOWED_ORIGINS)");
       if (url.pathname.indexOf("/api/tmdb/") === 0 && req.method === "GET") return await doTmdb(req, url, origin, env);
+      if (url.pathname === "/api/translate" && req.method === "POST") return await doTranslate(req, origin, env);
       if (url.pathname === "/fetch" && req.method === "POST") return await doFetch(req, origin, url.hostname);
       if (url.pathname === "/media" && (req.method === "GET" || req.method === "HEAD")) return await doMedia(req, url, origin);
       throw new HttpError(404, "no encontrado");
