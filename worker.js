@@ -49,9 +49,11 @@ export function checkTarget(raw, selfHost) {
 }
 
 /* ---------- origen permitido ---------- */
+const APP_ORIGINS = ["https://localhost", "http://localhost", "capacitor://localhost", "ionic://localhost"]; /* la app Android/iOS (Capacitor) */
 export function originAllowed(origin, env) {
   const list = String((env && env.ALLOWED_ORIGINS) || "").split(",").map((s) => s.trim().toLowerCase().replace(/\/+$/, "")).filter(Boolean);
   const o = String(origin || "").toLowerCase();
+  if (APP_ORIGINS.indexOf(o) >= 0) return true;
   return list.some((p) => {
     const re = new RegExp("^" + p.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[a-z0-9.-]+") + "$");
     return re.test(o);
