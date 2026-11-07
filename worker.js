@@ -398,13 +398,15 @@ export default {
   async fetch(req, env) {
     const url = new URL(req.url);
     const origin = requestOrigin(req);
-    const ok = !!origin && originAllowed(origin, env);
+    /* la app de Android hace estas peticiones sin cabecera Origin (red nativa): solo para estas tres rutas se acepta sin ella */
+    const nativeOk = !origin && ((url.pathname === "/api/translate" && req.method === "POST") || (url.pathname === "/fetch" && req.method === "POST") || (url.pathname.indexOf("/api/tmdb/") === 0 && req.method === "GET"));
+    const ok = nativeOk || (!!origin && originAllowed(origin, env));
     try {
       if (req.method === "OPTIONS") {
         return ok ? new Response(null, { status: 204, headers: corsHeaders(origin, true) }) : new Response(null, { status: 403 });
       }
       if (url.pathname === "/") return new Response("Zynora proxy OK", { status: 200, headers: { "content-type": "text/plain" } });
-      if (!ok) throw new HttpError(403, "origen no permitido (revisa ALLOWED_ORIGINS)");
+      if (!ok) throw new HttpError(403, "origen no permitido [" + (origin ? origin.slice(0, 60) : "sin origen") + "] (revisa ALLOWED_ORIGINS)");
       if (url.pathname.indexOf("/api/tmdb/") === 0 && req.method === "GET") return await doTmdb(req, url, origin, env);
       if (url.pathname === "/api/translate" && req.method === "POST") return await doTranslate(req, origin, env);
       if (url.pathname === "/fetch" && req.method === "POST") return await doFetch(req, origin, url.hostname);
@@ -415,7 +417,7 @@ export default {
       const msg = String((e && e.message) || e).slice(0, 300);
       return new Response(JSON.stringify({ error: msg }), {
         status,
-        headers: { "content-type": "application/json", ...(ok ? corsHeaders(origin) : {}) }
+        headers: { "content-type": "application/json", ...(ok && origin ? corsHeaders(origin) : {}) }
       });
     }
   }
