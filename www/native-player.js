@@ -584,9 +584,10 @@
             fn: function () { call(kind === "audio" ? "setAudio" : "setSubtitle", { id: Number(x.id) }).catch(noop); remember(kind === "audio" ? "a" : "s", x, list); }
           };
         });
+        if (kind === "subs" && W.ZAI) items = W.ZAI.items().concat(items);
         if (kind === "subs" && eleg() && items.length) items.push({ label: "Estilo de los subtítulos", sub: "Tamaño y fondo", keep: true, fn: function () { sheetKind = "substyle"; } });
         fillSheet(kind === "audio" ? "Audio" : "Subtítulos", items, kind === "audio" ? "Este video no trae otras pistas de audio" : "Este video no trae subtítulos");
-      }).catch(function () { fillSheet(kind === "audio" ? "Audio" : "Subtítulos", [], "No se pudieron leer las pistas"); });
+      }).catch(function () { fillSheet(kind === "audio" ? "Audio" : "Subtítulos", kind === "subs" && W.ZAI ? W.ZAI.items() : [], "No se pudieron leer las pistas"); });
     }
   }
 
@@ -902,6 +903,7 @@
     p.addListener("znpState", function (s) {
       if (!isOpen || !s) return;
       st.time = Number(s.time) || 0; st.length = Number(s.length) || 0; st.playing = !!s.playing; st.buffering = !!s.buffering;
+      try { if (W.ZAI) W.ZAI.tick(st.time, st.playing && !st.buffering, rate); } catch (e) {}
       if (wantUntil) {
         if (st.playing === wantPlay || Date.now() > wantUntil) wantUntil = 0; else st.playing = wantPlay;
       }
@@ -962,6 +964,7 @@
     var p = plug(); if (!p) return false;
     build(); listen(p);
     meta = mt || null; thumbC = {}; thumbBusy = false; thumbOk = true; thumbFail = 0; thumbWant = -1;
+    try { if (W.ZAI) { W.ZAI.attach(root); W.ZAI.open(meta, title, { say: msg, hide: function () { call("setSubtitle", { id: -1 }).catch(noop); } }); } } catch (e) {}
     curUrl = url; subSt = subLoad(); cwOpen = false; subDirty = false; if (ui.cw) ui.cw.hidden = true; root.classList.remove("znp-cwo"); backIcon();
     curTitle = title || ""; fallback = fb || (origPlay ? function () { origPlay({ download: url }, title); } : null); resumed = false; rate = 1; aspect = "fit"; quality = 0; lastSave = 0;
     castName = ""; castSig = ""; clearInterval(castPoll); if (ui.cast) { ui.cast.classList.remove("on"); } root.classList.remove("znp-casting");
@@ -987,6 +990,7 @@
   function close(stopNative) {
     if (!isOpen) return;
     savePos(true); sleepClosed = Date.now();
+    try { if (W.ZAI) W.ZAI.close(); } catch (e) {}
     isOpen = false; wheelHide(); sheetOpen = false; cwOpen = false; subDirty = false; ui.cw.hidden = true; root.classList.remove("znp-cwo"); stopCd(); curSeg = null; segs = [];
     clearTimeout(hideT); clearTimeout(tapT); clearTimeout(applyT); applyT = 0;
     detachBack();

@@ -479,6 +479,7 @@
 
   function bindVideo() {
     ["play", "pause", "playing", "timeupdate", "durationchange", "progress", "seeked", "emptied"].forEach(function (n) { v.addEventListener(n, function () { if (!dragging) paint(); }); });
+    ["timeupdate", "seeked", "play", "pause", "waiting", "playing"].forEach(function (n) { v.addEventListener(n, function () { try { if (W.ZAI) W.ZAI.tick(v.currentTime * 1000, !v.paused && !v.seeking && v.readyState > 2, v.playbackRate || 1); } catch (e) {} }); });
     v.addEventListener("loadedmetadata", function () { avail(); applyAspect(); paint(); });
     v.addEventListener("playing", avail);
     v.addEventListener("ratechange", function () { var r = v.playbackRate; ui.speedB.textContent = r === 1 ? "" : r + "x"; });
@@ -719,7 +720,7 @@
     } else if (kind === "audio") {
       fillSheet("Audio", audioItems(), "Este video no trae otras pistas de audio. El navegador solo puede cambiarlas en listas HLS; con «Abrir con VLC» puedes elegir el idioma.");
     } else if (kind === "subs") {
-      var sit = subItems();
+      var sit = (W.ZAI ? W.ZAI.items() : []).concat(subItems());
       if (sit.length && eleg()) sit.push({ label: "Estilo de los subtítulos", sub: "Tamaño y fondo", keep: true, fn: function () { sheetKind = "substyle"; } });
       fillSheet("Subtítulos", sit, "Este video no trae subtítulos que el navegador pueda mostrar. Con «Abrir con VLC» puedes cargar los del archivo.");
     } else if (kind === "substyle") {
@@ -907,6 +908,15 @@
   function onOpen(title) {
     if (!mount()) return;
     ui.title.textContent = title || "Reproduciendo";
+    try {
+      if (W.ZAI) {
+        W.ZAI.attach(ZR);
+        W.ZAI.open((function () { try { var Z = W.ZAM; return Z && Z.webMeta && Z.webMeta(); } catch (e) { return null; } })(), title, {
+          say: msg,
+          hide: function () { try { var h = hls(); if (h && h.subtitleTracks && h.subtitleTracks.length) h.subtitleTrack = -1; Array.prototype.forEach.call(v.textTracks || [], function (t) { t.mode = "disabled"; }); } catch (e) {} }
+        });
+      }
+    } catch (e) {}
     var c = W._addonCtx;
     ui.sub.textContent = c && c.type === "tv" ? "Temporada " + c.season + " · Episodio " + c.episode : "";
     aspect = "fit"; applyAspect();
@@ -923,6 +933,7 @@
   };
   var origClose = typeof W.rdClosePlayer === "function" ? W.rdClosePlayer : null;
   if (origClose) W.rdClosePlayer = function () {
+    try { if (W.ZAI) W.ZAI.close(); } catch (e) {}
     try {
       if (ZR) {
         sleepClosed = Date.now();
