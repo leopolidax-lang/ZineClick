@@ -8,11 +8,11 @@
   var W = window, D = document;
   var BASE = String(W.ZY_AI_BASE || "https://zineclick.leopolidax.workers.dev").replace(/\/+$/, "");
   var OSUB = "https://opensubtitles-v3.strem.io";
-  var CH = 50, PAR = 2, IDX = "zy_ai_idx", PFX = "zy_ai_c_", AUTO = "zy_ai_auto", SUBK = "zy_sub", KEEP = 6;
+  var CH = 100, PAR = 1, GAP = (typeof W.ZY_AI_GAP === "number" ? W.ZY_AI_GAP : 3000), MAXTRY = 6, IDX = "zy_ai_idx", PFX = "zy_ai_c_", AUTO = "zy_ai_auto", SUBK = "zy_sub", KEEP = 6;
   var noop = function () {};
 
   var S = { phase: "idle", gen: 0, key: "", title: "", cues: [], tr: [], cdone: [], cbusy: [], cfail: [], on: false, off: 0, ms: 0, err: "", cb: {}, meta: null };
-  var el = null, rootEl = null, shown = "", base = { t: 0, at: 0, playing: false, rate: 1 }, loopT = 0, firstHide = false;
+  var lastSay = 0, el = null, rootEl = null, shown = "", base = { t: 0, at: 0, playing: false, rate: 1 }, loopT = 0, firstHide = false;
 
   /* ---------- estilos del texto ---------- */
   var CSS =
@@ -158,7 +158,7 @@
     var n = nChunks(), c0 = curChunk(), i, c;
     for (i = 0; i < n; i++) {
       c = (c0 + i) % n;
-      if (!S.cdone[c] && !S.cbusy[c] && (S.cfail[c] || 0) < 3) return c;
+      if (!S.cdone[c] && !S.cbusy[c] && (S.cfail[c] || 0) < MAXTRY) return c;
     }
     return -1;
   }
@@ -183,14 +183,17 @@
         S.cbusy[c] = false;
         if (gen !== S.gen) return;
         if (!firstHide) { firstHide = true; if (S.on) hideOthers(); say("Subtítulos en español listos para ver"); }
+        S.wait = false;
         if (pct() === 100) { finish(gen); return; }
-        return step();
+        return sleep(GAP).then(step);
       }, function (e) {
         S.cbusy[c] = false;
         if (gen !== S.gen) return;
         S.cfail[c] = (S.cfail[c] || 0) + 1;
         S.err = (e && e.message) || "error";
-        return sleep(e && e.status === 429 ? 6000 : 1500).then(step);
+        var busy = !!(e && (e.status === 429 || e.status === 503)), n = S.cfail[c];
+        if (busy) { S.wait = true; if (Date.now() - lastSay > 25000) { lastSay = Date.now(); say("Gemini está saturado; reintentando solo…"); } }
+        return sleep(busy ? Math.min(60000, 15000 * n) : 2500 * n).then(step);
       });
     }
     return step();
@@ -211,7 +214,7 @@
   function say(t) { try { if (S.cb && S.cb.say) S.cb.say(t); } catch (e) {} }
   function hideOthers() { try { if (S.cb && S.cb.hide) S.cb.hide(); } catch (e) {} }
   function resetState() {
-    S.gen++; S.phase = "idle"; S.key = ""; S.cues = []; S.tr = []; S.cdone = []; S.cbusy = []; S.cfail = []; S.err = ""; S.off = 0; firstHide = false;
+    S.gen++; S.phase = "idle"; S.key = ""; S.cues = []; S.tr = []; S.cdone = []; S.cbusy = []; S.cfail = []; S.err = ""; S.wait = false; S.off = 0; firstHide = false;
     shown = ""; if (el) { el.textContent = ""; el.style.display = "none"; }
   }
   function start() {
@@ -257,6 +260,7 @@
   function retry() {
     var n = nChunks(), c;
     for (c = 0; c < n; c++) S.cfail[c] = 0;
+    S.wait = false;
     if (!S.cues.length) { S.phase = "idle"; start(); return; }
     var gen = ++S.gen; S.phase = "working"; S.on = true; say("Reintentando traducción…");
     runAll(gen);
@@ -276,7 +280,7 @@
       out.push({ label: "Español (IA)", sub: "Traduce los subtítulos del título con Gemini", fn: start });
       return out;
     }
-    var sub = S.phase === "ready" ? "Traducción completa" : S.phase === "loading" ? "Buscando subtítulos…" : S.phase === "error" ? "No se pudo traducir" : "Traduciendo… " + pct() + "%";
+    var sub = S.phase === "ready" ? "Traducción completa" : S.phase === "loading" ? "Buscando subtítulos…" : S.phase === "error" ? "No se pudo traducir" : "Traduciendo… " + pct() + "%" + (S.wait ? " · Gemini saturado, reintentando" : "");
     out.push({ label: "Español (IA)", sub: sub, on: true, fn: stop });
     if (S.phase === "partial" || S.phase === "error") out.push({ label: "Reintentar traducción", sub: S.err || "", fn: retry });
     if (S.cues.length) {
